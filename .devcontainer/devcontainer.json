@@ -1,0 +1,29 @@
+{
+	"name": "Environment + Data",
+	"dockerComposeFile": "docker-compose.yaml",
+	"service": "app",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"remoteEnv": {
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+	},
+	"onCreateCommand": "mkdir -p ${DATA_MOUNTPOINT} && pip install -e .",
+	"hostRequirements": {
+		"cpus": 4,
+		"memory": "8gb",
+		"storage": "32gb"
+	},
+	"forwardPorts": [
+		3306
+	],
+	"customizations": {
+		"settings": {
+			"python.pythonPath": "/usr/local/bin/python"
+		},
+		"vscode": {
+			"extensions": [
+				"ms-python.python@2023.8.0",
+				"ms-toolsai.jupyter@2023.3.1201040234"
+			]
+		}
+	}
+}
