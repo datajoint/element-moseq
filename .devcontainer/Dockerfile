@@ -31,18 +31,23 @@ COPY ./ /tmp/element-moseq/
 
 RUN \
     # pipeline dependencies
-    apt-get install gcc g++ ffmpeg libsm6 libxext6 -y && \
-    pip install --no-cache-dir -e /tmp/element-moseq[elements] && \
+    apt-get update && \
+    apt-get install -y gcc ffmpeg graphviz && \
+    pip install --no-cache-dir -e /tmp/element-moseq[elements,moseq] && \
     # clean up
-    rm -rf /tmp/element-moseq && \
+    rm -rf /tmp/element-moseq/ && \
     apt-get clean
 
 ENV DJ_HOST fakeservices.datajoint.io
 ENV DJ_USER root
 ENV DJ_PASS simple
 
-ENV IMAGING_ROOT_DATA_DIR /workspaces/element-moseq/example_data
+ENV DATA_MOUNTPOINT /workspaces/element-moseq/example_data
+#ENV DLC_ROOT_DATA_DIR $DATA_MOUNTPOINT/inbox
+#ENV DLC_PROCESSED_DATA_DIR $DATA_MOUNTPOINT/outbox
 ENV DATABASE_PREFIX neuro_
 
 USER vscode
 CMD bash -c "sudo rm /var/run/docker.pid; sudo dockerd"
+
+ENV LD_LIBRARY_PATH="/lib:/opt/conda/lib"
