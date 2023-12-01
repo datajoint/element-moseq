@@ -27,18 +27,17 @@ setup(
     scripts=[],
     install_requires=[
         "datajoint>=0.13.0",
+        "pydot",
         "ipykernel>=6.0.1",
         "ipywidgets",
-        "plotly",
     ],
     extras_require={
-        "moseq": ["moseq @ git+https://github.com/dattalab/keypoint-moseq.git"],
+        "default": ["moseq @ git+https://github.com/dattalab/keypoint-moseq.git"],
         "elements": [
-            "element-animal>=0.1.8",
-            "element-event>=0.2.3",
-            "element-interface>=0.6.0",
             "element-lab>=0.3.0",
+            "element-animal>=0.1.8",
             "element-session>=0.1.5",
+            "element-interface>=0.6.0",
         ],
     },
 )
