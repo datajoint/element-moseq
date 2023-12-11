@@ -27,7 +27,6 @@ setup(
     scripts=[],
     install_requires=[
         "datajoint>=0.13.0",
-        "pydot",
         "ipykernel>=6.0.1",
         "ipywidgets",
     ],
