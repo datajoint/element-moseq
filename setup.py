@@ -31,7 +31,7 @@ setup(
         "ipywidgets",
     ],
     extras_require={
-        "default": ["moseq @ git+https://github.com/dattalab/keypoint-moseq.git"],
+        "default": ["keypoint_moseq"],
         "elements": [
             "element-lab>=0.3.0",
             "element-animal>=0.1.8",
