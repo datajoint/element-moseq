@@ -3,7 +3,7 @@
 	"dockerComposeFile": "docker-compose.yaml",
 	"service": "app",
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-	"onCreateCommand": "mkdir -p ${DATA_MOUNTPOINT} && pip install -e .",
+	"onCreateCommand": "pip install -e .",
 	"hostRequirements": {
 		"cpus": 4,
 		"memory": "8gb",

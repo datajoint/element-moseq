@@ -42,7 +42,7 @@ ENV DJ_HOST fakeservices.datajoint.io
 ENV DJ_USER root
 ENV DJ_PASS simple
 
-ENV DATA_MOUNTPOINT /workspaces/element-moseq/example_data
+#ENV DATA_MOUNTPOINT /workspaces/element-moseq/example_data
 #ENV DLC_ROOT_DATA_DIR $DATA_MOUNTPOINT/inbox
 #ENV DLC_PROCESSED_DATA_DIR $DATA_MOUNTPOINT/outbox
 ENV DATABASE_PREFIX neuro_
