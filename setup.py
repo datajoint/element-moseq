@@ -31,7 +31,10 @@ setup(
         "ipywidgets",
     ],
     extras_require={
-        "default": ["keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq"],
+        "kpms_default": [
+            "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq"
+        ],
+        "kpms_apple_mchips": ["jax==0.3.22", "jaxlib==0.3.22", "keypoint_moseq"],
         "elements": [
             "element-lab>=0.3.0",
             "element-animal>=0.1.8",
