@@ -29,12 +29,13 @@ setup(
         "datajoint>=0.13.0",
         "ipykernel>=6.0.1",
         "ipywidgets",
+        "jax==0.4.1",
+        "jaxlib==0.4.1",
     ],
     extras_require={
         "kpms_default": [
             "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq"
         ],
-        "kpms_apple_mchips": ["jax==0.3.22", "jaxlib==0.3.22", "keypoint_moseq"],
         "elements": [
             "element-lab>=0.3.0",
             "element-animal>=0.1.8",
