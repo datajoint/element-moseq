@@ -28,6 +28,7 @@ setup(
     install_requires=["datajoint>=0.13.0", "ipykernel>=6.0.1", "ipywidgets"],
     extras_require={
         "kpms_default": [
+            "ffmpeg",
             "tensorflow==2.12.0",
             "'jax[cuda]==0.4.1' -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html",
             "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq",
