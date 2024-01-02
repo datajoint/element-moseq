@@ -4,7 +4,7 @@ from element_lab import lab
 from element_animal import subject
 from element_session import session_with_datetime as session
 
-from element_moseq import train
+from element_moseq import pca, model
 
 from element_animal.subject import Subject
 from element_lab.lab import Source, Lab, Protocol, User, Project
@@ -91,5 +91,5 @@ class Device(dj.Lookup):
 
 # Activate Keypoint-MoSeq schema -----------------------------------
 
-train.activate(db_prefix + "train", linking_module=__name__)
-# model.activate(db_prefix + "model", linking_module=__name__)
+pca.activate(db_prefix + "pca", linking_module=__name__)
+model.activate(db_prefix + "model", linking_module=__name__)
