@@ -122,30 +122,61 @@ class FittingParamSet(dj.Lookup):
 
 
 @schema
-class Prefitting(dj.Computed):
+class PreFittingTask(dj.Manual):
     definition = """
     -> InitializationParamSet
     -> pca.PCAFitting
     ---
     model_name              : varchar(20)
+    task_mode='load'        : enum('load', 'trigger')  # 'load': load computed analysis results, 'trigger': trigger computation
+    """
+
+
+@schema
+class PreFitting(dj.Computed):
+    definition = """
+    -> PreFittingTask
+    ---
+    model                   : longblob
     """
 
     def make(self, key):
+        # model = kpms.init_model(data, pca=pca, **config())
+        # model = kpms.update_hypparams(model, kappa=kappa)
+        # model, model_name = kpms.fit_model(model, data, metadata, project_dir,ar_only=True, num_iters=num_ar_iters)
+        return
+
 
 @schema
-class Prefitting(dj.Computed):
+class FullFittingTask(dj.Manual):
     definition = """
-    -> Initializing
+    -> Prefitting
+    -> FittingParamSet
+    ---
+    model_name              : varchar(20)
+    task_mode='load'        : enum('load', 'trigger')  # 'load': load computed analysis results, 'trigger': trigger computation
     """
-        return
 
 
 @schema
 class FullFitting(dj.Computed):
     definition = """
-    -> Prefitting
-    -> FittingParamSet
+    -> FullFittingTask
+    ---
+    model                   : longblob    
     """
 
     def make(self, key):
+        # task_mode == "trigger"
+        # modify kappa to maintain the desired syllable time-scale
+        # model = kpms.update_hypparams(model, kappa=1e6)
+
+        # run fitting for an additional 200 iters
+        # model = kpms.fit_model(
+        #    model, data, metadata, project_dir, model_name, ar_only=False,
+        #    start_iter=current_iter, num_iters=current_iter+500)[0]
+        # task_mode == "load"
+        # model_name = '2023_11_27-16_06_07'
+        # model, data, metadata, current_iter = kpms.load_checkpoint(
+        # project_dir, model_name, iteration=num_ar_iters)
         return
