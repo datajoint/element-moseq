@@ -317,6 +317,7 @@ class PCAFitting(dj.Computed):
     -> PCATask
     ---
     pca_fitting_time     : datetime  # Time of generation of the PCA fitting analysis 
+    pca                  : longblob
     """
 
     def make(self, key):
@@ -346,7 +347,7 @@ class PCAFitting(dj.Computed):
         plot_scree(pca, project_dir=project_path)
         plot_pcs(pca, project_dir=project_path, **config())
 
-        self.insert1(**key, pca_fitting_time=creation_time)
+        self.insert1(**key, pca_fitting_time=creation_time, pca=pca)
 
 
 @schema

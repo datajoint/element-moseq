@@ -100,40 +100,52 @@ def get_kpms_processed_data_dir() -> Optional[str]:
 
 
 @schema
-class Kappa(dj.Lookup):
+class InitializationParamSet(dj.Lookup):
     definition = """
-    kappa_id             : int
+    paramset_id             : int
     ---
-    kappa_min_value      : int
-    kappa_max_value      : int
-    kappa_description='' : varchar(1000)
+    num_iterations          : int
+    kappa                   : int
+    paramset_description='' : varchar(1000)
     """
 
 
 @schema
-class InitializingTask(dj.Manual):
+class FittingParamSet(dj.Lookup):
     definition = """
-    -> Session
-
+    paramset_id             : int
+    ---
+    num_iterations          : int
+    kappa                   : int
+    paramset_description='' : varchar(1000)
     """
 
 
 @schema
-class Initializing(dj.Computed):
+class Prefitting(dj.Computed):
     definition = """
-    -> InitializingTask
-"""
+    -> InitializationParamSet
+    -> pca.PCAFitting
+    ---
+    model_name              : varchar(20)
+    """
 
+    def make(self, key):
 
 @schema
 class Prefitting(dj.Computed):
     definition = """
     -> Initializing
     """
+        return
 
 
 @schema
 class FullFitting(dj.Computed):
     definition = """
     -> Prefitting
+    -> FittingParamSet
     """
+
+    def make(self, key):
+        return
