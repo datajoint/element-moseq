@@ -164,35 +164,37 @@ class RecordingInfo(dj.Imported):
     def make(self, key):
         """Populates table with video metadata using CV2."""
 
-        file_path = (KeypointSet.VideoFiles & key).fetch1("video_path")
+        file_paths,video_ids = (KeypointSet.VideoFiles & key).fetch("video_path","video_id")
 
-        nframes = 0
-        px_height, px_width, fps = None, None, None
+        for fp, video_id in zip(file_paths,video_ids):
+            nframes = 0
+            px_height, px_width, fps = None, None, None
 
-        file_path = (find_full_path(get_kpms_root_data_dir(), file_path[0])).as_posix()
+            file_path = (find_full_path(get_kpms_root_data_dir(), fp)).as_posix()
 
-        cap = cv2.VideoCapture(file_path)
-        info = (
-            int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-            int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-            int(cap.get(cv2.CAP_PROP_FPS)),
-        )
-        if px_height is not None:
-            assert (px_height, px_width, fps) == info
-        px_height, px_width, fps = info
-        nframes += int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        cap.release()
+            cap = cv2.VideoCapture(file_path)
+            info = (
+                int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+                int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+                int(cap.get(cv2.CAP_PROP_FPS)),
+            )
+            if px_height is not None:
+                assert (px_height, px_width, fps) == info
+            px_height, px_width, fps = info
+            nframes += int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            cap.release()
 
-        self.insert1(
-            {
-                **key,
-                "px_height": px_height,
-                "px_width": px_width,
-                "nframes": nframes,
-                "fps": fps,
-                "recording_duration": nframes / fps,
-            }
-        )
+            self.insert1(
+                {
+                    **key,
+                    "video_id": video_id,
+                    "px_height": px_height,
+                    "px_width": px_width,
+                    "nframes": nframes,
+                    "fps": fps,
+                    "recording_duration": nframes / fps,
+                }
+            )
 
 
 @schema
