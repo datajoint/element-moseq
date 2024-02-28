@@ -158,25 +158,25 @@ class FullFittingTask(dj.Manual):
     """
 
 
-@schema
-class FullFitting(dj.Computed):
-    definition = """
-    -> FullFittingTask
-    ---
-    model                   : longblob    
-    """
+# @schema
+# class FullFitting(dj.Computed):
+#     definition = """
+#     -> FullFittingTask
+#     ---
+#     model                   : longblob
+#     """
 
-    def make(self, key):
-        # task_mode == "trigger"
-        # modify kappa to maintain the desired syllable time-scale
-        # model = kpms.update_hypparams(model, kappa=1e6)
+# def make(self, key):
+# task_mode == "trigger"
+# modify kappa to maintain the desired syllable time-scale
+# model = kpms.update_hypparams(model, kappa=1e6)
 
-        # run fitting for an additional 200 iters
-        # model = kpms.fit_model(
-        #    model, data, metadata, project_dir, model_name, ar_only=False,
-        #    start_iter=current_iter, num_iters=current_iter+500)[0]
-        # task_mode == "load"
-        # model_name = '2023_11_27-16_06_07'
-        # model, data, metadata, current_iter = kpms.load_checkpoint(
-        # project_dir, model_name, iteration=num_ar_iters)
-        return
+# run fitting for an additional 200 iters
+# model = kpms.fit_model(
+#    model, data, metadata, project_dir, model_name, ar_only=False,
+#    start_iter=current_iter, num_iters=current_iter+500)[0]
+# task_mode == "load"
+# model_name = '2023_11_27-16_06_07'
+# model, data, metadata, current_iter = kpms.load_checkpoint(
+# project_dir, model_name, iteration=num_ar_iters)
+# return
