@@ -4,13 +4,25 @@ import cv2
 from typing import Optional
 import numpy as np
 from datetime import datetime
-
 import inspect
 import importlib
 import os
+import yaml 
 from pathlib import Path
-from element_interface.utils import find_full_path, dict_to_uuid
+from element_interface.utils import find_full_path
+from .readers.kpms_reader import generate_dj_config
+from keypoint_moseq import (
+            setup_project,
+            load_config,
+            load_keypoints,
+            format_data,
+            load_pca,
+            fit_pca,
+            save_pca,
+            check_config_validity
+        )
 
+        
 schema = dj.schema()
 _linking_module = None
 
@@ -286,23 +298,21 @@ class PCATask(dj.Manual):
     ---
     project_path='' : varchar(255)             # KPMS's project_path in config relative to root
     task_mode='load' : enum('load', 'trigger') # 'load': load computed analysis results, 'trigger': trigger computation
+    variance_threshold : float                 # Variance threshold to be explained by the PCA model
     """
 
 @schema
-class FormattedDataset(dj.Imported):
+class FormattedDataset(dj.Imported): # --> TO-DO: change name for a more intuitive option
     """
-    Table for storing the formatted dataset.
+    Table for storing the formatted dataset and update the config.yml by creating a new dj_config.yml in the project path (output_dir)
     """
 
     definition = """
     -> PCATask
     ---
-    config                  : longblob # stored full config file
     coordinates             : longblob
     confidences             : longblob             
-    bodyparts               : longblob
-    data                    : longblob
-    metadata                : longblob
+    formatted_bodyparts     : longblob
     """
 
     def make(self, key):
@@ -333,21 +343,12 @@ class FormattedDataset(dj.Imported):
         method = (KeypointSet & key).fetch1("kpset_method")
         format = (PoseEstimationMethod & {'format':method}).fetch1("format")
         kpset_config_path, kpset_videos_path = (KeypointSet & key).fetch1("kpset_config_path","kpset_videos_path")
-            
-        from keypoint_moseq import (setup_project,
-                                    load_config,
-                                    check_config_validity,
-                                    update_config,
-                                    load_keypoints,
-                                    format_data)   
         
         if task_mode == "trigger":
             config = setup_project(
                     project_path, deeplabcut_config=kpset_config_path
-                ) # setup a project directory for deeplabcut, sleap or nwb config, and generate a `config.yml` file with project settings. Overwrite by default is false. If the project dir already exists, pick a different project dir name. 
+                ) 
 
-
-        # TO-DO: Here there should be the creation of a DJ_config file to update the new bodyparts
         elif task_mode == "load":
             config_kwargs_dict = dict(
             video_dir = kpset_videos_path,
@@ -355,156 +356,129 @@ class FormattedDataset(dj.Imported):
             posterior_bodyparts = posterior_bodyparts,
             use_bodyparts = use_bodyparts)
             
-        ## The following function `update_config` does the following: (1) config = load_config(...), (2) config.update(kwargs), (3) generate_config(project_dir, **config)
-            update_config(
-            project_path,
-            **config_kwargs_dict
-        )
+            # Update the config with new video_dir and bodyparts and save it as `dj_config.yml`        
+            config = load_config(project_path, check_if_valid=True, build_indexes=False)
+            config.update(**config_kwargs_dict)
+            generate_dj_config(project_path, **config)
 
-        # To check load_config, this is the function:
-        # check_if_valid = True
-        # build_indexes = True
-        # config_path = os.path.join(project_path, "config.yml")
-
-        ## Proposal: Instead of updating the new bodyparts in the original kpms_config file, the previous function will be splitted to create a new config file instead named `dj_config.yml` with the new bodyparts
-            # config=load_config(project_path, check_if_valid=False, build_indexes=False)
-            # config.update(config_kwargs_dict)
-            # generate a new config file, not overwriting the original config file
-
-
-        # load data from deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap
-        coordinates, confidences, bodyparts = load_keypoints(
+        # load keypoints data from deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap
+        coordinates, confidences, formatted_bodyparts = load_keypoints(
             filepath_pattern=kpset_videos_path, format=format
         )
         
-        # coordinates: dict
-        #     Dictionary mapping filenames to keypoint coordinates as ndarrays of
-        #     shape (n_frames, n_bodyparts, 2[or 3])
-
-        # confidences: dict
-        #     Dictionary mapping filenames to `likelihood` scores as ndarrays of
-        #     shape (n_frames, n_bodyparts)
-
-        # bodyparts: list of str
-        #     List of bodypart names. The order of the names matches the order of the
-        #     bodyparts in `coordinates` and `confidences`.
-
-        # formatted_bodyparts is not necessarily the same as use_bodyparts
-
-
-
-        # format data for modeling
-        # Data are transformed as follows:
-        #     1. Coordinates and confidences are each merged into a single array
-        #        using :py:func:`keypoint_moseq.util.batch`. Each row of the merged
-        #        arrays is a segment from one recording.
-        #     2. The keypoints axis is reindexed according to the order of elements
-        #        in `use_bodyparts` with respect to their initial orer in
-        #        `bodyparts`.
-        #     3. Uniform noise proportional to `added_noise_level` is added to the
-        #        keypoint coordinates to prevent degenerate solutions during fitting.
-        #     4. Keypoint confidences are augmented by `conf_pseudocount`.
-        #     5. Wherever NaNs occur in the coordinates, they are replaced by values
-        #        imputed using linear interpolation, and the corresponding
-        #        confidences are set to `conf_pseudocount`.
-
-        # TO-DO: fix issue with the config["anterior_idxs"] since they are iterated as characters, not words, and rise an error: ` 'n' is not in list`
-        data, metadata = format_data(
-            **config, coordinates=coordinates, confidences=confidences
-        )
-        # data: dict with the following items
-        #     Y: jax array with shape (n_segs, seg_length, K, D)
-        #         Keypoint coordinates from all recordings broken into fixed-length segments.
-
-        #     conf: jax array with shape (n_segs, seg_length, K)
-        #         Confidences from all recordings broken into fixed-length segments. If no input is provided for confidences, then data["conf"]=None.
-
-        #     mask: jax array with shape (n_segs, seg_length)
-        #         Binary array where 0 indicates areas of padding
-        #         (see keypoint_moseq.util.batch).
-
-        # metadata: tuple (keys, bounds)
-        #     Metadata for the rows of Y, conf and mask, as a tuple with a array of recording names and an array of (start,end) times. See
-        #     jax_moseq.utils.batch for details.
-
-
-        # TO-DO: store data and metadata in files (Not allowed to store this jax data type as longblob in the table)
-
-        self.FormattedDataset.insert1(
+        self.insert1(
             dict(
                 **key,
-                config=config,
                 coordinates=coordinates,
                 confidences=confidences,
-                bodyparts=bodyparts,
-                # data=data, -----> should be saved as a file
-                # metadata=metadata,-----> should be saved as a file
+                formatted_bodyparts=formatted_bodyparts
             )
         )
 
 
 @schema
 class PCAFitting(dj.Computed):
+    
     definition = """
-    -> FormattedDataset
-    pca_fitting_id       : int 
+    -> PCATask
     ---
-    pca_fitting_time     : datetime  # Time of generation of the PCA fitting analysis 
-    pca                  : longblob
+    pca_fitting_time = NULL    : datetime  # Time of generation of the PCA fitting analysis 
     """
 
     def make(self, key):
-        from keypoint_moseq import (
-            load_pca,
-            fit_pca,
-            save_pca,
-            print_dims_to_explain_variance,
-            plot_scree,
-            plot_pcs,
-        )
 
         task_mode, project_path = (PCATask & key).fetch1("task_mode", "project_path")
-        config = (PCATask.FormattedDataset & key).fetch1( "config")
+        config = load_config(project_path, check_if_valid=True, build_indexes=False)
+        coordinates, confidences = (FormattedDataset & key).fetch1(
+            "coordinates", "confidences"
+        )
 
-        # data = ---> Load data from the file saved in the previous table
-        
-        project_path = find_full_path(get_kpms_root_data_dir(), project_path)
+        data, metadata = format_data(
+            **config, coordinates=coordinates, confidences=confidences
+        )
 
-        if task_mode == "load":
-            pca = load_pca(**data, **config())
-
-        elif task_mode == "trigger":
-            pca = fit_pca(**data, **config())
-            save_pca(pca, project_path)
+        if task_mode == "trigger":
+            pca = fit_pca(data, **config)
+            pca_path = os.path.join(project_path, "pca_{}.p".format(key["pca_fitting_id"]))
+            save_pca(pca, pca_path) # The model is saved
             creation_time = datetime.strftime("%Y-%m-%d %H:%M:%S")
 
-        print_dims_to_explain_variance(pca, 0.9)
-        plot_scree(pca, project_dir=project_path)
-        plot_pcs(pca, project_dir=project_path, **config())
-
-        self.insert1(**key, pca_fitting_time=creation_time, pca=pca)
+            self.insert1(**key, pca_fitting_time=creation_time)
 
 
 @schema
-class LatentDimension(dj.Lookup):
+class LatentDimensionSet(dj.Lookup):
+    """
+    This table is used to store the number of latent dimensions to be used in the analysis (manually inserted or computed from the variance threshold by the DimsExplainedVariance table).
+    """
     definition = """
     latent_dim                : int
     ---
     latent_dim_description='' : varchar(1000)
     """
+@schema
+class DimsExplainedVariance(dj.Computed):
+    """
+    This is an optional table to compute and store the latent dimensions that explain a certain specified variance threshold.
+    """
+    definition = """
+    -> PCATask
+    ---
+    variance_percentage     : float 
+    dims_explained_variance : int
+    """
+    
+    def make(self, key):
+        variance_threshold, project_path = (PCATask & key).fetch1("variance_threshold","project_path")
+        pca = load_pca(project_path)
+        cs = np.cumsum(pca.explained_variance_ratio_)
+        # explained_variance_ratio_ndarray of shape (n_components,)
+        # Percentage of variance explained by each of the selected components.
+        # If n_components is not set then all components are stored and the sum of the ratios is equal to 1.0.
+        if cs[-1] < variance_threshold: 
+                dims_explained_variance = len(cs)
+                variance_percentage = cs[-1]*100
+                LatentDimensionSet.insert1(dict(latent_dim = dims_explained_variance,
+                                        latent_dim_description= (f"All components together only explain {cs[-1]*100}% of variance.")))
 
+        else:
+                dims_explained_variance = (cs>variance_threshold).nonzero()[0].min()+1
+                variance_percentage = variance_threshold*100
+                LatentDimensionSet.insert1(dict(latent_dim= dims_explained_variance,
+                                        latent_dim_description= (f">={variance_threshold*100}% of variance exlained by {(cs>variance_threshold).nonzero()[0].min()+1} components.")))
+        
+        self.insert1(dict(**key, 
+                          variance_percentage = variance_percentage,
+                          dims_explained_variance=dims_explained_variance))
+
+        
+@schema
+class UpdateLatentDimensionTask(dj.Manual):
+    """
+    This table allows the user to choose between the manual or computed latent dimension from the LatentDimension table for a PCA model.
+    """
+    definition = """
+    -> PCATask
+    latent_dim : int
+    """
 
 @schema
 class UpdateLatentDimension(dj.Computed):
-    definition = """
-    -> PCAFitting
-    -> LatentDimension
     """
-
+    This table updates the chosen latent dimension in the UpdateLatentDimensionTask in the `dj_config.yml` file.
+    """
+    definition="""
+    ->UpdateLatentDimensionTask
+    """
+    
     def make(self, key):
-        # update latent_dim in config_file
-        from keypoint_moseq import update_config
-
         project_path = (PCATask & key).fetch1("project_path")
-        latent_dim = (LatentDimension & key).fetch1("latent_dim")
-        update_config(project_path, latent_dim=latent_dim)
+        latent_dim = (UpdateLatentDimensionTask & key).fetch1("latent_dim")
+
+        # Update the `dj_config.yml` with a possible new latent_dir    
+        config_path = os.path.join(project_path, "dj_config.yml")
+        with open(config_path, "r") as stream:
+            config = yaml.safe_load(stream)
+        check_config_validity(config)
+        config.update(dict(latent_dim = int(latent_dim)))
+        generate_dj_config(project_path, **config)
