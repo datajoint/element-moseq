@@ -109,18 +109,19 @@ def get_kpms_processed_data_dir() -> Optional[str]:
 
 # ----------------------------- Table declarations ----------------------
 
+
 @schema
 class PoseEstimationMethod(dj.Lookup):
     """Table for storing the pose estimation method used to obtain the keypoints data.
 
     Attributes:
-        format (str)                : Pose estimation method.
+        format_method (str)                : Pose estimation method.
         pose_estimation_desc (str)  : Pose estimation method description.
     """
 
     definition = """ 
     # Parameters used to obtain the keypoints data based on a specific pose estimation method.        
-    format                          : char(15)         # deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap,
+    format_method                          : char(15)         # deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap,
     ---
     pose_estimation_desc            : varchar(1000)    # Optional. Pose estimation method description
     """
@@ -337,10 +338,8 @@ class FormattedDataset(dj.Imported): # --> TO-DO: change name for a more intuiti
         )
         project_path = (PCATask & key).fetch1("project_path")
         task_mode = (PCATask & key).fetch1("task_mode")
-        method = (KeypointSet & key).fetch1("kpset_method")
-        format = (PoseEstimationMethod & {'format':method}).fetch1("format")
-        kpset_config_path, kpset_videos_path = (KeypointSet & key).fetch1("kpset_config_path","kpset_videos_path")
-        
+        format_method = (KeypointSet & key).fetch1("format_method")
+        kpset_config_dir, kpset_videos_dir = (KeypointSet & key).fetch1(
         if task_mode == "trigger":
             config = setup_project(
                     project_path, deeplabcut_config=kpset_config_path
@@ -360,7 +359,7 @@ class FormattedDataset(dj.Imported): # --> TO-DO: change name for a more intuiti
 
         # load keypoints data from deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap
         coordinates, confidences, formatted_bodyparts = load_keypoints(
-            filepath_pattern=kpset_videos_path, format=format
+            filepath_pattern=kpset_videos_dir, format=format_method
         )
         
         self.insert1(
