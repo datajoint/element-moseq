@@ -89,7 +89,7 @@ class Device(dj.Lookup):
     ]
 
 
-# Activate Keypoint-MoSeq schema -----------------------------------
+# Activate element-moseq schemas -----------------------------------
 
 kpms_pca.activate(db_prefix + "kpms_pca", linking_module=__name__)
 kpms_model.activate(db_prefix + "kpms_model", linking_module=__name__)
