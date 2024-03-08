@@ -1,13 +1,10 @@
 import datajoint as dj
-import matplotlib.pyplot as plt
-import cv2
 from typing import Optional
 
 import inspect
 import importlib
-import os
 from pathlib import Path
-from element_interface.utils import find_full_path, dict_to_uuid
+from element_interface.utils import find_full_path
 
 schema = dj.schema()
 _linking_module = None
