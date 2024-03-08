@@ -142,8 +142,8 @@ class KeypointSet(dj.Manual):
 
     Attributes:
         kpset_id (int): Unique ID for each keypoint set.
-        kpset_config_path (str): Path relative to root data directory where the config file is located.
-        kpset_videos_path (str): Path relative to root data directory where the videos and their keypoints are located.
+        kpset_config_dir (str): Path relative to root data directory where the config file is located.
+        kpset_videos_dir (str): Path relative to root data directory where the videos and their keypoints are located.
         kpset_description (str): Optional. User-entered description.
     """
 
@@ -152,9 +152,9 @@ class KeypointSet(dj.Manual):
     kpset_id                        : int
     ---
     -> PoseEstimationMethod
-    kpset_config_path               : varchar(255)  # Path relative to root data directory where the config file is located
+    kpset_config_dir               : varchar(255)  # Path relative to root data directory where the config file is located
     kpset_videos_dir                : varchar(255)  # Path relative to root data directory where the videos and their keypoints are located
-    kpset_description=''            : varchar(300)  # Optional. User-entered description
+    kpset_desc=''            : varchar(300)  # Optional. User-entered description
     """
 
     class VideoFile(dj.Part):
@@ -288,14 +288,14 @@ class PCATask(dj.Manual):
         KeypointSet (foreign key)       : Unique ID for each keypoint set.
         Bodyparts (foreign key)         : Unique ID for each bodypart.
         pca_task_id (int)               : Unique ID for each PCA task.
-        project_path (str)              : KPMS's project_path in config relative to root
+        output_dir (str)                : KPMS's output directory in config relative to root
         task_mode (str)                 : 'load': load computed analysis results, 'trigger': trigger computation
     """
 
     definition = """ 
     -> Bodyparts
     ---
-    project_path='' : varchar(255)             # KPMS's project_path in config relative to root
+    output_dir='' : varchar(255)             # KPMS's output directory in config relative to root
     task_mode='load' : enum('load', 'trigger') # 'load': load computed analysis results, 'trigger': trigger computation
     """
 
@@ -336,7 +336,7 @@ class FormattedDataset(dj.Imported): # --> TO-DO: change name for a more intuiti
             "posterior_bodyparts",
             "use_bodyparts",
         )
-        project_path = (PCATask & key).fetch1("project_path")
+        output_dir = (PCATask & key).fetch1("output_dir")
         task_mode = (PCATask & key).fetch1("task_mode")
         format_method = (KeypointSet & key).fetch1("format_method")
         kpset_config_dir, kpset_videos_dir = (KeypointSet & key).fetch1(
@@ -347,15 +347,10 @@ class FormattedDataset(dj.Imported): # --> TO-DO: change name for a more intuiti
 
         elif task_mode == "load":
             config_kwargs_dict = dict(
-            video_dir = kpset_videos_path,
-            anterior_bodyparts = anterior_bodyparts,
-            posterior_bodyparts = posterior_bodyparts,
-            use_bodyparts = use_bodyparts)
-            
-            # Update the config with new video_dir and bodyparts and save it as `dj_config.yml`        
-            config = load_config(project_path, check_if_valid=True, build_indexes=False)
+            # ---- Build and save DLC configuration (yaml) file ----
+            config = load_config(output_dir, check_if_valid=True, build_indexes=False)
             config.update(**config_kwargs_dict)
-            generate_dj_config(project_path, **config)
+            generate_dj_config(output_dir, **config)
 
         # load keypoints data from deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap
         coordinates, confidences, formatted_bodyparts = load_keypoints(
@@ -382,11 +377,10 @@ class PCAFitting(dj.Computed):
     """
 
     def make(self, key):
-
-        task_mode, project_path = (PCATask & key).fetch1("task_mode", "project_path")
+        task_mode, output_dir = (PCATask & key).fetch1("task_mode", "output_dir")
 
         if task_mode == "trigger":
-            config = load_config(project_path, check_if_valid=True, build_indexes=False)
+            config = load_config(output_dir, check_if_valid=True, build_indexes=False)
             coordinates, confidences = (FormattedDataset & key).fetch1(
                 "coordinates", "confidences"
             )
@@ -396,8 +390,10 @@ class PCAFitting(dj.Computed):
             )
 
             pca = fit_pca(data, **config)
-            pca_path = os.path.join(project_path, "pca_{}.p".format(key["pca_fitting_id"]))
-            save_pca(pca, pca_path) # The model is saved
+            pca_path = os.path.join(
+                output_dir, "pca_{}.p".format(key["pca_fitting_id"])
+            )
+            save_pca(pca, pca_path)  # The model is saved
             creation_time = datetime.utcnow()
         else:
             creation_time = None
@@ -416,12 +412,14 @@ class DimsExplainedVariance(dj.Computed):
     ---
     variance_percentage     : float 
     dims_explained_variance : int
-    latent_dim_description: varchar(1000)
+    latent_dim_desc: varchar(1000)
     """
     
     def make(self, key):
-        variance_threshold, project_path = (PCATask & key).fetch1("variance_threshold","project_path")
-        pca = load_pca(project_path)
+        variance_threshold, output_dir = (PCATask & key).fetch1(
+            "variance_threshold", "output_dir"
+        )
+        pca = load_pca(output_dir)
         cs = np.cumsum(pca.explained_variance_ratio_)
         # explained_variance_ratio_ndarray of shape (n_components,)
         # Percentage of variance explained by each of the selected components.
