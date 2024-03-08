@@ -100,32 +100,12 @@ def get_kpms_processed_data_dir() -> Optional[str]:
 
 
 @schema
-class InitializationParamSet(dj.Lookup):
-    definition = """
-    paramset_id             : int
-    ---
-    num_iterations          : int
-    kappa                   : int
-    paramset_description='' : varchar(1000)
-    """
-
-
-@schema
-class FittingParamSet(dj.Lookup):
-    definition = """
-    paramset_id             : int
-    ---
-    num_iterations          : int
-    kappa                   : int
-    paramset_description='' : varchar(1000)
-    """
-
-
-@schema
 class PreFittingTask(dj.Manual):
     definition = """
-    -> InitializationParamSet
     -> pca.PCAFitting
+    laten_dim               : int
+    kappa                   : int
+    num_iterations          : int
     ---
     model_name              : varchar(20)
     task_mode='load'        : enum('load', 'trigger')  # 'load': load computed analysis results, 'trigger': trigger computation
@@ -138,9 +118,17 @@ class PreFitting(dj.Computed):
     -> PreFittingTask
     ---
     model                   : longblob
+    suggested_laten_dim: int
+    suggested_kappa: int
+    suggested_num_iterations: int
     """
 
     def make(self, key):
+        # latent_dim = (PreFittingTask & key).fetch1("latent_dim")
+        # config = load_config()
+        # check_config_validity(config)
+        # config.update(dict(latent_dim = int(latent_dim)))
+
         # model = kpms.init_model(data, pca=pca, **config())
         # model = kpms.update_hypparams(model, kappa=kappa)
         # model, model_name = kpms.fit_model(model, data, metadata, project_dir,ar_only=True, num_iters=num_ar_iters)
@@ -150,8 +138,10 @@ class PreFitting(dj.Computed):
 @schema
 class FullFittingTask(dj.Manual):
     definition = """
-    -> Prefitting
-    -> FittingParamSet
+    -> pca.PCAFitting
+    laten_dim               : int
+    kappa                   : int
+    num_iterations          : int
     ---
     model_name              : varchar(20)
     task_mode='load'        : enum('load', 'trigger')  # 'load': load computed analysis results, 'trigger': trigger computation

@@ -150,14 +150,13 @@ class KeypointSet(dj.Manual):
     -> Session
     kpset_id                        : int
     ---
-    kpset_method                    : varchar(15)   # deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap
+    -> PoseEstimationMethod
     kpset_config_path               : varchar(255)  # Path relative to root data directory where the config file is located
-    kpset_videos_path               : varchar(255)  # Path relative to root data directory where the videos and their keypoints are located
+    kpset_videos_dir                : varchar(255)  # Path relative to root data directory where the videos and their keypoints are located
     kpset_description=''            : varchar(300)  # Optional. User-entered description
-
     """
 
-    class VideoFiles(dj.Part):
+    class VideoFile(dj.Part):
         """IDs and file paths of each video file.
 
         Atribbutes:
@@ -169,7 +168,7 @@ class KeypointSet(dj.Manual):
         -> master
         video_id                    : int
         ---
-        video_path                  : varchar(255) # Filepath of each video, relative to root data directory
+        video_path                  : varchar(1000) # Filepath of each video, relative to root data directory
         """
 
 
@@ -188,7 +187,7 @@ class RecordingInfo(dj.Imported):
     """
 
     definition = """
-    -> KeypointSet.VideoFiles
+    -> KeypointSet
     ---
     px_height                 : smallint  # Height in pixels
     px_width                  : smallint  # Width in pixels
@@ -272,6 +271,7 @@ class Bodyparts(dj.Manual):
     -> KeypointSet
     bodyparts_id                : int
     ---
+    bodyparts_desc=''           : varchar(1000)
     anterior_bodyparts          : blob  # List of strings of anterior bodyparts
     posterior_bodyparts         : blob  # List of strings of posterior bodyparts
     use_bodyparts               : blob  # List of strings of bodyparts to be used
@@ -292,13 +292,10 @@ class PCATask(dj.Manual):
     """
 
     definition = """ 
-    -> KeypointSet
     -> Bodyparts
-    pca_task_id: int
     ---
     project_path='' : varchar(255)             # KPMS's project_path in config relative to root
     task_mode='load' : enum('load', 'trigger') # 'load': load computed analysis results, 'trigger': trigger computation
-    variance_threshold : float                 # Variance threshold to be explained by the PCA model
     """
 
 @schema
@@ -380,52 +377,47 @@ class FormattedDataset(dj.Imported): # --> TO-DO: change name for a more intuiti
 class PCAFitting(dj.Computed):
     
     definition = """
-    -> PCATask
+    -> FormattedDataset
     ---
-    pca_fitting_time = NULL    : datetime  # Time of generation of the PCA fitting analysis 
+    pca_fitting_time=NULL    : datetime  # Time of generation of the PCA fitting analysis 
     """
 
     def make(self, key):
 
         task_mode, project_path = (PCATask & key).fetch1("task_mode", "project_path")
-        config = load_config(project_path, check_if_valid=True, build_indexes=False)
-        coordinates, confidences = (FormattedDataset & key).fetch1(
-            "coordinates", "confidences"
-        )
-
-        data, metadata = format_data(
-            **config, coordinates=coordinates, confidences=confidences
-        )
 
         if task_mode == "trigger":
+            config = load_config(project_path, check_if_valid=True, build_indexes=False)
+            coordinates, confidences = (FormattedDataset & key).fetch1(
+                "coordinates", "confidences"
+            )
+
+            data, metadata = format_data(
+                **config, coordinates=coordinates, confidences=confidences
+            )
+
             pca = fit_pca(data, **config)
             pca_path = os.path.join(project_path, "pca_{}.p".format(key["pca_fitting_id"]))
             save_pca(pca, pca_path) # The model is saved
-            creation_time = datetime.strftime("%Y-%m-%d %H:%M:%S")
+            creation_time = datetime.utcnow()
+        else:
+            creation_time = None
 
-            self.insert1(**key, pca_fitting_time=creation_time)
+        self.insert1(**key, pca_fitting_time=creation_time)
 
-
-@schema
-class LatentDimensionSet(dj.Lookup):
-    """
-    This table is used to store the number of latent dimensions to be used in the analysis (manually inserted or computed from the variance threshold by the DimsExplainedVariance table).
-    """
-    definition = """
-    latent_dim                : int
-    ---
-    latent_dim_description='' : varchar(1000)
-    """
+    
 @schema
 class DimsExplainedVariance(dj.Computed):
     """
     This is an optional table to compute and store the latent dimensions that explain a certain specified variance threshold.
     """
     definition = """
-    -> PCATask
+    -> PCAFitting
+    variance_threshold : float                 # Variance threshold to be explained by the PCA model
     ---
     variance_percentage     : float 
     dims_explained_variance : int
+    latent_dim_description: varchar(1000)
     """
     
     def make(self, key):
@@ -436,49 +428,15 @@ class DimsExplainedVariance(dj.Computed):
         # Percentage of variance explained by each of the selected components.
         # If n_components is not set then all components are stored and the sum of the ratios is equal to 1.0.
         if cs[-1] < variance_threshold: 
-                dims_explained_variance = len(cs)
-                variance_percentage = cs[-1]*100
-                LatentDimensionSet.insert1(dict(latent_dim = dims_explained_variance,
-                                        latent_dim_description= (f"All components together only explain {cs[-1]*100}% of variance.")))
-
+            dims_explained_variance = len(cs)
+            variance_percentage = cs[-1]*100
+            latent_dim_description= f"All components together only explain {cs[-1]*100}% of variance."
         else:
-                dims_explained_variance = (cs>variance_threshold).nonzero()[0].min()+1
-                variance_percentage = variance_threshold*100
-                LatentDimensionSet.insert1(dict(latent_dim= dims_explained_variance,
-                                        latent_dim_description= (f">={variance_threshold*100}% of variance exlained by {(cs>variance_threshold).nonzero()[0].min()+1} components.")))
+            dims_explained_variance = (cs>variance_threshold).nonzero()[0].min()+1
+            variance_percentage = variance_threshold*100
+            latent_dim_description= f">={variance_threshold*100}% of variance exlained by {(cs>variance_threshold).nonzero()[0].min()+1} components."
         
         self.insert1(dict(**key, 
                           variance_percentage = variance_percentage,
-                          dims_explained_variance=dims_explained_variance))
-
-        
-@schema
-class UpdateLatentDimensionTask(dj.Manual):
-    """
-    This table allows the user to choose between the manual or computed latent dimension from the LatentDimension table for a PCA model.
-    """
-    definition = """
-    -> PCATask
-    latent_dim : int
-    """
-
-@schema
-class UpdateLatentDimension(dj.Computed):
-    """
-    This table updates the chosen latent dimension in the UpdateLatentDimensionTask in the `dj_config.yml` file.
-    """
-    definition="""
-    ->UpdateLatentDimensionTask
-    """
-    
-    def make(self, key):
-        project_path = (PCATask & key).fetch1("project_path")
-        latent_dim = (UpdateLatentDimensionTask & key).fetch1("latent_dim")
-
-        # Update the `dj_config.yml` with a possible new latent_dir    
-        config_path = os.path.join(project_path, "dj_config.yml")
-        with open(config_path, "r") as stream:
-            config = yaml.safe_load(stream)
-        check_config_validity(config)
-        config.update(dict(latent_dim = int(latent_dim)))
-        generate_dj_config(project_path, **config)
+                          dims_explained_variance=dims_explained_variance,
+                          latent_dim_description=latent_dim_description))
