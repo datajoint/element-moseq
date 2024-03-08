@@ -32,8 +32,9 @@ COPY ./ /tmp/element-moseq/
 RUN \
     # pipeline dependencies
     apt-get update && \
-    apt-get install -y gcc ffmpeg graphviz && \
-    pip install --no-cache-dir -e /tmp/element-moseq[elements] && \
+    apt-get install gcc g++ ffmpeg -y && \
+    pip install "jax[cpu]==0.3.22" -f https://storage.googleapis.com/jax-releases/jax_releases.html && \
+    pip install --no-cache-dir -e /tmp/element-moseq[elements,kpms_default] && \
     # clean up
     rm -rf /tmp/element-moseq/ && \
     apt-get clean

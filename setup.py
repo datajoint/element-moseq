@@ -25,13 +25,11 @@ setup(
     keywords="neuroscience keypoint-moseq science datajoint",
     packages=find_packages(exclude=["contrib", "docs", "tests*"]),
     scripts=[],
-    install_requires=["datajoint>=0.13.0", "ipykernel>=6.0.1", "ipywidgets"],
+    install_requires=["datajoint>=0.13.0"],
     extras_require={
         "kpms_default": [
-            "ffmpeg",
-            "tensorflow==2.12.0",
-            "'jax[cuda]==0.4.1' -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html",
-            "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq",
+            "panel==1.3.4",
+            "keypoint-moseq",
         ],
         "elements": [
             "element-lab>=0.3.0",
