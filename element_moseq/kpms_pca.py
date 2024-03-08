@@ -175,10 +175,10 @@ class KeypointSet(dj.Manual):
 
 @schema
 class RecordingInfo(dj.Imported):
-    """Automated table to store video metadata.
+    """Automated table to store the average metadata from the videoset associated with a kpset_id.
 
     Attributes:
-        KeypointSet.VideoFiles (foreign key)    : Unique ID for each video.
+        KeypointSet (foreign key)               : Unique ID for each video set.
         px_height (smallint)                    : Height in pixels.
         px_width (smallint)                     : Width in pixels.
         nframes (int)                           : Number of frames.
@@ -190,18 +190,18 @@ class RecordingInfo(dj.Imported):
     definition = """
     -> KeypointSet
     ---
-    px_height                 : smallint  # Height in pixels
-    px_width                  : smallint  # Width in pixels
-    nframes                   : int       # Number of frames 
-    fps = NULL                : int       # Optional. Frames per second, Hz
+    px_height_average                 : smallint  # Height in pixels
+    px_width_average                  : smallint  # Width in pixels
+    nframes_average                   : int       # Number of frames 
+    fps_average = NULL                : int       # Optional. Frames per second, Hz
     recording_datetime = NULL : datetime  # Optional. Datetime for the start of the recording
-    recording_duration        : float     # Video duration (s) from nframes / fps
+    recording_duration_average        : float     # Video duration (s) from nframes / fps
     """
 
     @property
     def key_source(self):
         """Defines order of keys for the make function when called via `populate()`"""
-        return KeypointSet & KeypointSet.VideoFiles
+        return KeypointSet & KeypointSet.VideoFile
 
     def make(self, key):
         """
@@ -221,39 +221,42 @@ class RecordingInfo(dj.Imported):
 
         """
 
-        file_paths, video_ids = (KeypointSet.VideoFiles & key).fetch(
+        file_paths, video_ids = (KeypointSet.VideoFile & key).fetch(
             "video_path", "video_id"
         )
 
-        for fp, video_id in zip(file_paths, video_ids):
-            nframes = 0
-            px_height, px_width, fps = None, None, None
+        px_height_list = []
+        px_width_list = []
+        nframes_list = []
+        fps_list = []
+        recording_duration_list = []
 
+        for fp, video_id in zip(file_paths, video_ids):
             file_path = (find_full_path(get_kpms_root_data_dir(), fp)).as_posix()
 
             cap = cv2.VideoCapture(file_path)
-            info = (
-                int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                int(cap.get(cv2.CAP_PROP_FPS)),
-            )
-            if px_height is not None:
-                assert (px_height, px_width, fps) == info
-            px_height, px_width, fps = info
-            nframes += int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            px_height_list.append(int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+            px_width_list.append(int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)))
+            fps_list.append(int(cap.get(cv2.CAP_PROP_FPS)))
+            nframes_list.append(int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
             cap.release()
 
-            self.insert1(
-                {
-                    **key,
-                    "video_id": video_id,
-                    "px_height": px_height,
-                    "px_width": px_width,
-                    "nframes": nframes,
-                    "fps": fps,
-                    "recording_duration": nframes / fps,
-                }
-            )
+        px_height_average = int(np.mean(px_height_list))
+        px_width_average = int(np.mean(px_width_list))
+        fps_average = int(np.mean(fps_list))
+        nframes_average = int(np.mean(nframes_list))
+        recording_duration_average = int(np.mean(nframes_list) / np.mean(fps_list))
+
+        self.insert1(
+            {
+                **key,
+                "px_height_average": px_height_average,
+                "px_width_average": px_width_average,
+                "nframes_average": nframes_average,
+                "fps_average": fps_average,
+                "recording_duration_average": recording_duration_average,
+            }
+        )
 
 
 @schema
