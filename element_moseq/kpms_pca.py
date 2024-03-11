@@ -7,22 +7,22 @@ from datetime import datetime
 import inspect
 import importlib
 import os
-import yaml 
+import yaml
 from pathlib import Path
-from element_interface.utils import find_full_path
-from .readers.kpms_reader import generate_dj_config
-from keypoint_moseq import (
-            setup_project,
-            load_config,
-            load_keypoints,
-            format_data,
-            load_pca,
-            fit_pca,
-            save_pca,
-            check_config_validity
-        )
 
-        
+from element_interface.utils import find_full_path
+from .readers.kpms_reader import generate_dj_config, load_dj_config
+from keypoint_moseq import (
+    setup_project,
+    load_config,
+    load_keypoints,
+    format_data,
+    load_pca,
+    fit_pca,
+    save_pca,
+)
+
+
 schema = dj.schema()
 _linking_module = None
 
@@ -302,8 +302,9 @@ class PCATask(dj.Manual):
     task_mode='load' : enum('load', 'trigger') # 'load': load computed analysis results, 'trigger': trigger computation
     """
 
+
 @schema
-class FormattedDataset(dj.Imported): # --> TO-DO: change name for a more intuitive option
+class FormattedDataset(dj.Imported):
     """
     Table for storing the formatted dataset and update the config.yml by creating a new dj_config.yml in the project path (output_dir)
     """
@@ -318,8 +319,8 @@ class FormattedDataset(dj.Imported): # --> TO-DO: change name for a more intuiti
 
     def make(self, key):
         """
-        Make function to format keypoint coordinates and confidences for inference.
-        
+        Make function to generate/update dj_config.yml and to format keypoint coordinates and confidences for inference.
+
         Args:
             key (dict): Primary key from the PCATask table.
 
@@ -327,45 +328,71 @@ class FormattedDataset(dj.Imported): # --> TO-DO: change name for a more intuiti
             dict: Primary key and attributes for the PCATask table.
 
         Raises:
-        
+
         High-Level Logic:
-        
+
         """
 
         anterior_bodyparts, posterior_bodyparts, use_bodyparts = (
-        Bodyparts & key
+            Bodyparts & key
         ).fetch1(
             "anterior_bodyparts",
             "posterior_bodyparts",
             "use_bodyparts",
         )
-        output_dir = (PCATask & key).fetch1("output_dir")
-        task_mode = (PCATask & key).fetch1("task_mode")
-        format_method = (KeypointSet & key).fetch1("format_method")
-        kpset_config_dir, kpset_videos_dir = (KeypointSet & key).fetch1(
+        output_dir, task_mode = (PCATask & key).fetch1("output_dir", "task_mode")
+        format_method, kpset_config_dir, kpset_videos_dir = (KeypointSet & key).fetch1(
+            "format_method", "kpset_config_dir", "kpset_videos_dir"
+        )
+
         if task_mode == "trigger":
-            config = setup_project(
-                    project_path, deeplabcut_config=kpset_config_path
-                ) 
+            # create an output_dir if it does not exist, and create a config file with the default values from the pose estimation config
+            setup_project(
+                output_dir, deeplabcut_config=kpset_config_dir + "/config.yaml"
+            )  # creates KPMS default config file from dlc data
+            config = load_config(output_dir, check_if_valid=True, build_indexes=False)
+
+            # update the config dict with the video_dir and bodyparts used in the pipeline
+            config_kwargs_dict = dict(
+                video_dir=kpset_videos_dir,
+                anterior_bodyparts=anterior_bodyparts,
+                posterior_bodyparts=posterior_bodyparts,
+                use_bodyparts=use_bodyparts,
+            )
+            config.update(**config_kwargs_dict)
+
+            # save the updated config dict to a different file named `dj_config.yml`
+            generate_dj_config(output_dir, **config)
 
         elif task_mode == "load":
+            config = load_dj_config(output_dir)
+
+            # update the config dict with the video_dir and bodyparts used in the pipeline
             config_kwargs_dict = dict(
-            # ---- Build and save DLC configuration (yaml) file ----
-            config = load_config(output_dir, check_if_valid=True, build_indexes=False)
+                video_dir=kpset_videos_dir,
+                anterior_bodyparts=anterior_bodyparts,
+                posterior_bodyparts=posterior_bodyparts,
+                use_bodyparts=use_bodyparts,
+            )
             config.update(**config_kwargs_dict)
+
+            # update the updated config dict to the file `dj_config.yml`
             generate_dj_config(output_dir, **config)
+
+        else:
+            raise ValueError("task_mode should be either 'load' or 'trigger'")
 
         # load keypoints data from deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap
         coordinates, confidences, formatted_bodyparts = load_keypoints(
             filepath_pattern=kpset_videos_dir, format=format_method
         )
-        
+
         self.insert1(
             dict(
                 **key,
                 coordinates=coordinates,
                 confidences=confidences,
-                formatted_bodyparts=formatted_bodyparts
+                formatted_bodyparts=formatted_bodyparts,
             )
         )
 
