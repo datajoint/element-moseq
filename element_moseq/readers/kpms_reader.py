@@ -1,11 +1,14 @@
 import os
 import logging
 import yaml
+
 # from ruamel.yaml import YAML
+import jax.numpy as jnp
 from element_interface.utils import find_root_directory, dict_to_uuid
 from datajoint.errors import DataJointError
 
 logger = logging.getLogger("datajoint")
+
 
 def _build_yaml(sections, comments):
     text_blocks = []
@@ -143,3 +146,31 @@ def generate_dj_config(project_dir, **kwargs):
 
     with open(os.path.join(project_dir, "dj_config.yml"), "w") as f:
         f.write(_build_yaml(sections, comments))
+
+
+def load_dj_config(output_dir, check_if_valid=True, build_indexes=True):
+    """
+    Load a project dj_config file from output_dir
+    """
+    from keypoint_moseq import check_config_validity
+
+    config_path = os.path.join(output_dir, "dj_config.yml")
+
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    if check_if_valid:
+        check_config_validity(config)
+
+    if build_indexes:
+        config["anterior_idxs"] = jnp.array(
+            [config["use_bodyparts"].index(bp) for bp in config["anterior_bodyparts"]]
+        )
+        config["posterior_idxs"] = jnp.array(
+            [config["use_bodyparts"].index(bp) for bp in config["posterior_bodyparts"]]
+        )
+
+    if not "skeleton" in config or config["skeleton"] is None:
+        config["skeleton"] = []
+
+    return config
