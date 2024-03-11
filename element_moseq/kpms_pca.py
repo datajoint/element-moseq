@@ -399,7 +399,6 @@ class FormattedDataset(dj.Imported):
 
 @schema
 class PCAFitting(dj.Computed):
-    
     definition = """
     -> FormattedDataset
     ---
@@ -410,7 +409,7 @@ class PCAFitting(dj.Computed):
         task_mode, output_dir = (PCATask & key).fetch1("task_mode", "output_dir")
 
         if task_mode == "trigger":
-            config = load_config(output_dir, check_if_valid=True, build_indexes=False)
+            config = load_dj_config(output_dir, check_if_valid=True, build_indexes=True)
             coordinates, confidences = (FormattedDataset & key).fetch1(
                 "coordinates", "confidences"
             )
@@ -419,18 +418,22 @@ class PCAFitting(dj.Computed):
                 **config, coordinates=coordinates, confidences=confidences
             )
 
-            pca = fit_pca(data, **config)
-            pca_path = os.path.join(
-                output_dir, "pca_{}.p".format(key["pca_fitting_id"])
-            )
-            save_pca(pca, pca_path)  # The model is saved
+            pca = fit_pca(**data, **config)
+
+            # save the pca model to a file
+            pca_path = os.path.join(output_dir, "pca.p")
+            save_pca(
+                pca, output_dir
+            )  # `pca.p` as the first pca model stored in the output_dir
+
             creation_time = datetime.utcnow()
+
         else:
             creation_time = None
 
-        self.insert1(**key, pca_fitting_time=creation_time)
+        self.insert1(dict(**key, pca_fitting_time=creation_time))
 
-    
+
 @schema
 class DimsExplainedVariance(dj.Computed):
     """
