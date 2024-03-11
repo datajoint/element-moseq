@@ -439,34 +439,40 @@ class DimsExplainedVariance(dj.Computed):
     """
     This is an optional table to compute and store the latent dimensions that explain a certain specified variance threshold.
     """
+
     definition = """
     -> PCAFitting
-    variance_threshold : float                 # Variance threshold to be explained by the PCA model
     ---
     variance_percentage     : float 
     dims_explained_variance : int
     latent_dim_desc: varchar(1000)
     """
-    
+
     def make(self, key):
-        variance_threshold, output_dir = (PCATask & key).fetch1(
-            "variance_threshold", "output_dir"
-        )
+        output_dir = (PCATask & key).fetch1("output_dir")
+        variance_threshold = 0.90
+
         pca = load_pca(output_dir)
         cs = np.cumsum(pca.explained_variance_ratio_)
         # explained_variance_ratio_ndarray of shape (n_components,)
         # Percentage of variance explained by each of the selected components.
         # If n_components is not set then all components are stored and the sum of the ratios is equal to 1.0.
-        if cs[-1] < variance_threshold: 
+        if cs[-1] < variance_threshold:
             dims_explained_variance = len(cs)
-            variance_percentage = cs[-1]*100
-            latent_dim_description= f"All components together only explain {cs[-1]*100}% of variance."
+            variance_percentage = cs[-1] * 100
+            latent_dim_desc = (
+                f"All components together only explain {cs[-1]*100}% of variance."
+            )
         else:
-            dims_explained_variance = (cs>variance_threshold).nonzero()[0].min()+1
-            variance_percentage = variance_threshold*100
-            latent_dim_description= f">={variance_threshold*100}% of variance exlained by {(cs>variance_threshold).nonzero()[0].min()+1} components."
-        
-        self.insert1(dict(**key, 
-                          variance_percentage = variance_percentage,
-                          dims_explained_variance=dims_explained_variance,
-                          latent_dim_description=latent_dim_description))
+            dims_explained_variance = (cs > variance_threshold).nonzero()[0].min() + 1
+            variance_percentage = variance_threshold * 100
+            latent_dim_desc = f">={variance_threshold*100}% of variance exlained by {(cs>variance_threshold).nonzero()[0].min()+1} components."
+
+        self.insert1(
+            dict(
+                **key,
+                variance_percentage=variance_percentage,
+                dims_explained_variance=dims_explained_variance,
+                latent_dim_desc=latent_dim_desc,
+            )
+        )
