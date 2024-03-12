@@ -9,6 +9,7 @@ import importlib
 import os
 import yaml
 from pathlib import Path
+import pickle
 
 from element_interface.utils import find_full_path
 from .readers.kpms_reader import generate_dj_config, load_dj_config
@@ -421,10 +422,18 @@ class PCAFitting(dj.Computed):
             pca = fit_pca(**data, **config)
 
             # save the pca model to a file
-            pca_path = os.path.join(output_dir, "pca.p")
             save_pca(
                 pca, output_dir
             )  # `pca.p` as the first pca model stored in the output_dir
+
+            # save the data and metadata to files
+            data_path = os.path.join(output_dir, "data.pkl")
+            with open(data_path, "wb") as data_file:
+                pickle.dump(data, data_file)
+
+            metadata_path = os.path.join(output_dir, "metadata.pkl")
+            with open(metadata_path, "wb") as metadata_file:
+                pickle.dump(metadata, metadata_file)
 
             creation_time = datetime.utcnow()
 
