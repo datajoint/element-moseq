@@ -1,10 +1,18 @@
 import datajoint as dj
 from typing import Optional
-
+import pickle
 import inspect
 import importlib
 from pathlib import Path
 from element_interface.utils import find_full_path
+from .readers.kpms_reader import load_dj_config, generate_dj_config
+from keypoint_moseq import (
+    load_config,
+    format_data,
+    load_pca,
+    init_model,
+)
+from element_moseq.kpms_pca import PCATask
 
 schema = dj.schema()
 _linking_module = None
@@ -99,10 +107,10 @@ def get_kpms_processed_data_dir() -> Optional[str]:
 @schema
 class PreFittingTask(dj.Manual):
     definition = """
-    -> pca.PCAFitting
-    laten_dim               : int
-    kappa                   : int
-    num_iterations          : int
+    -> kpms_pca.PCAFitting
+    latent_dim               : int
+    kappa                    : int
+    num_iterations           : int
     ---
     model_name              : varchar(20)
     task_mode='load'        : enum('load', 'trigger')  # 'load': load computed analysis results, 'trigger': trigger computation
@@ -135,8 +143,8 @@ class PreFitting(dj.Computed):
 @schema
 class FullFittingTask(dj.Manual):
     definition = """
-    -> pca.PCAFitting
-    laten_dim               : int
+    -> kpms_pca.PCAFitting
+    latent_dim               : int
     kappa                   : int
     num_iterations          : int
     ---
