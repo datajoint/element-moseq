@@ -419,6 +419,7 @@ class PCAFitting(dj.Computed):
     def make(self, key):
         """
         Make function to fit PCA model and save the PCA model, data, and metadata to files.
+        
         Args:
             key (dict): Primary key from the FormattedDataset table.
 
