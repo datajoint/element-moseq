@@ -1,40 +1,34 @@
 import os
 import logging
 import yaml
-
-# from ruamel.yaml import YAML
 import jax.numpy as jnp
-from element_interface.utils import find_root_directory, dict_to_uuid
-from datajoint.errors import DataJointError
 
 logger = logging.getLogger("datajoint")
-
-
-def _build_yaml(sections, comments):
-    text_blocks = []
-    for title, data in sections:
-        centered_title = f" {title} ".center(50, "=")
-        text_blocks.append(f"\n\n{'#'}{centered_title}{'#'}")
-        for key, value in data.items():
-            text = yaml.dump({key: value}).strip("\n")
-            if key in comments:
-                text = f"\n{'#'} {comments[key]}\n{text}"
-            text_blocks.append(text)
-    return "\n".join(text_blocks)
 
 
 def generate_dj_config(project_dir, **kwargs):
     """Generate a `dj_config.yml` file with project settings. Default settings
     will be used unless overriden by a keyword argument.
 
-    Parameters
-    ----------
-    project_dir: str
-        A file `dj_config.yml` will be generated in this directory.
+    Args:
+        project_dir (str): Directory containing the `dj_config.yml` that will be generated.
+        kwargs (dict): Custom project settings.
 
-    kwargs
-        Custom project settings.
+    Returns:
+        config (dict): configuration settings
     """
+
+    def _build_yaml(sections, comments):
+        text_blocks = []
+        for title, data in sections:
+            centered_title = f" {title} ".center(50, "=")
+            text_blocks.append(f"\n\n{'#'}{centered_title}{'#'}")
+            for key, value in data.items():
+                text = yaml.dump({key: value}).strip("\n")
+                if key in comments:
+                    text = f"\n{'#'} {comments[key]}\n{text}"
+                text_blocks.append(text)
+        return "\n".join(text_blocks)
 
     def _update_dict(new, original):
         return {k: new[k] if k in new else v for k, v in original.items()}
@@ -150,8 +144,17 @@ def generate_dj_config(project_dir, **kwargs):
 
 def load_dj_config(output_dir, check_if_valid=True, build_indexes=True):
     """
-    Load a project dj_config file from output_dir
+    Load a project `dj_config.yml` file from `output_dir`
+
+    Args:
+        project_dir (str): Directory containing the `dj_config.yml` that will be loaded.
+        check_if_valid (bool): default=True. Check if the config is valid using :py:func:`keypoint_moseq.io.check_config_validity`
+        build_indexes (bool): default=True. Add keys `"anterior_idxs"` and `"posterior_idxs"` to the config. Each maps to a jax array indexing the elements of `config["anterior_bodyparts"]` and `config["posterior_bodyparts"]` by their order in `config["use_bodyparts"]`
+
+    Returns:
+        config (dict): configuration settings
     """
+
     from keypoint_moseq import check_config_validity
 
     config_path = os.path.join(output_dir, "dj_config.yml")
