@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="632pt" height="652pt" viewBox="0.00 0.00 631.62 651.68">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 647.68)">
+<polygon fill="white" stroke="none" points="-4,4 -4,-647.68 627.62,-647.68 627.62,4 -4,4"/>
+<!-- session.Session -->
+<g id="node1" class="node">
+<title>session.Session</title>
+<g id="a_node1"><a xlink:title="→ subject.Subjectsession_datetime     ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="287.5,-573.12 183.75,-573.12 183.75,-538.56 287.5,-538.56 287.5,-573.12"/>
+<text text-anchor="start" x="191.75" y="-552.57" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">session.Session</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.KeypointSet -->
+<g id="node4" class="node">
+<title>kpms_pca.KeypointSet</title>
+<g id="a_node4"><a xlink:title="→ session.Sessionkpset_id             ------------------------------→ kpms_pca.PoseEstimationMethodkpset_config_dir     kpset_videos_dir     kpset_desc=&quot;&quot;        ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="228.12,-502.56 89.12,-502.56 89.12,-468 228.12,-468 228.12,-502.56"/>
+<text text-anchor="start" x="97.12" y="-482.01" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_pca.KeypointSet</text>
+</a>
+</g>
+</g>
+<!-- session.Session&#45;&gt;kpms_pca.KeypointSet -->
+<g id="edge1" class="edge">
+<title>session.Session-&gt;kpms_pca.KeypointSet</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M216.99,-538.24C204.97,-527.54 189.4,-513.68 177.36,-502.96"/>
+</g>
+<!-- kpms_model.PreFittingTask -->
+<g id="node2" class="node">
+<title>kpms_model.PreFittingTask</title>
+<g id="a_node2"><a xlink:title="→ kpms_pca.PCAFittingpre_latent_dim       pre_kappa            pre_num_iterations   ------------------------------pre_fitting_desc=&quot;&quot;  model_initialization=&quot;Yes&quot; model_name_initialization=&quot;&quot; ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="219.5,-158.4 55.75,-158.4 55.75,-123.84 219.5,-123.84 219.5,-158.4"/>
+<text text-anchor="start" x="63.75" y="-137.84" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_model.PreFittingTask</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.PreFitting -->
+<g id="node16" class="node">
+<title>kpms_model.PreFitting</title>
+<g id="a_node16"><a xlink:title="→ kpms_model.PreFittingTask------------------------------model_name=&quot;&quot;        pre_fitting_duration=null ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="137.62" cy="-74.88" rx="12.96" ry="12.96"/>
+<text text-anchor="middle" x="137.62" y="-70.6" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">kpms_model.PreFitting</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.PreFittingTask&#45;&gt;kpms_model.PreFitting -->
+<g id="edge2" class="edge">
+<title>kpms_model.PreFittingTask-&gt;kpms_model.PreFitting</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M137.62,-123.58C137.62,-112.28 137.62,-97.58 137.62,-87.5"/>
+</g>
+<!-- subject.Subject -->
+<g id="node3" class="node">
+<title>subject.Subject</title>
+<g id="a_node3"><a xlink:title="subject              ------------------------------subject_nickname=&quot;&quot;  sex                  subject_birth_date   subject_description=&quot;&quot; ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="284.5,-643.68 186.75,-643.68 186.75,-609.12 284.5,-609.12 284.5,-643.68"/>
+<text text-anchor="start" x="194.75" y="-623.13" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">subject.Subject</text>
+</a>
+</g>
+</g>
+<!-- subject.Subject&#45;&gt;session.Session -->
+<g id="edge3" class="edge">
+<title>subject.Subject-&gt;session.Session</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M235.62,-608.8C235.62,-598.02 235.62,-584.03 235.62,-573.28"/>
+</g>
+<!-- kpms_pca.KeypointSet.VideoFile -->
+<g id="node6" class="node">
+<title>kpms_pca.KeypointSet.VideoFile</title>
+<g id="a_node6"><a xlink:title="→ kpms_pca.KeypointSetvideo_id             ------------------------------video_path           ">
+<polygon fill="none" stroke="none" points="239,-424.72 78.25,-424.72 78.25,-404.72 239,-404.72 239,-424.72"/>
+<text text-anchor="start" x="86.25" y="-412.22" font-family="arial" text-decoration="underline" font-size="10.00">kpms_pca.KeypointSet.VideoFile</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.KeypointSet&#45;&gt;kpms_pca.KeypointSet.VideoFile -->
+<g id="edge4" class="edge">
+<title>kpms_pca.KeypointSet-&gt;kpms_pca.KeypointSet.VideoFile</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M158.62,-467.68C158.62,-454.05 158.62,-435.28 158.62,-424.43"/>
+</g>
+<!-- kpms_pca.Bodyparts -->
+<g id="node8" class="node">
+<title>kpms_pca.Bodyparts</title>
+<g id="a_node8"><a xlink:title="→ kpms_pca.KeypointSetbodyparts_id         ------------------------------bodyparts_desc=&quot;&quot;    anterior_bodyparts   posterior_bodyparts  use_bodyparts        ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="384.5,-432 256.75,-432 256.75,-397.44 384.5,-397.44 384.5,-432"/>
+<text text-anchor="start" x="264.75" y="-411.45" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_pca.Bodyparts</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.KeypointSet&#45;&gt;kpms_pca.Bodyparts -->
+<g id="edge5" class="edge">
+<title>kpms_pca.KeypointSet-&gt;kpms_pca.Bodyparts</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M198.25,-467.51C223.45,-456.84 255.95,-443.09 281.12,-432.44"/>
+</g>
+<!-- kpms_pca.RecordingInfo -->
+<g id="node13" class="node">
+<title>kpms_pca.RecordingInfo</title>
+<g id="a_node13"><a xlink:title="→ kpms_pca.KeypointSet------------------------------px_height_average    px_width_average     nframes_average      fps_average=null     recording_datetime=null recording_duration_average ">
+<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="499.62" cy="-414.72" rx="97.2" ry="17.28"/>
+<text text-anchor="middle" x="499.62" y="-410.45" font-family="arial" font-size="12.00" fill="#00007f" fill-opacity="0.627451">kpms_pca.RecordingInfo</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.KeypointSet&#45;&gt;kpms_pca.RecordingInfo -->
+<g id="edge6" class="edge">
+<title>kpms_pca.KeypointSet-&gt;kpms_pca.RecordingInfo</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M228.45,-470.24C289.74,-457.92 378.05,-440.16 437.06,-428.3"/>
+</g>
+<!-- kpms_model.FullFittingTask -->
+<g id="node5" class="node">
+<title>kpms_model.FullFittingTask</title>
+<g id="a_node5"><a xlink:title="→ kpms_pca.PCAFittingfull_latent_dim      full_kappa           full_num_iterations  ------------------------------full_fitting_desc=&quot;&quot; task_mode            sort_syllables       results_as_csv       visualizations       ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="403.25,-158.4 238,-158.4 238,-123.84 403.25,-123.84 403.25,-158.4"/>
+<text text-anchor="start" x="246" y="-137.84" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_model.FullFittingTask</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.FullFitting -->
+<g id="node15" class="node">
+<title>kpms_model.FullFitting</title>
+<g id="a_node15"><a xlink:title="→ kpms_model.FullFittingTask------------------------------full_fitting_duration=null ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="320.62" cy="-74.88" rx="12.96" ry="12.96"/>
+<text text-anchor="middle" x="320.62" y="-70.6" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">kpms_model.FullFitting</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.FullFittingTask&#45;&gt;kpms_model.FullFitting -->
+<g id="edge7" class="edge">
+<title>kpms_model.FullFittingTask-&gt;kpms_model.FullFitting</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M320.62,-123.58C320.62,-112.28 320.62,-97.58 320.62,-87.5"/>
+</g>
+<!-- kpms_pca.PCAFitting -->
+<g id="node7" class="node">
+<title>kpms_pca.PCAFitting</title>
+<g id="a_node7"><a xlink:title="→ kpms_pca.FormattedDataset------------------------------pca_fitting_time=null ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="320.62" cy="-207.36" rx="12.96" ry="12.96"/>
+<text text-anchor="middle" x="320.62" y="-203.09" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">kpms_pca.PCAFitting</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.PCAFitting&#45;&gt;kpms_model.PreFittingTask -->
+<g id="edge8" class="edge">
+<title>kpms_pca.PCAFitting-&gt;kpms_model.PreFittingTask</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M308.9,-202.24C284.44,-193.66 226.81,-173.43 185.15,-158.8"/>
+</g>
+<!-- kpms_pca.PCAFitting&#45;&gt;kpms_model.FullFittingTask -->
+<g id="edge9" class="edge">
+<title>kpms_pca.PCAFitting-&gt;kpms_model.FullFittingTask</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M320.62,-194.58C320.62,-184.44 320.62,-169.7 320.62,-158.42"/>
+</g>
+<!-- kpms_pca.DimsExplainedVariance -->
+<g id="node14" class="node">
+<title>kpms_pca.DimsExplainedVariance</title>
+<g id="a_node14"><a xlink:title="→ kpms_pca.PCAFitting------------------------------variance_percentage  dims_explained_variance latent_dim_desc      ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="522.62" cy="-141.12" rx="12.96" ry="12.96"/>
+<text text-anchor="middle" x="522.62" y="-136.84" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">kpms_pca.DimsExplainedVariance</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.PCAFitting&#45;&gt;kpms_pca.DimsExplainedVariance -->
+<g id="edge10" class="edge">
+<title>kpms_pca.PCAFitting-&gt;kpms_pca.DimsExplainedVariance</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M332.36,-202.63C367.98,-191.3 474.61,-157.39 510.61,-145.94"/>
+</g>
+<!-- kpms_pca.PCATask -->
+<g id="node9" class="node">
+<title>kpms_pca.PCATask</title>
+<g id="a_node9"><a xlink:title="→ kpms_pca.Bodyparts------------------------------output_dir=&quot;&quot;        task_mode=&quot;load&quot;     ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="381.88,-361.44 259.38,-361.44 259.38,-326.88 381.88,-326.88 381.88,-361.44"/>
+<text text-anchor="middle" x="320.62" y="-339.89" font-family="arial" font-size="12.00" fill="darkgreen">kpms_pca.PCATask</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.Bodyparts&#45;&gt;kpms_pca.PCATask -->
+<g id="edge11" class="edge">
+<title>kpms_pca.Bodyparts-&gt;kpms_pca.PCATask</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M320.62,-397.12C320.62,-386.34 320.62,-372.35 320.62,-361.6"/>
+</g>
+<!-- kpms_pca.FormattedDataset -->
+<g id="node11" class="node">
+<title>kpms_pca.FormattedDataset</title>
+<g id="a_node11"><a xlink:title="→ kpms_pca.PCATask------------------------------coordinates          confidences          formatted_bodyparts  ">
+<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="320.62" cy="-273.6" rx="110.43" ry="17.28"/>
+<text text-anchor="middle" x="320.62" y="-269.33" font-family="arial" font-size="12.00" fill="#00007f" fill-opacity="0.627451">kpms_pca.FormattedDataset</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.PCATask&#45;&gt;kpms_pca.FormattedDataset -->
+<g id="edge12" class="edge">
+<title>kpms_pca.PCATask-&gt;kpms_pca.FormattedDataset</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M320.62,-326.56C320.62,-315.78 320.62,-301.79 320.62,-291.04"/>
+</g>
+<!-- kpms_model.GenerateResults -->
+<g id="node10" class="node">
+<title>kpms_model.GenerateResults</title>
+<g id="a_node10"><a xlink:title="→ kpms_model.FullFitting------------------------------grid_movies_sampled_instances ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="320.62" cy="-12.96" rx="12.96" ry="12.96"/>
+<text text-anchor="middle" x="320.62" y="-8.69" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">kpms_model.GenerateResults</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.FormattedDataset&#45;&gt;kpms_pca.PCAFitting -->
+<g id="edge13" class="edge">
+<title>kpms_pca.FormattedDataset-&gt;kpms_pca.PCAFitting</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M320.62,-256.06C320.62,-244.76 320.62,-230.06 320.62,-219.98"/>
+</g>
+<!-- kpms_pca.PoseEstimationMethod -->
+<g id="node12" class="node">
+<title>kpms_pca.PoseEstimationMethod</title>
+<g id="a_node12"><a xlink:title="format_method        ------------------------------pose_estimation_desc ">
+<polygon fill="#000000" fill-opacity="0.125490" stroke="none" points="165.25,-573.12 0,-573.12 0,-538.56 165.25,-538.56 165.25,-573.12"/>
+<text text-anchor="start" x="8" y="-553.34" font-family="arial" text-decoration="underline" font-size="10.00">kpms_pca.PoseEstimationMethod</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.PoseEstimationMethod&#45;&gt;kpms_pca.KeypointSet -->
+<g id="edge14" class="edge">
+<title>kpms_pca.PoseEstimationMethod-&gt;kpms_pca.KeypointSet</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-dasharray="5,2" stroke-opacity="0.250980" d="M100.64,-538.59C112.58,-527.82 128.2,-513.73 140.22,-502.89"/>
+</g>
+<!-- kpms_model.FullFitting&#45;&gt;kpms_model.GenerateResults -->
+<g id="edge15" class="edge">
+<title>kpms_model.FullFitting-&gt;kpms_model.GenerateResults</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M320.62,-62.04C320.62,-51.54 320.62,-36.27 320.62,-25.77"/>
+</g>
+</g>
+</svg>
