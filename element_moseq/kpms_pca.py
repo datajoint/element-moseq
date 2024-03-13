@@ -1,15 +1,13 @@
-import datajoint as dj
-import matplotlib.pyplot as plt
-import cv2
-from typing import Optional
-import numpy as np
-from datetime import datetime
+import datetime
 import inspect
-import importlib
 import os
-import yaml
 from pathlib import Path
 import pickle
+from typing import Optional
+
+import cv2
+import datajoint as dj
+import numpy as np
 
 from element_interface.utils import find_full_path
 from .readers.kpms_reader import generate_dj_config, load_dj_config
@@ -116,15 +114,15 @@ class PoseEstimationMethod(dj.Lookup):
     """Table for storing the pose estimation method used to obtain the keypoints data.
 
     Attributes:
-        format_method (str)                : Pose estimation method.
-        pose_estimation_desc (str)  : Pose estimation method description.
+        format_method (str): Pose estimation method.
+        pose_estimation_desc (str): Pose estimation method description.
     """
 
     definition = """ 
     # Parameters used to obtain the keypoints data based on a specific pose estimation method.        
-    format_method                          : char(15)         # deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap,
+    format_method           : char(15)         # deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap,
     ---
-    pose_estimation_desc            : varchar(1000)    # Optional. Pose estimation method description
+    pose_estimation_desc    : varchar(1000)    # Optional. Pose estimation method description
     """
 
     contents = [
@@ -143,9 +141,10 @@ class KeypointSet(dj.Manual):
 
     Attributes:
         kpset_id (int): Unique ID for each keypoint set.
+        PoseEstimationMethod (foreign key): Unique format method varchar used to obtain the keypoints data.
         kpset_config_dir (str): Path relative to root data directory where the config file is located.
         kpset_videos_dir (str): Path relative to root data directory where the videos and their keypoints are located.
-        kpset_description (str): Optional. User-entered description.
+        kpset_desc (str): Optional. User-entered description.
     """
 
     definition = """
@@ -153,15 +152,15 @@ class KeypointSet(dj.Manual):
     kpset_id                        : int
     ---
     -> PoseEstimationMethod
-    kpset_config_dir               : varchar(255)  # Path relative to root data directory where the config file is located
+    kpset_config_dir                : varchar(255)  # Path relative to root data directory where the config file is located
     kpset_videos_dir                : varchar(255)  # Path relative to root data directory where the videos and their keypoints are located
-    kpset_desc=''            : varchar(300)  # Optional. User-entered description
+    kpset_desc=''                   : varchar(300)  # Optional. User-entered description
     """
 
     class VideoFile(dj.Part):
         """IDs and file paths of each video file.
 
-        Atribbutes:
+        Attributes:
             video_id (int): Unique ID for each video.
             video_path (str): Filepath of each video, relative to root data directory.
         """
@@ -176,27 +175,25 @@ class KeypointSet(dj.Manual):
 
 @schema
 class RecordingInfo(dj.Imported):
-    """Automated table to store the average metadata from the videoset associated with a kpset_id.
+    """Automated table to store the average metadata of the videoset associated with a kpset_id.
 
     Attributes:
         KeypointSet (foreign key)               : Unique ID for each video set.
-        px_height (smallint)                    : Height in pixels.
-        px_width (smallint)                     : Width in pixels.
-        nframes (int)                           : Number of frames.
-        fps (int)                               : Optional. Frames per second, Hz.
-        recording_datetime (datetime)           : Optional. Datetime for the start of recording.
-        recording_duration (float)              : Video duration (s) from nframes / fps.
+        px_height_average (smallint)            : Average height of the video set (pixels).
+        px_width_average (smallint)             : Average width of the video set (pixels).
+        nframes_average (int)                   : Average number of frames of the video set (frames).
+        fps_average (int)                       : Optional. Average frames per second of the video set (Hz).
+        recording_duration_average (float)      : Average video duration (s) of the video set (nframes / fps).
     """
 
     definition = """
     -> KeypointSet
     ---
-    px_height_average                 : smallint  # Height in pixels
-    px_width_average                  : smallint  # Width in pixels
-    nframes_average                   : int       # Number of frames 
-    fps_average = NULL                : int       # Optional. Frames per second, Hz
-    recording_datetime = NULL : datetime  # Optional. Datetime for the start of the recording
-    recording_duration_average        : float     # Video duration (s) from nframes / fps
+    px_height_average                 : smallint  # Average height of the video set (pixels)
+    px_width_average                  : smallint  # Average width of the video set (pixels)
+    nframes_average                   : int       # Average number of frames of the video set (frames)
+    fps_average = NULL                : int       # Optional. Average frames per second of the video set (Hz)
+    recording_duration_average        : float     # Average video duration (s) of the video set (nframes / fps)
     """
 
     @property
@@ -206,20 +203,17 @@ class RecordingInfo(dj.Imported):
 
     def make(self, key):
         """
-        Make function to populate the RecordingInfo table.
+        Make function to populate the `RecordingInfo` table.
 
         Args:
-            key (dict): Primary key from the RecordingInfo table.
-
-        Returns:
-            dict: Primary key and attributes for the RecordingInfo table.
+            key (dict): A dictionary containing key information for the session
 
         Raises:
+
         High-Level Logic:
         1. Fetches the file paths and video IDs from the KeypointSet.VideoFiles table.
         2. Iterates through the file paths and video IDs to obtain the video metadata using OpenCV.
-        3. Inserts the video metadata into the RecordingInfo table.
-
+        3. Calculate the average video metadata and insert it into the RecordingInfo table.
         """
 
         file_paths, video_ids = (KeypointSet.VideoFile & key).fetch(
@@ -267,16 +261,17 @@ class Bodyparts(dj.Manual):
     Attributes:
         KeypointSet (foreign key)       : Unique ID for each keypoint set.
         bodyparts_id (int)              : Unique ID for each bodypart.
-        anterior_bodyparts (longblob)   : List of strings of anterior bodyparts
-        posterior_bodyparts (longblob)  : List of strings of posterior bodyparts
-        use_bodyparts (longblob)        : List of strings of bodyparts to be used
+        bodyparts_desc(varchar)         : Optional. User-entered description.
+        anterior_bodyparts (blob)       : List of strings of anterior bodyparts
+        posterior_bodyparts (blob)      : List of strings of posterior bodyparts
+        use_bodyparts (blob)            : List of strings of bodyparts to be used
     """
 
     definition = """
     -> KeypointSet
     bodyparts_id                : int
     ---
-    bodyparts_desc=''           : varchar(1000)
+    bodyparts_desc=''           : varchar(1000) # Optional. User-entered description.
     anterior_bodyparts          : blob  # List of strings of anterior bodyparts
     posterior_bodyparts         : blob  # List of strings of posterior bodyparts
     use_bodyparts               : blob  # List of strings of bodyparts to be used
@@ -289,49 +284,56 @@ class PCATask(dj.Manual):
     Table to define the PCA task.
 
     Attributes:
-        KeypointSet (foreign key)       : Unique ID for each keypoint set.
         Bodyparts (foreign key)         : Unique ID for each bodypart.
-        pca_task_id (int)               : Unique ID for each PCA task.
-        output_dir (str)                : KPMS's output directory in config relative to root
+        output_dir (str)                : KPMS's output directory relative to root
         task_mode (str)                 : 'load': load computed analysis results, 'trigger': trigger computation
     """
 
     definition = """ 
     -> Bodyparts
     ---
-    output_dir='' : varchar(255)             # KPMS's output directory in config relative to root
-    task_mode='load' : enum('load', 'trigger') # 'load': load computed analysis results, 'trigger': trigger computation
+    output_dir=''               : varchar(255) # KPMS's output directory relative to root
+    task_mode='load'            : enum('load', 'trigger') # default = 'load': load computed analysis results, 'trigger': trigger computation
     """
 
 
 @schema
 class FormattedDataset(dj.Imported):
     """
-    Table for storing the formatted dataset and update the config.yml by creating a new dj_config.yml in the project path (output_dir)
+    Table for storing the formatted dataset and update the `config.yml` by creating a new `dj_config.yml` in the project path (`output_dir`)
+
+    Attributes:
+        PCATask (foreign key)           : Unique ID for each PCATask.
+        coordinates (longblob)          : Dictionary mapping filenames to keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3])
+        confidences (longblob)          : Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts)
+        formatted_bodyparts (longblob)  : List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
     """
 
     definition = """
     -> PCATask
     ---
-    coordinates             : longblob
-    confidences             : longblob             
-    formatted_bodyparts     : longblob
+    coordinates             : longblob # Keypoint coordinates
+    confidences             : longblob # Keypoint confidences                 
+    formatted_bodyparts     : longblob #Formatted bodyparts
     """
 
     def make(self, key):
         """
-        Make function to generate/update dj_config.yml and to format keypoint coordinates and confidences for inference.
+        Make function to generate and update `dj_config.yml` and to format keypoint coordinates and confidences for inference.
 
         Args:
             key (dict): Primary key from the PCATask table.
 
-        Returns:
-            dict: Primary key and attributes for the PCATask table.
-
         Raises:
+            ValueError: If `task_mode` does not match either 'load' or 'trigger'
 
         High-Level Logic:
-
+        1. Fetches the anterior_bodyparts, posterior_bodyparts, use_bodyparts, output_dir, and task_mode from the PCATask table.
+        2. Fetches the format_method, kpset_config_dir, and kpset_videos_dir from the KeypointSet table.
+        3. Based on the task_mode, it either triggers the computation or loads the computed analysis results.
+        4. If task_mode='trigger', it creates an output_dir if it does not exist, creates a `dj_config` file with the default values from the pose estimation config, and update it with the video_dir and bodyparts used in the pipeline.
+        6. If task_mode='load', it loads the `dj_config` file and updates it with the video_dir and bodyparts used in the pipeline.
+        7. Then, it loads keypoint tracking results from one or more files and formats them for PCA analysis.
         """
 
         anterior_bodyparts, posterior_bodyparts, use_bodyparts = (
@@ -400,6 +402,13 @@ class FormattedDataset(dj.Imported):
 
 @schema
 class PCAFitting(dj.Computed):
+    """Table for storing the PCA fitting analysis.
+
+    Attributes:
+        FormattedDataset (foreign key)  : Unique ID for FormattedDataset.
+        pca_fitting_time (datetime)     : Time of generation of the PCA fitting analysis.
+    """
+
     definition = """
     -> FormattedDataset
     ---
@@ -407,6 +416,20 @@ class PCAFitting(dj.Computed):
     """
 
     def make(self, key):
+        """
+        Make function to fit PCA model and save the PCA model, data, and metadata to files.
+        Args:
+            key (dict): Primary key from the FormattedDataset table.
+
+        Raises:
+
+        High-Level Logic:
+        1. Fetches the task_mode and output_dir from the PCATask table.
+        2. If task_mode='trigger', it loads the `dj_config` file and formats the keypoint coordinates and confidences for PCA analysis.
+        3. Then, it fits the PCA model and saves the PCA model, data, and metadata to files.
+        4. If task_mode='load', it does not perform any computation and sets the pca_fitting_time to NULL.
+        5. Finally, it inserts the pca_fitting_time into the PCAFitting table.
+        """
         task_mode, output_dir = (PCATask & key).fetch1("task_mode", "output_dir")
 
         if task_mode == "trigger":
@@ -447,17 +470,40 @@ class PCAFitting(dj.Computed):
 class DimsExplainedVariance(dj.Computed):
     """
     This is an optional table to compute and store the latent dimensions that explain a certain specified variance threshold.
+
+    Attributes:
+        PCAFitting (foreign key)           : Unique ID for each PCAFitting.
+        variance_percentage (float)        : Percentage of variance explained by the selected components.
+        dims_explained_variance (int)      : Number of components required to explain the specified variance.
+        latent_dim_desc (varchar)          : Description of the latent dimensions that explain the specified variance.
     """
 
     definition = """
     -> PCAFitting
     ---
-    variance_percentage     : float 
-    dims_explained_variance : int
-    latent_dim_desc: varchar(1000)
+    variance_percentage      : float # Percentage of variance explained by the selected components.
+    dims_explained_variance  : int # Number of components required to explain the specified variance.
+    latent_dim_desc          : varchar(1000) # Description of the latent dimensions that explain the specified variance.
     """
 
     def make(self, key):
+        """
+        Make function to compute and store the latent dimensions that explain a certain specified variance threshold.
+
+        Args:
+            key (dict): Primary key from the PCAFitting table.
+
+        Raises:
+
+        High-Level Logic:
+        1. Fetches the output_dir from the PCATask table.
+        2. Loads the PCA model from the output_dir.
+        3. Computes the cumulative sum of the explained variance ratio and determines the number of components required to explain the specified variance.
+        4. If the cumulative sum of the explained variance ratio is less than the specified variance threshold, it sets the dims_explained_variance to the number of components and variance_percentage to the cumulative sum of the explained variance ratio.
+        5. If the cumulative sum of the explained variance ratio is greater than the specified variance threshold, it sets the dims_explained_variance to the number of components and variance_percentage to the specified variance threshold.
+        6. Inserts the variance_percentage, dims_explained_variance, and latent_dim_desc into the DimsExplainedVariance table.
+        """
+
         output_dir = (PCATask & key).fetch1("output_dir")
         variance_threshold = 0.90
 
