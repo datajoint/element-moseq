@@ -430,7 +430,18 @@ class GenerateResults(dj.Computed):
         """
 
         output_dir = (PCATask & key).fetch1("output_dir")
-        model_name = (PreFitting & key).fetch1("model_name")
+        try:
+            selected_key = (
+                PreFitting
+                & "pre_latent_dim = {}".format(key["full_latent_dim"])
+                & "pre_kappa = {}".format(key["full_kappa"])
+            )
+            model_name, pre_num_iterations = selected_key.fetch1(
+                "model_name", "pre_num_iterations"
+            )
+        except:
+            print("No prefitting model found")
+            
         sort_syllables, results_as_csv, visualizations = (FullFittingTask & key).fetch1(
             "sort_syllables", "results_as_csv", "visualizations"
         )
