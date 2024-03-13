@@ -10,11 +10,11 @@ tables that can be combined with other Elements to assemble a fully functional p
 
 ## Experiment Flowchart
 
-![flowchart]()
+![pipeline](../images/flowchart.svg)
 
 ## Data Pipeline Diagram
 
-![pipeline]()
+![pipeline](../images/pipeline.svg)
 
 ## Getting Started
 
