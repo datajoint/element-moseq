@@ -475,7 +475,7 @@ class DimsExplainedVariance(dj.Computed):
         else:
             dims_explained_variance = (cs > variance_threshold).nonzero()[0].min() + 1
             variance_percentage = variance_threshold * 100
-            latent_dim_desc = f">={variance_threshold*100}% of variance exlained by {(cs>variance_threshold).nonzero()[0].min()+1} components."
+            latent_dim_desc = f">={variance_threshold*100}% of variance explained by {(cs>variance_threshold).nonzero()[0].min()+1} components."
 
         self.insert1(
             dict(
