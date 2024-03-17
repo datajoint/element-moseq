@@ -1,8 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import inspect
-import os
 from pathlib import Path
-import pickle
 from typing import Optional
 import importlib
 
@@ -11,16 +9,7 @@ import datajoint as dj
 import numpy as np
 
 from element_interface.utils import find_full_path
-from .readers.kpms_reader import generate_dj_config, load_dj_config
-from keypoint_moseq import (
-    setup_project,
-    load_config,
-    load_keypoints,
-    format_data,
-    load_pca,
-    fit_pca,
-    save_pca,
-)
+from .readers.kpms_reader import generate_kpms_dj_config, load_kpms_dj_config
 
 
 schema = dj.schema()
@@ -112,11 +101,11 @@ def get_kpms_processed_data_dir() -> Optional[str]:
 
 @schema
 class PoseEstimationMethod(dj.Lookup):
-    """Table for storing the pose estimation method used to obtain the keypoints data.
+    """Table for storing the pose estimation methods supported by the keypoint loader of keypoint-moseq package.
 
     Attributes:
         format_method (str): Pose estimation method.
-        pose_estimation_desc (str): Pose estimation method description.
+        pose_estimation_desc (str): Pose estimation method description with the formats supported.
     """
 
     definition = """ 
@@ -138,7 +127,7 @@ class PoseEstimationMethod(dj.Lookup):
 
 @schema
 class KeypointSet(dj.Manual):
-    """Table for storing the keypoint sets and their associated videos.
+    """Table for storing the keypoint data and videos directory to train the model.
 
     Attributes:
         kpset_id (int): Unique ID for each keypoint set.
@@ -149,7 +138,6 @@ class KeypointSet(dj.Manual):
     """
 
     definition = """
-    -> Session
     kpset_id                        : int
     ---
     -> PoseEstimationMethod
@@ -159,7 +147,7 @@ class KeypointSet(dj.Manual):
     """
 
     class VideoFile(dj.Part):
-        """IDs and file paths of each video file.
+        """IDs and file paths of each video file that will be used to train the model.
 
         Attributes:
             video_id (int): Unique ID for each video.
@@ -172,87 +160,6 @@ class KeypointSet(dj.Manual):
         ---
         video_path                  : varchar(1000) # Filepath of each video, relative to root data directory
         """
-
-
-@schema
-class RecordingInfo(dj.Imported):
-    """Automated table to store the average metadata of the videoset associated with a kpset_id.
-
-    Attributes:
-        KeypointSet (foreign key)               : Unique ID for each video set.
-        px_height_average (smallint)            : Average height of the video set (pixels).
-        px_width_average (smallint)             : Average width of the video set (pixels).
-        nframes_average (int)                   : Average number of frames of the video set (frames).
-        fps_average (int)                       : Optional. Average frames per second of the video set (Hz).
-        recording_duration_average (float)      : Average video duration (s) of the video set (nframes / fps).
-    """
-
-    definition = """
-    -> KeypointSet
-    ---
-    px_height_average                 : smallint  # Average height of the video set (pixels)
-    px_width_average                  : smallint  # Average width of the video set (pixels)
-    nframes_average                   : int       # Average number of frames of the video set (frames)
-    fps_average = NULL                : int       # Optional. Average frames per second of the video set (Hz)
-    recording_duration_average        : float     # Average video duration (s) of the video set (nframes / fps)
-    """
-
-    @property
-    def key_source(self):
-        """Defines order of keys for the make function when called via `populate()`"""
-        return KeypointSet & KeypointSet.VideoFile
-
-    def make(self, key):
-        """
-        Make function to populate the `RecordingInfo` table.
-
-        Args:
-            key (dict): A dictionary containing key information for the session
-
-        Raises:
-
-        High-Level Logic:
-        1. Fetches the file paths and video IDs from the KeypointSet.VideoFiles table.
-        2. Iterates through the file paths and video IDs to obtain the video metadata using OpenCV.
-        3. Calculate the average video metadata and insert it into the RecordingInfo table.
-        """
-
-        file_paths, video_ids = (KeypointSet.VideoFile & key).fetch(
-            "video_path", "video_id"
-        )
-
-        px_height_list = []
-        px_width_list = []
-        nframes_list = []
-        fps_list = []
-        recording_duration_list = []
-
-        for fp, video_id in zip(file_paths, video_ids):
-            file_path = (find_full_path(get_kpms_root_data_dir(), fp)).as_posix()
-
-            cap = cv2.VideoCapture(file_path)
-            px_height_list.append(int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-            px_width_list.append(int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)))
-            fps_list.append(int(cap.get(cv2.CAP_PROP_FPS)))
-            nframes_list.append(int(cap.get(cv2.CAP_PROP_FRAME_COUNT)))
-            cap.release()
-
-        px_height_average = int(np.mean(px_height_list))
-        px_width_average = int(np.mean(px_width_list))
-        fps_average = int(np.mean(fps_list))
-        nframes_average = int(np.mean(nframes_list))
-        recording_duration_average = int(np.mean(nframes_list) / np.mean(fps_list))
-
-        self.insert1(
-            {
-                **key,
-                "px_height_average": px_height_average,
-                "px_width_average": px_width_average,
-                "nframes_average": nframes_average,
-                "fps_average": fps_average,
-                "recording_duration_average": recording_duration_average,
-            }
-        )
 
 
 @schema
@@ -282,10 +189,10 @@ class Bodyparts(dj.Manual):
 @schema
 class PCATask(dj.Manual):
     """
-    Table to define the PCA task.
+    Staging table for the PCA task and its output directory.
 
     Attributes:
-        Bodyparts (foreign key)         : Unique ID for each bodypart.
+        Bodyparts (foreign key)         : Bodyparts Key
         output_dir (str)                : KPMS's output directory relative to root
         task_mode (str)                 : 'load': load computed analysis results, 'trigger': trigger computation
     """
@@ -293,21 +200,21 @@ class PCATask(dj.Manual):
     definition = """ 
     -> Bodyparts
     ---
-    output_dir=''               : varchar(255) # KPMS's output directory relative to root
-    task_mode='load'            : enum('load', 'trigger') # default = 'load': load computed analysis results, 'trigger': trigger computation
+    kpms_project_output_dir=''               : varchar(255) # KPMS's output directory relative to root
     """
 
 
 @schema
-class FormattedDataset(dj.Imported):
+class LoadKeypointSet(dj.Imported):
     """
-    Table for storing the formatted dataset and update the `config.yml` by creating a new `dj_config.yml` in the project path (`output_dir`)
+    Table to create the `kpms_project_output_dir`, and create and update the `config.yml` by creating a new `dj_config.yml`.
 
     Attributes:
         PCATask (foreign key)           : Unique ID for each PCATask.
         coordinates (longblob)          : Dictionary mapping filenames to keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3])
         confidences (longblob)          : Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts)
         formatted_bodyparts (longblob)  : List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
+        average_frame_rate (float0      : Average frame rate of the trained videos
     """
 
     definition = """
@@ -315,26 +222,28 @@ class FormattedDataset(dj.Imported):
     ---
     coordinates             : longblob # Keypoint coordinates
     confidences             : longblob # Keypoint confidences                 
-    formatted_bodyparts     : longblob #Formatted bodyparts
+    formatted_bodyparts     : longblob # Formatted bodyparts
+    average_frame_rate      : float    # Average frame rate of the trained videos
     """
 
     def make(self, key):
         """
-        Make function to generate and update `dj_config.yml` and to format keypoint coordinates and confidences for inference.
+        Make function to:
+        1. Generate and update the `dj_config.yml` with both the `video_dir` and the bodyparts.
+        2. Create the keypoint coordinates and confidences scores to format the data for the PCA fitting.
 
         Args:
             key (dict): Primary key from the PCATask table.
 
         Raises:
-            ValueError: If `task_mode` does not match either 'load' or 'trigger'
 
         High-Level Logic:
-        1. Fetches the anterior_bodyparts, posterior_bodyparts, use_bodyparts, output_dir, and task_mode from the PCATask table.
-        2. Fetches the format_method, kpset_config_dir, and kpset_videos_dir from the KeypointSet table.
-        3. Based on the task_mode, it either triggers the computation or loads the computed analysis results.
-        4. If task_mode='trigger', it creates an output_dir if it does not exist, creates a `dj_config` file with the default values from the pose estimation config, and update it with the video_dir and bodyparts used in the pipeline.
-        6. If task_mode='load', it loads the `dj_config` file and updates it with the video_dir and bodyparts used in the pipeline.
-        7. Then, it loads keypoint tracking results from one or more files and formats them for PCA analysis.
+        1. Fetches the bodyparts, output_dir and keypoint method, and keypoint config and videoset directories.
+        2. Creates the `kpms_project_output_dir` (if it does not exist), and generates the kpms default `config.yml` with the default values from the pose estimation (DLC) config.
+        3. Create a copy of the kpms `config.yml` named `kpms_dj_config.yml` that will be updated with both the `video_dir` and bodyparts
+        4. Load keypoint data from deeplabcut, sleap, anipose, sleap-anipose, nwb, or facemap. The coordinates and confidences scores will be used to format the data for modeling.
+        5. Calculate the average frame rate of the videoset chosen to train the model. The average frame rate can be used to calculate the kappa value.
+        6. Insert the results of this `make` function into the table.
         """
 
         anterior_bodyparts, posterior_bodyparts, use_bodyparts = (
@@ -344,52 +253,44 @@ class FormattedDataset(dj.Imported):
             "posterior_bodyparts",
             "use_bodyparts",
         )
-        output_dir, task_mode = (PCATask & key).fetch1("output_dir", "task_mode")
+        kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
         format_method, kpset_config_dir, kpset_videos_dir = (KeypointSet & key).fetch1(
             "format_method", "kpset_config_dir", "kpset_videos_dir"
         )
 
-        if task_mode == "trigger":
-            # create an output_dir if it does not exist, and create a config file with the default values from the pose estimation config
-            setup_project(
-                output_dir, deeplabcut_config=kpset_config_dir + "/config.yaml"
-            )  # creates KPMS default config file from dlc data
-            config = load_config(output_dir, check_if_valid=True, build_indexes=False)
+        from keypoint_moseq import setup_project, load_config, load_keypoints
 
-            # update the config dict with the video_dir and bodyparts used in the pipeline
-            config_kwargs_dict = dict(
-                video_dir=kpset_videos_dir,
-                anterior_bodyparts=anterior_bodyparts,
-                posterior_bodyparts=posterior_bodyparts,
-                use_bodyparts=use_bodyparts,
-            )
-            config.update(**config_kwargs_dict)
+        setup_project(
+            kpms_project_output_dir, deeplabcut_config=kpset_config_dir + "/config.yaml"
+        )
 
-            # save the updated config dict to a different file named `dj_config.yml`
-            generate_dj_config(output_dir, **config)
+        kpms_config = load_config(
+            kpms_project_output_dir, check_if_valid=True, build_indexes=False
+        )
 
-        elif task_mode == "load":
-            config = load_dj_config(output_dir)
+        kpms_dj_config_kwargs_dict = dict(
+            video_dir=kpset_videos_dir,
+            anterior_bodyparts=anterior_bodyparts,
+            posterior_bodyparts=posterior_bodyparts,
+            use_bodyparts=use_bodyparts,
+        )
+        kpms_config.update(**kpms_dj_config_kwargs_dict)
+        generate_kpms_dj_config(kpms_project_output_dir, **kpms_config)
 
-            # update the config dict with the video_dir and bodyparts used in the pipeline
-            config_kwargs_dict = dict(
-                video_dir=kpset_videos_dir,
-                anterior_bodyparts=anterior_bodyparts,
-                posterior_bodyparts=posterior_bodyparts,
-                use_bodyparts=use_bodyparts,
-            )
-            config.update(**config_kwargs_dict)
-
-            # update the updated config dict to the file `dj_config.yml`
-            generate_dj_config(output_dir, **config)
-
-        else:
-            raise ValueError("task_mode should be either 'load' or 'trigger'")
-
-        # load keypoints data from deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap
         coordinates, confidences, formatted_bodyparts = load_keypoints(
             filepath_pattern=kpset_videos_dir, format=format_method
         )
+
+        file_paths, video_ids = (KeypointSet.VideoFile & key).fetch(
+            "video_path", "video_id"
+        )
+        fps_list = []
+        for fp, video_id in zip(file_paths, video_ids):
+            file_path = (find_full_path(get_kpms_root_data_dir(), fp)).as_posix()
+            cap = cv2.VideoCapture(file_path)
+            fps_list.append(int(cap.get(cv2.CAP_PROP_FPS)))
+            cap.release()
+        average_frame_rate = int(np.mean(fps_list))
 
         self.insert1(
             dict(
@@ -397,131 +298,122 @@ class FormattedDataset(dj.Imported):
                 coordinates=coordinates,
                 confidences=confidences,
                 formatted_bodyparts=formatted_bodyparts,
+                average_frame_rate=average_frame_rate,
             )
         )
 
 
 @schema
 class PCAFitting(dj.Computed):
-    """Table for storing the PCA fitting analysis.
+    """Automated fitting of the PCA model.
 
     Attributes:
-        FormattedDataset (foreign key)  : Unique ID for FormattedDataset.
-        pca_fitting_time (datetime)     : Time of generation of the PCA fitting analysis.
+        LoadKeypointSet (foreign key)   : LoadKeypointSet Key.
+        pca_fitting_time (datetime)     : datetime of the PCA fitting analysis.
     """
 
     definition = """
-    -> FormattedDataset
+    -> LoadKeypointSet
     ---
-    pca_fitting_time=NULL    : datetime  # Time of generation of the PCA fitting analysis 
+    pca_fitting_time=NULL    : datetime  # datetime of the PCA fitting analysis
     """
 
     def make(self, key):
         """
-        Make function to fit PCA model and save the PCA model, data, and metadata to files.
+        Make function to format the keypoint data, fit the PCA model, and store it as a `pca.p` file in the output directory.
         
         Args:
-            key (dict): Primary key from the FormattedDataset table.
+            key (dict): LoadKeypointSet Key
 
         Raises:
 
         High-Level Logic:
-        1. Fetches the task_mode and output_dir from the PCATask table.
-        2. If task_mode='trigger', it loads the `dj_config` file and formats the keypoint coordinates and confidences for PCA analysis.
-        3. Then, it fits the PCA model and saves the PCA model, data, and metadata to files.
-        4. If task_mode='load', it does not perform any computation and sets the pca_fitting_time to NULL.
-        5. Finally, it inserts the pca_fitting_time into the PCAFitting table.
+        1. Fetch the `kpms_project_output_dir` from the PCATask table.
+        2. Load the `kpms_dj_config` file that contains the updated `video_dir` and bodyparts, \
+            and format the keypoint data with the coordinates and confidences scores to be used in the PCA fitting.
+        3. Fit the PCA model and save it as `pca.p` file in the output directory.
+        4.Insert the creation datetime as the `pca_fitting_time` into the table.
         """
-        task_mode, output_dir = (PCATask & key).fetch1("task_mode", "output_dir")
 
-        if task_mode == "trigger":
-            config = load_dj_config(output_dir, check_if_valid=True, build_indexes=True)
-            coordinates, confidences = (FormattedDataset & key).fetch1(
-                "coordinates", "confidences"
-            )
+        kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
 
-            data, metadata = format_data(
-                **config, coordinates=coordinates, confidences=confidences
-            )
+        from keypoint_moseq import format_data, fit_pca, save_pca
 
-            pca = fit_pca(**data, **config)
+        kpms_default_config = load_kpms_dj_config(
+            kpms_project_output_dir, check_if_valid=True, build_indexes=True
+        )
+        coordinates, confidences = (LoadKeypointSet & key).fetch1(
+            "coordinates", "confidences"
+        )
+        data, _ = format_data(
+            **kpms_default_config, coordinates=coordinates, confidences=confidences
+        )
 
-            # save the pca model to a file
-            save_pca(
-                pca, output_dir
-            )  # `pca.p` as the first pca model stored in the output_dir
+        pca = fit_pca(**data, **kpms_default_config)
+        save_pca(pca, kpms_project_output_dir)
 
-            # save the data and metadata to files
-            data_path = os.path.join(output_dir, "data.pkl")
-            with open(data_path, "wb") as data_file:
-                pickle.dump(data, data_file)
-
-            metadata_path = os.path.join(output_dir, "metadata.pkl")
-            with open(metadata_path, "wb") as metadata_file:
-                pickle.dump(metadata, metadata_file)
-
-            creation_time = datetime.utcnow()
-
-        else:
-            creation_time = None
-
-        self.insert1(dict(**key, pca_fitting_time=creation_time))
+        creation_datetime = datetime.now(timezone.utc)
+        self.insert1(dict(**key, pca_fitting_time=creation_datetime))
 
 
 @schema
-class DimsExplainedVariance(dj.Computed):
-    """
-    This is an optional table to compute and store the latent dimensions that explain a certain specified variance threshold.
+class LatentDimension(dj.Imported):
+    #     """
+    #     Automated computation to calculate the latent dimension as one of the autoregressive hyperparameters (`ar_hypparams`) necessary for the model fitting.
+    #     The analysis aims to select each of the components that explain the 90% of variance (fixed threshold).
 
-    Attributes:
-        PCAFitting (foreign key)           : Unique ID for each PCAFitting.
-        variance_percentage (float)        : Percentage of variance explained by the selected components.
-        dims_explained_variance (int)      : Number of components required to explain the specified variance.
-        latent_dim_desc (varchar)          : Description of the latent dimensions that explain the specified variance.
-    """
+    #     Attributes:
+    #         PCAFitting (foreign key)           : PCAFitting Key.
+    #         variance_percentage (float)        : Variance threshold. Fixed value to 90%.
+    #         latent_dimension (int)             : Number of principal components required to explain the specified variance.
+    #         latent_dim_desc (varchar)          : Automated description of the computation result.
+    #     """
 
     definition = """
     -> PCAFitting
     ---
-    variance_percentage      : float # Percentage of variance explained by the selected components.
-    dims_explained_variance  : int # Number of components required to explain the specified variance.
-    latent_dim_desc          : varchar(1000) # Description of the latent dimensions that explain the specified variance.
+    variance_percentage      : float            # Variance threshold. Fixed value to 0.9
+    latent_dimension         : int              # Number of principal components to explain the variance.
+    latent_dim_desc          : varchar(1000)    # Automated description of the computation result.
     """
 
     def make(self, key):
         """
-        Make function to compute and store the latent dimensions that explain a certain specified variance threshold.
+        Make function to compute and store the latent dimensions that explain a 90% variance threshold.
 
         Args:
-            key (dict): Primary key from the PCAFitting table.
+            key (dict): PCAFitting Key.
 
         Raises:
 
         High-Level Logic:
-        1. Fetches the output_dir from the PCATask table.
-        2. Loads the PCA model from the output_dir.
-        3. Computes the cumulative sum of the explained variance ratio and determines the number of components required to explain the specified variance.
-        4. If the cumulative sum of the explained variance ratio is less than the specified variance threshold, it sets the dims_explained_variance to the number of components and variance_percentage to the cumulative sum of the explained variance ratio.
-        5. If the cumulative sum of the explained variance ratio is greater than the specified variance threshold, it sets the dims_explained_variance to the number of components and variance_percentage to the specified variance threshold.
-        6. Inserts the variance_percentage, dims_explained_variance, and latent_dim_desc into the DimsExplainedVariance table.
+        1. Fetches the output directory from the PCATask table and load the PCA model from the output directory.
+        2. Set a specified variance threshold to 90% and compute the cumulative sum of the explained variance ratio.
+        3. Determine the number of components required to explain the specified variance.
+            3.1 If the cumulative sum of the explained variance ratio is less than the specified variance threshold, \
+                it sets the `latent_dimension` to the total number of components and `variance_percentage` to the cumulative sum of the explained variance ratio.
+            3.2 If the cumulative sum of the explained variance ratio is greater than the specified variance threshold, \
+                it sets the `latent_dimension` to the number of components that explain the specified variance and `variance_percentage` to the specified variance threshold.
+        4. Insert the results of this `make` function into the table.
         """
+        from keypoint_moseq import load_pca
 
-        output_dir = (PCATask & key).fetch1("output_dir")
+        kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
+        pca = load_pca(kpms_project_output_dir)
+
         variance_threshold = 0.90
+        cs = np.cumsum(
+            pca.explained_variance_ratio_
+        )  # explained_variance_ratio_ndarray of shape (n_components,)
 
-        pca = load_pca(output_dir)
-        cs = np.cumsum(pca.explained_variance_ratio_)
-        # explained_variance_ratio_ndarray of shape (n_components,)
-        # Percentage of variance explained by each of the selected components.
-        # If n_components is not set then all components are stored and the sum of the ratios is equal to 1.0.
         if cs[-1] < variance_threshold:
-            dims_explained_variance = len(cs)
+            latent_dimension = len(cs)
             variance_percentage = cs[-1] * 100
             latent_dim_desc = (
                 f"All components together only explain {cs[-1]*100}% of variance."
             )
         else:
-            dims_explained_variance = (cs > variance_threshold).nonzero()[0].min() + 1
+            latent_dimension = (cs > variance_threshold).nonzero()[0].min() + 1
             variance_percentage = variance_threshold * 100
             latent_dim_desc = f">={variance_threshold*100}% of variance explained by {(cs>variance_threshold).nonzero()[0].min()+1} components."
 
@@ -529,7 +421,7 @@ class DimsExplainedVariance(dj.Computed):
             dict(
                 **key,
                 variance_percentage=variance_percentage,
-                dims_explained_variance=dims_explained_variance,
+                latent_dimension=latent_dimension,
                 latent_dim_desc=latent_dim_desc,
             )
         )
