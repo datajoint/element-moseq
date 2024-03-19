@@ -3,7 +3,7 @@ import inspect
 from pathlib import Path
 from typing import Optional
 import importlib
-
+import os
 import cv2
 import datajoint as dj
 import numpy as np
@@ -193,14 +193,13 @@ class PCATask(dj.Manual):
 
     Attributes:
         Bodyparts (foreign key)         : Bodyparts Key
-        output_dir (str)                : KPMS's output directory relative to root
-        task_mode (str)                 : 'load': load computed analysis results, 'trigger': trigger computation
+        kpms_project_output_dir (str)   : KPMS's output directory relative to root
     """
 
     definition = """ 
     -> Bodyparts
     ---
-    kpms_project_output_dir=''               : varchar(255) # KPMS's output directory relative to root
+    kpms_project_output_dir=''          : varchar(255) # KPMS's output directory relative to root
     """
 
 
@@ -241,7 +240,8 @@ class LoadKeypointSet(dj.Imported):
         1. Fetches the bodyparts, output_dir and keypoint method, and keypoint config and videoset directories.
         2. Creates the `kpms_project_output_dir` (if it does not exist), and generates the kpms default `config.yml` with the default values from the pose estimation (DLC) config.
         3. Create a copy of the kpms `config.yml` named `kpms_dj_config.yml` that will be updated with both the `video_dir` and bodyparts
-        4. Load keypoint data from deeplabcut, sleap, anipose, sleap-anipose, nwb, or facemap. The coordinates and confidences scores will be used to format the data for modeling.
+        4. Calculate the `filepath_patterns` that will select the videos from `KeypointSet.VideoFile` as the training set.
+        4. Load keypoint data for the selected training videoset. The coordinates and confidences scores will be used to format the data for modeling.
         5. Calculate the average frame rate of the videoset chosen to train the model. The average frame rate can be used to calculate the kappa value.
         6. Insert the results of this `make` function into the table.
         """
@@ -254,36 +254,45 @@ class LoadKeypointSet(dj.Imported):
             "use_bodyparts",
         )
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
+        kpms_project_output_dir = get_kpms_processed_data_dir()/ kpms_project_output_dir
+
         format_method, kpset_config_dir, kpset_videos_dir = (KeypointSet & key).fetch1(
             "format_method", "kpset_config_dir", "kpset_videos_dir"
         )
+        
+        file_paths, video_ids = (KeypointSet.VideoFile & key).fetch(
+            "video_path", "video_id"
+        )
+
+        kpset_config_dir = find_full_path(get_kpms_root_data_dir(), kpset_config_dir)
+        kpset_videos_dir = find_full_path(get_kpms_root_data_dir(), kpset_videos_dir)
 
         from keypoint_moseq import setup_project, load_config, load_keypoints
 
         setup_project(
-            kpms_project_output_dir, deeplabcut_config=kpset_config_dir + "/config.yaml"
+            kpms_project_output_dir, deeplabcut_config=kpset_config_dir / "config.yaml"
         )
 
         kpms_config = load_config(
-            kpms_project_output_dir, check_if_valid=True, build_indexes=False
+            kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=False
         )
 
         kpms_dj_config_kwargs_dict = dict(
-            video_dir=kpset_videos_dir,
+            video_dir=kpset_videos_dir.as_posix(),
             anterior_bodyparts=anterior_bodyparts,
             posterior_bodyparts=posterior_bodyparts,
             use_bodyparts=use_bodyparts,
+            
         )
         kpms_config.update(**kpms_dj_config_kwargs_dict)
-        generate_kpms_dj_config(kpms_project_output_dir, **kpms_config)
+        generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_config)
+
+        filepath_patterns = [(kpset_videos_dir / (os.path.splitext(os.path.basename(path))[0] + '*')).as_posix() for path in file_paths]
 
         coordinates, confidences, formatted_bodyparts = load_keypoints(
-            filepath_pattern=kpset_videos_dir, format=format_method
+            filepath_pattern=filepath_patterns, format=format_method
         )
 
-        file_paths, video_ids = (KeypointSet.VideoFile & key).fetch(
-            "video_path", "video_id"
-        )
         fps_list = []
         for fp, video_id in zip(file_paths, video_ids):
             file_path = (find_full_path(get_kpms_root_data_dir(), fp)).as_posix()
@@ -336,11 +345,12 @@ class PCAFitting(dj.Computed):
         """
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
+        kpms_project_output_dir = get_kpms_processed_data_dir() / kpms_project_output_dir
 
         from keypoint_moseq import format_data, fit_pca, save_pca
 
         kpms_default_config = load_kpms_dj_config(
-            kpms_project_output_dir, check_if_valid=True, build_indexes=True
+            kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
         )
         coordinates, confidences = (LoadKeypointSet & key).fetch1(
             "coordinates", "confidences"
@@ -350,7 +360,7 @@ class PCAFitting(dj.Computed):
         )
 
         pca = fit_pca(**data, **kpms_default_config)
-        save_pca(pca, kpms_project_output_dir)
+        save_pca(pca, kpms_project_output_dir.as_posix())
 
         creation_datetime = datetime.now(timezone.utc)
         self.insert1(dict(**key, pca_fitting_time=creation_datetime))
@@ -399,7 +409,9 @@ class LatentDimension(dj.Imported):
         from keypoint_moseq import load_pca
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
-        pca = load_pca(kpms_project_output_dir)
+        kpms_project_output_dir = get_kpms_processed_data_dir() / kpms_project_output_dir
+
+        pca = load_pca(kpms_project_output_dir.as_posix())
 
         variance_threshold = 0.90
         cs = np.cumsum(
