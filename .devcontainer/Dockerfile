@@ -31,20 +31,20 @@ COPY ./ /tmp/element-moseq/
 
 RUN \
     # pipeline dependencies
-    apt-get update && \
-    apt-get install -y gcc ffmpeg graphviz && \
-    pip install --no-cache-dir -e /tmp/element-moseq[elements] && \
+    apt-get install gcc g++ ffmpeg libsm6 libxext6 libgl1 libegl1 -y && \
+    pip install --no-cache-dir -e /tmp/element-moseq[elements,tests] && \
     # clean up
     rm -rf /tmp/element-moseq/ && \
     apt-get clean
+
+# Install Keypoint-MoSeq (CPU version)
+RUN pip install "jax[cpu]==0.3.22" -f https://storage.googleapis.com/jax-releases/jax_releases.html
 
 ENV DJ_HOST fakeservices.datajoint.io
 ENV DJ_USER root
 ENV DJ_PASS simple
 
-#ENV DATA_MOUNTPOINT /workspaces/element-moseq/example_data
-#ENV DLC_ROOT_DATA_DIR $DATA_MOUNTPOINT/inbox
-#ENV DLC_PROCESSED_DATA_DIR $DATA_MOUNTPOINT/outbox
+ENV KPMS_ROOT_DATA_DIR /workspaces/element-moseq/example_data
 ENV DATABASE_PREFIX neuro_
 
 USER vscode
