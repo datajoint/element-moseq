@@ -10,7 +10,7 @@ import datajoint as dj
 import importlib
 from datajoint import DataJointError
 
-from element_moseq.kpms_pca import LoadKeypointSet, PCATask
+from element_moseq.kpms_pca import *
 
 from element_interface.utils import find_full_path
 from .readers.kpms_reader import load_kpms_dj_config, generate_kpms_dj_config
@@ -389,9 +389,9 @@ class VideoRecording(dj.Manual):
     """
 
     definition = """
-    -> Session                  # Session primary key
-    -> PoseEstimationMethod     # Pose estimation method
-    recording_id: int           # Unique ID for each recording
+    -> Session                          # Session primary key
+    -> kpms_pca.PoseEstimationMethod    # Pose estimation method
+    recording_id: int                   # Unique ID for each recording
     """
 
     class File(dj.Part):
