@@ -10,7 +10,11 @@ import datajoint as dj
 import importlib
 from datajoint import DataJointError
 
-from element_moseq.moseq_train import PoseEstimationMethod
+from . import moseq_train
+from .moseq_train import (
+    get_kpms_root_data_dir,
+    get_kpms_processed_data_dir,
+)
 
 from element_interface.utils import find_full_path
 from .readers.kpms_reader import load_kpms_dj_config, generate_kpms_dj_config
@@ -49,12 +53,6 @@ def activate(
                              if they do not yet exist.
         linking_module (str): a module (or name) containing the required dependencies.
 
-    Dependencies:
-    Functions:
-        get_kpms_root_data_dir(): Returns absolute path for root data director(y/ies)
-                                 with all behavioral recordings, as (list of) string(s).
-        get_kpms_processed_data_dir(): Optional. Returns absolute path for processed
-                                      data. Defaults to session video subfolder.
     """
 
     if isinstance(linking_module, str):
@@ -77,42 +75,6 @@ def activate(
         add_objects=_linking_module.__dict__,
     )
 
-
-# -------------- Functions required by element-moseq ---------------
-
-
-def get_kpms_root_data_dir() -> list:
-    """Pulls relevant func from parent namespace to specify root data dir(s).
-
-    It is recommended that all paths in DataJoint Elements stored as relative
-    paths, with respect to some user-configured "root" director(y/ies). The
-    root(s) may vary between data modalities and user machines. Returns a full path
-    string or list of strings for possible root data directories.
-    """
-    root_directories = _linking_module.get_kpms_root_data_dir()
-    if isinstance(root_directories, (str, Path)):
-        root_directories = [root_directories]
-
-    if (
-        hasattr(_linking_module, "get_kpms_processed_data_dir")
-        and get_kpms_processed_data_dir() not in root_directories
-    ):
-        root_directories.append(_linking_module.get_kpms_processed_data_dir())
-
-    return root_directories
-
-
-def get_kpms_processed_data_dir() -> Optional[str]:
-    """Pulls relevant func from parent namespace. Defaults to KPMS's project /videos/.
-
-    Method in parent namespace should provide a string to a directory where KPMS output
-    files will be stored. If unspecified, output files will be stored in the
-    session directory 'videos' folder, per DeepLabCut default.
-    """
-    if hasattr(_linking_module, "get_kpms_processed_data_dir"):
-        return _linking_module.get_kpms_processed_data_dir()
-    else:
-        return None
 
 
 # ----------------------------- Table declarations ----------------------
