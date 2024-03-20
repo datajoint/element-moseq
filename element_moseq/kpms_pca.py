@@ -213,7 +213,7 @@ class PCATask(dj.Manual):
 @schema
 class LoadKeypointSet(dj.Imported):
     """
-    Table to create the `kpms_project_output_dir`, and create and update the `config.yml` by creating a new `dj_config.yml`.
+    Table to create the `kpms_project_output_dir`, and create and update the `config.yml` by creating a new `kpms_dj_config.yml`.
 
     Attributes:
         PCATask (foreign key)           : Unique ID for each PCATask.
@@ -237,7 +237,7 @@ class LoadKeypointSet(dj.Imported):
     def make(self, key):
         """
         Make function to:
-        1. Generate and update the `dj_config.yml` with both the `video_dir` and the bodyparts.
+        1. Generate and update the `kpms_dj_config.yml` with both the `video_dir` and the bodyparts.
         2. Create the keypoint coordinates and confidences scores to format the data for the PCA fitting.
 
         Args:
