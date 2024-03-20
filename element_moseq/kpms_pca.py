@@ -1,12 +1,14 @@
 from datetime import datetime, timezone
 import inspect
+import os
 from pathlib import Path
 from typing import Optional
-import importlib
-import os
+
 import cv2
-import datajoint as dj
 import numpy as np
+
+import datajoint as dj
+import importlib
 
 from element_interface.utils import find_full_path
 from .readers.kpms_reader import generate_kpms_dj_config, load_kpms_dj_config
@@ -101,18 +103,18 @@ def get_kpms_processed_data_dir() -> Optional[str]:
 
 @schema
 class PoseEstimationMethod(dj.Lookup):
-    """Table for storing the pose estimation methods supported by the keypoint loader of keypoint-moseq package.
+    """Table to store the pose estimation methods supported by the keypoint loader of `keypoint-moseq` package.
 
     Attributes:
-        format_method (str): Pose estimation method.
-        pose_estimation_desc (str): Pose estimation method description with the formats supported.
+        format_method (str): Pose estimation method (e.g. deeplabcut, sleap, etc.)
+        pose_estimation_desc (str): Pose estimation method description with the supported formats.
     """
 
     definition = """ 
     # Parameters used to obtain the keypoints data based on a specific pose estimation method.        
-    format_method           : char(15)         # deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap,
+    format_method           : char(15)         # Supported pose estimation method (deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap)
     ---
-    pose_estimation_desc    : varchar(1000)    # Optional. Pose estimation method description
+    pose_estimation_desc    : varchar(1000)    # Optional. Pose estimation method description with the supported formats.
     """
 
     contents = [
@@ -127,7 +129,7 @@ class PoseEstimationMethod(dj.Lookup):
 
 @schema
 class KeypointSet(dj.Manual):
-    """Table for storing the keypoint data and videos directory to train the model.
+    """Table to store the keypoint data and video set directory to train the model.
 
     Attributes:
         kpset_id (int): Unique ID for each keypoint set.
@@ -138,9 +140,9 @@ class KeypointSet(dj.Manual):
     """
 
     definition = """
-    kpset_id                        : int
+    kpset_id                        : int           # Unique ID for each keypoint set   
     ---
-    -> PoseEstimationMethod
+    -> PoseEstimationMethod                         # Unique format method used to obtain the keypoints data
     kpset_config_dir                : varchar(255)  # Path relative to root data directory where the config file is located
     kpset_videos_dir                : varchar(255)  # Path relative to root data directory where the videos and their keypoints are located
     kpset_desc=''                   : varchar(300)  # Optional. User-entered description
@@ -156,7 +158,7 @@ class KeypointSet(dj.Manual):
 
         definition = """
         -> master
-        video_id                    : int
+        video_id                    : int           # Unique ID for each video
         ---
         video_path                  : varchar(1000) # Filepath of each video, relative to root data directory
         """
@@ -164,7 +166,7 @@ class KeypointSet(dj.Manual):
 
 @schema
 class Bodyparts(dj.Manual):
-    """Table for storing the bodyparts used in the analysis.
+    """Table to store the body parts to use in the analysis.
 
     Attributes:
         KeypointSet (foreign key)       : Unique ID for each keypoint set.
@@ -176,20 +178,20 @@ class Bodyparts(dj.Manual):
     """
 
     definition = """
-    -> KeypointSet
-    bodyparts_id                : int
+    -> KeypointSet                              # Unique ID for each keypoint set
+    bodyparts_id                : int           # Unique ID for each bodypart
     ---
     bodyparts_desc=''           : varchar(1000) # Optional. User-entered description.
-    anterior_bodyparts          : blob  # List of strings of anterior bodyparts
-    posterior_bodyparts         : blob  # List of strings of posterior bodyparts
-    use_bodyparts               : blob  # List of strings of bodyparts to be used
+    anterior_bodyparts          : blob          # List of strings of anterior bodyparts
+    posterior_bodyparts         : blob          # List of strings of posterior bodyparts
+    use_bodyparts               : blob          # List of strings of bodyparts to be used
     """
 
 
 @schema
 class PCATask(dj.Manual):
     """
-    Staging table for the PCA task and its output directory.
+    Staging table to define the PCA task and its output directory.
 
     Attributes:
         Bodyparts (foreign key)         : Bodyparts Key
@@ -197,9 +199,9 @@ class PCATask(dj.Manual):
     """
 
     definition = """ 
-    -> Bodyparts
+    -> Bodyparts                                        # Unique ID for each Bodyparts key
     ---
-    kpms_project_output_dir=''          : varchar(255) # KPMS's output directory relative to root
+    kpms_project_output_dir=''          : varchar(255)  # KPMS's output directory relative to root
     """
 
 
@@ -217,12 +219,12 @@ class LoadKeypointSet(dj.Imported):
     """
 
     definition = """
-    -> PCATask
+    -> PCATask                          # Unique ID for each PCATask
     ---
-    coordinates             : longblob # Keypoint coordinates
-    confidences             : longblob # Keypoint confidences                 
-    formatted_bodyparts     : longblob # Formatted bodyparts
-    average_frame_rate      : float    # Average frame rate of the trained videos
+    coordinates             : longblob  # Dictionary mapping filenames to keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3])
+    confidences             : longblob  # Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts)           
+    formatted_bodyparts     : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
+    average_frame_rate      : float     # Average frame rate of the trained videos
     """
 
     def make(self, key):
@@ -235,6 +237,7 @@ class LoadKeypointSet(dj.Imported):
             key (dict): Primary key from the PCATask table.
 
         Raises:
+            NotImplementedError: `format_method` is only supported for `deeplabcut`. If support required for another format method, reach out to us.
 
         High-Level Logic:
         1. Fetches the bodyparts, output_dir and keypoint method, and keypoint config and videoset directories.
@@ -254,12 +257,14 @@ class LoadKeypointSet(dj.Imported):
             "use_bodyparts",
         )
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
-        kpms_project_output_dir = get_kpms_processed_data_dir()/ kpms_project_output_dir
+        kpms_project_output_dir = (
+            get_kpms_processed_data_dir() / kpms_project_output_dir
+        )
 
         format_method, kpset_config_dir, kpset_videos_dir = (KeypointSet & key).fetch1(
             "format_method", "kpset_config_dir", "kpset_videos_dir"
         )
-        
+
         file_paths, video_ids = (KeypointSet.VideoFile & key).fetch(
             "video_path", "video_id"
         )
@@ -282,16 +287,26 @@ class LoadKeypointSet(dj.Imported):
             anterior_bodyparts=anterior_bodyparts,
             posterior_bodyparts=posterior_bodyparts,
             use_bodyparts=use_bodyparts,
-            
         )
         kpms_config.update(**kpms_dj_config_kwargs_dict)
         generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_config)
 
-        filepath_patterns = [(kpset_videos_dir / (os.path.splitext(os.path.basename(path))[0] + '*')).as_posix() for path in file_paths]
+        filepath_patterns = [
+            (
+                kpset_videos_dir / (os.path.splitext(os.path.basename(path))[0] + "*")
+            ).as_posix()
+            for path in file_paths
+        ]
 
-        coordinates, confidences, formatted_bodyparts = load_keypoints(
-            filepath_pattern=filepath_patterns, format=format_method
-        )
+        if format_method == "deeplabcut":
+            coordinates, confidences, formatted_bodyparts = load_keypoints(
+                filepath_pattern=filepath_patterns, format=format_method
+            )
+        else:
+            raise NotImplementedError(
+                "The currently supported format method is `deeplabcut`. If you require \
+        support for another format method, please reach out to us at `support at datajoint.com`."
+            )
 
         fps_list = []
         for fp, video_id in zip(file_paths, video_ids):
@@ -322,14 +337,14 @@ class PCAFitting(dj.Computed):
     """
 
     definition = """
-    -> LoadKeypointSet
+    -> LoadKeypointSet                   # LoadKeypointSet Key
     ---
     pca_fitting_time=NULL    : datetime  # datetime of the PCA fitting analysis
     """
 
     def make(self, key):
         """
-        Make function to format the keypoint data, fit the PCA model, and store it as a `pca.p` file in the output directory.
+        Make function to format the keypoint data, fit the PCA model, and store it as a `pca.p` file in the KPMS output directory.
         
         Args:
             key (dict): LoadKeypointSet Key
@@ -345,7 +360,9 @@ class PCAFitting(dj.Computed):
         """
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
-        kpms_project_output_dir = get_kpms_processed_data_dir() / kpms_project_output_dir
+        kpms_project_output_dir = (
+            get_kpms_processed_data_dir() / kpms_project_output_dir
+        )
 
         from keypoint_moseq import format_data, fit_pca, save_pca
 
@@ -369,7 +386,8 @@ class PCAFitting(dj.Computed):
 @schema
 class LatentDimension(dj.Imported):
     #     """
-    #     Automated computation to calculate the latent dimension as one of the autoregressive hyperparameters (`ar_hypparams`) necessary for the model fitting.
+    #     Automated computation to calculate the latent dimension as one of the autoregressive hyperparameters (`ar_hypparams`) \
+    #     necessary for the model fitting.
     #     The analysis aims to select each of the components that explain the 90% of variance (fixed threshold).
 
     #     Attributes:
@@ -380,10 +398,10 @@ class LatentDimension(dj.Imported):
     #     """
 
     definition = """
-    -> PCAFitting
+-> PCAFitting                                   # PCAFitting Key
     ---
     variance_percentage      : float            # Variance threshold. Fixed value to 0.9
-    latent_dimension         : int              # Number of principal components to explain the variance.
+    latent_dimension         : int              # Number of principal components required to explain the specified variance.
     latent_dim_desc          : varchar(1000)    # Automated description of the computation result.
     """
 
@@ -409,7 +427,9 @@ class LatentDimension(dj.Imported):
         from keypoint_moseq import load_pca
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
-        kpms_project_output_dir = get_kpms_processed_data_dir() / kpms_project_output_dir
+        kpms_project_output_dir = (
+            get_kpms_processed_data_dir() / kpms_project_output_dir
+        )
 
         pca = load_pca(kpms_project_output_dir.as_posix())
 
