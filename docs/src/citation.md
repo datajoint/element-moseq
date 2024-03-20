@@ -10,4 +10,4 @@ If your work uses the following resources, please cite the respective manuscript
   + [RRID:SCR_021894](https://scicrunch.org/resolver/SCR_021894)
 
 + Keypoint-MoSeq
-  + [Manuscripts](https://www.biorxiv.org/content/10.1101/2023.03.16.532307v1)
+  + [Manuscripts](https://www.biorxiv.org/content/10.1101/2023.03.16.532307v2.full.pdf)

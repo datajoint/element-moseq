@@ -13,6 +13,6 @@
 We recommend users to configure a database specifically for production pipelines.  Instructions for a local installation of the integrated development environment with a database can be found on the [User Guide](https://datajoint.com/docs/elements/user-guide/) page.
 
 
-## POSE ESTIMATION METHOD
+## Pose Estimation Method
 
-+ Behavioral segmentation analysis using keypoint data extracted with DeepLabCut is currently supported for single animal.
++ At present, behavioral segmentation analysis is compatible with keypoint data extracted with DeepLabCut with single-animal datasets.
