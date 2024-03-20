@@ -1,20 +1,16 @@
 # DataJoint Element for Motion Sequencing with Keypoint-MoSeq
 
-DataJoint Element for motion sequencing with
-[Keypoint-Moseq](https://dattalab.github.io/moseq2-website/index.html) ([scientific article](https://doi.org/10.1101/2023.03.16.532307)). Serving as an open-source tool, Keypoint-MoSeq utilizes an advanced generative model to capture animal behavior. This machine learning software excels in automatically identifying and interpreting behavioral modules, or "syllables," from keypoint data without requiring manual intervention. The keypoint timeseries data can originate from DeepLabCut, SLEAP, or other pose estimation algorithms.
+DataJoint Element for advanced motion sequencing of animal behavior using [Keypoint-MoSeq](https://dattalab.github.io/moseq2-website/index.html). This Element facilitates Keypoint-MoSeq analysis, employing an advanced generative model to automatically identify behavioral modules or "syllables" from keypoint data extracted from conventional video recordings of animal behavior, eliminating the need for manual intervention.
 
-DataJoint Elements collectively standardize
-and automate data collection and analysis for neuroscience experiments.  Each Element is
-a modular pipeline for data storage and processing with corresponding database
-tables that can be combined with other Elements to assemble a fully functional pipeline. This repository also provides a tutorial environment and notebooks to learn the pipeline.
+DataJoint Elements collectively standardize and automate data collection and analysis for neuroscience experiments.  Each Element is a modular pipeline for data storage and processing with corresponding database tables that can be combined with other Elements to assemble a fully functional pipeline. This repository also provides a tutorial environment and notebooks to learn the pipeline.
 
 ## Experiment Flowchart
 
-![pipeline](../images/flowchart.svg)
+![flowchart](https://raw.githubusercontent.com/datajoint/element-moseq/main/images/flowchart.svg)
 
 ## Data Pipeline Diagram
 
-![pipeline](../images/pipeline.svg)
+![pipeline](https://raw.githubusercontent.com/datajoint/element-moseq/main/images/pipeline.svg)
 
 ## Getting Started
 
