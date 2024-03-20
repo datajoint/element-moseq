@@ -2,28 +2,19 @@ from datetime import datetime
 import inspect
 import os
 from pathlib import Path
-import pickle
 from typing import Optional
-import importlib
+
+from matplotlib import pyplot as plt
 
 import datajoint as dj
+import importlib
+from datajoint import DataJointError
 
-from element_moseq.kpms_pca import PCATask, FormattedDataset
-from .readers.kpms_reader import load_dj_config, generate_dj_config
-from keypoint_moseq import (
-    load_pca,
-    init_model,
-    update_hypparams,
-    fit_model,
-    load_checkpoint,
-    reindex_syllables_in_checkpoint,
-    extract_results,
-    save_results_as_csv,
-    generate_trajectory_plots,
-    generate_grid_movies,
-    plot_similarity_dendrogram,
-    apply_model,
-)
+from element_moseq.kpms_pca import LoadKeypointSet, PCATask
+
+from element_interface.utils import find_full_path
+from .readers.kpms_reader import load_kpms_dj_config, generate_kpms_dj_config
+from keypoint_moseq import update_hypparams, fit_model, load_checkpoint
 
 
 schema = dj.schema()
@@ -118,119 +109,232 @@ def get_kpms_processed_data_dir() -> Optional[str]:
 
 @schema
 class PreFittingTask(dj.Manual):
-    """Table to specify the parameters for pre-fitting the AR-HMM model and to optionally initialize the model.
+    """Table to specify the parameters for the pre-fitting (AR-HMM) of the model.
 
     Attributes:
-        kpms_pca.PCAFitting (foreign key)   : PCA fitting task
-        pre_latent_dim (int)                : Number of latent dimensions for the AR-HMM pre-fitting
-        pre_kappa (int)                     : Kappa value for the AR-HMM pre-fitting
-        pre_num_iterations (int)            : Number of iterations for the AR-HMM pre-fitting
-        pre_fitting_desc(varchar)           : Description of the pre-fitting task
-        model_initialization (Yes or No)    : Whether to initialize a new AR-HMM model and output_dir
-        model_name_initialization (varchar) : Default name of the chosen initialized model to be pre-fitted (optional)
+        kpms_pca.PCAFitting (foreign key)   : PCA fitting task.
+        pre_latent_dim (int)                : Number of latent dimensions to use for the model pre-fitting.
+        pre_kappa (int)                     : Kappa value to use for the model pre-fitting.
+        pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting.
+        pre_fitting_desc(varchar)           : User-defined description of the pre-fitting task.
     """
 
     definition = """
-    -> kpms_pca.PCAFitting
-    pre_latent_dim               : int
-    pre_kappa                    : int
-    pre_num_iterations           : int
+    -> kpms_pca.PCAFitting             # PCAFitting Key
+    pre_latent_dim               : int # Number of latent dimensions to use for the model pre-fitting
+    pre_kappa                    : int # Kappa value to use for the model pre-fitting
+    pre_num_iterations           : int # Number of Gibbs sampling iterations to run in the model pre-fitting.
     ---
-    pre_fitting_desc=''      : varchar(1000)
-    model_initialization="Yes"     :enum("Yes","No") # 'Yes' initialize a new AR-HMM model and output_dir, 'No' will directly pre-fit the model
-    model_name_initialization='' : varchar(100) # Optional. Name of the initialized model to be pre-fitted. Only needed if model_initialization = False
+    pre_fitting_desc=''          : varchar(1000) # User-defined description of the pre-fitting task
     """
 
 
 @schema
 class PreFitting(dj.Computed):
-    """Table for storing the pre-fitted AR-HMM model and its duration of generation.
+    """Automated computation to fit a AR-HMM model.
 
     Attributes:
-        PreFittingTask (foreign key)        : Pre-fitting task
-        model_name (varchar)                : Name of the model
-        pre_fitting_duration (time)         : Duration of generation of the full fitting model
+        PreFittingTask (foreign key)        : PreFittingTask Key.
+        model_name (varchar)                : Name of the model as "kpms_project_output_dir/model_name".
+        pre_fitting_duration (time)         : Time duration of the model fitting computation.
     """
 
     definition = """
-    -> PreFittingTask
+    -> PreFittingTask                           # PreFittingTask Key
     ---
-    model_name=''                : varchar(100) # Name of the model
-    pre_fitting_duration=NULL    : time  # Duration of generation of the full fitting model 
+    model_name=''                : varchar(100) # Name of the model as "kpms_project_output_dir/model_name"
+    pre_fitting_duration=NULL    : time         # Time duration of the model fitting computation
     """
 
     def make(self, key):
         """
-        Make function to pre-fit the AR-HMM model and store the model and its duration of generation.
+        Make function to fit the AR-HMM model using the latent trajectory defined by `model['states']['x'].
 
         Args:
-            key (dict) : dictionary with the primary key of the `PreFittingTask` table
+            key (dict) : dictionary with the `PreFittingTask` Key.
 
         Raises:
 
         High-level Logic:
-        1. Fetch the `output_dir` and parameters specified in the `PreFittingTask` table
-        2. Update `dj_config.yml` with the latent dimensions and kappa
-        3. Load the pca, data, and metadata from files
-        4. Initialize the model if `model_initialization` is set to "Yes", else load the model from the specified `model_name_initialization`
-        5. Update the model with the chosen kappa
-        6. Fit the model for `pre_num_iterations` and save the model in the `output_dir`. This will also:
-            - generates a name for the model and a corresponding directory in `output_dir`
-            - saves a checkpoint every 25 iterations from which fitting can be restarted
-            - plots the progress of fitting every 25 iterations, including:
-                -- the distributions of syllable frequencies and durations for the most recent iteration
-                -- the change in median syllable duration across fitting iterations
-                -- a sample of the syllable sequence across iterations in a random window
-        7. Insert the autogenerated `model_name` and `pre_fitting_duration` into the `PreFitting` table
+        1. Fetch the `kpms_project_output_dir` and the model parameters from the `PreFittingTask` table
+        2. Update the `dj_config.yml` with the selected latent dimension and kappa for the AR-HMM fitting.
+        3. Load the pca model
+        4. Fetch `coordinates` and `confidences` scores to format the data for the model initialization. \
+            # Data - contains the data for model fitting. \
+            # Metadata - contains the recordings and start/end frames for the data.
+        5. Initialize the model that create a `model` dict containing states, parameters, hyperparameters, noise prior, and random seed.
+        6. Update the model dict with the selected kappa for the AR-HMM fitting
+        7. Fit the AR-HMM model using the `pre_num_iterations` and create a subdirectory in `kpms_project_output_dir` with the model's latest checkpoint
+        8. Calculate the duration of the model fitting computation and insert it in the `PreFitting` table
         """
 
-        output_dir = (PCATask & key).fetch1("output_dir")
-        model_initialization, pre_latent_dim, pre_kappa, pre_num_iterations = (
-            PreFittingTask & key
-        ).fetch1(
-            "model_initialization", "pre_latent_dim", "pre_kappa", "pre_num_iterations"
+        kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
+        kpms_project_output_dir = (
+            get_kpms_processed_data_dir() / kpms_project_output_dir
         )
 
-        # Update `dj_config.yml` with the latent dimensions and kappa
-        config = load_dj_config(output_dir, check_if_valid=True, build_indexes=True)
-        config.update(dict(latent_dim=int(pre_latent_dim), kappa=int(pre_kappa)))
-        generate_dj_config(output_dir, **config)
+        pre_latent_dim, pre_kappa, pre_num_iterations = (PreFittingTask & key).fetch1(
+            "pre_latent_dim", "pre_kappa", "pre_num_iterations"
+        )
 
-        # Load the pca, data, and metadata
-        pca = load_pca(output_dir)
+        kpms_dj_config = load_kpms_dj_config(
+            kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
+        )
+        kpms_dj_config.update(
+            dict(latent_dim=int(pre_latent_dim), kappa=int(pre_kappa))
+        )
+        generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
 
-        data_path = os.path.join(output_dir, "data.pkl")
-        with open(data_path, "rb") as data_file:
-            data = pickle.load(data_file)
+        from keypoint_moseq import load_pca, format_data, init_model, update_hypparams
 
-        metadata_path = os.path.join(output_dir, "metadata.pkl")
-        with open(metadata_path, "rb") as data_file:
-            metadata = pickle.load(data_file)
+        pca = load_pca(kpms_project_output_dir.as_posix())
 
-        if model_initialization == "Yes":
-            model = init_model(data=data, metadata=metadata, pca=pca, **config)
-        else:
-            model_name = (PreFittingTask & key).fetch1("model_name_initialization")
-            model = load_checkpoint(output_dir, model_name)[0]
+        coordinates, confidences = (LoadKeypointSet & key).fetch1(
+            "coordinates", "confidences"
+        )
+        data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
 
-        # update with the chosen kappa
-        model = update_hypparams(model, kappa=int(pre_kappa))
+        model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
 
-        start_time = datetime.utcnow()
+        model = update_hypparams(
+            model, kappa=int(pre_kappa), latent_dim=int(pre_latent_dim)
+        )
 
+        start_time = datetime.now()
         model, model_name = fit_model(
-            model,
-            data,
-            metadata,
-            output_dir,
+            model=model,
+            data=data,
+            metadata=metadata,
+            project_dir=kpms_project_output_dir.as_posix(),
             ar_only=True,
             num_iters=pre_num_iterations,
         )
+        end_time = datetime.now()
 
-        model_path = os.path.join(output_dir + "/" + model_name + "/" + "model.pkl")
-        with open(model_path, "wb") as data_file:
-            pickle.dump(model, data_file)
+        duration_seconds = (end_time - start_time).total_seconds()
+        hours, remainder = divmod(duration_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        duration_formatted = "{:02}:{:02}:{:02}".format(
+            int(hours), int(minutes), int(seconds)
+        )
+        self.insert1(
+            {
+                **key,
+                "model_name": (
+                    kpms_project_output_dir.relative_to(get_kpms_processed_data_dir())
+                    / model_name
+                ).as_posix(),
+                "pre_fitting_duration": duration_formatted,
+            }
+        )
 
+
+@schema
+class FullFittingTask(dj.Manual):
+    """Table to specify the parameters for the full fitting of the model. The full model will generally require a lower value of kappa to yield the same target syllable durations.
+
+    Attributes:
+        kpms_pca.PCAFitting (foreign key)    : PCAFitting Key.
+        full_latent_dim (int)                : Number of latent dimensions to use for the model full fitting.
+        full_kappa (int)                     : Kappa value to use for the model full fitting.
+        full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting.
+        full_fitting_desc(varchar)           : User-defined description of the model full fitting task.
+
+    """
+
+    definition = """
+    -> kpms_pca.PCAFitting                          # PCAFitting Key
+    full_latent_dim              : int              # Number of latent dimensions to use for the model full fitting
+    full_kappa                   : int              # Kappa value to use for the model full fitting
+    full_num_iterations          : int              # Number of Gibbs sampling iterations to run in the model full fitting.
+    ---
+    full_fitting_desc=''         : varchar(1000)    # User-defined description of the model full fitting task   
+    """
+
+
+@schema
+class FullFitting(dj.Computed):
+    """Automated computation to fit the full model.
+
+    Attributes:
+        FullFittingTask (foreign key)        : FullFittingTask Key.
+        model_name                           : varchar(100) # Name of the full-fitted model (output_dir/model_name)
+        full_fitting_duration (time)         : Time duration of the full fitting model
+    """
+
+    definition = """
+    -> FullFittingTask                           # FullFittingTask Key
+    ---
+    model_name                    : varchar(100) # Name of the full-fitted model (output_dir/model_name)
+    full_fitting_duration=NULL    : time         # Time duration of the full fitting model 
+    """
+
+    def make(self, key):
+        """
+            Make function to fit the full (keypoint-SLDS) model
+
+            Args:
+                key (dict): dictionary with the `FullFittingTask` Key.
+
+            Raises:
+
+            High-level Logic:
+            1. Fetch the `kpms_project_output_dir` and the model parameters from the `FullFittingTask` table
+            2. Update the `dj_config.yml` with the selected latent dimension and kappa for the full-fitting.
+            3. Initialize and fit the full model in a new `model_name` directory
+            4. Load the pca and fetch the `coordinates` and `confidences` scores to format the data for the model initialization
+            5. Initialize the model that create a `model` dict containing states, parameters, hyperparameters, noise prior, and random seed.
+            6. Update the model dict with the selected kappa for the AR-HMM fitting
+            7. Fit the AR-HMM model using the `full_num_iterations` and create a subdirectory in `kpms_project_output_dir` with the model's latest checkpoint
+            8. Reindex syllable labels by their frequency in the most recent model snapshot in a checkpoint file. \
+                This function permutes the states and parameters of a saved checkpoint so that syllables are labeled \
+                in order of frequency (i.e. so that 0 is the most frequent, 1 is the second most, and so on).
+            8. Calculate the duration of the model fitting computation and insert it in the `PreFitting` table
+        """
+
+        kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
+        kpms_project_output_dir = (
+            get_kpms_processed_data_dir() / kpms_project_output_dir
+        )
+
+        full_latent_dim, full_kappa, full_num_iterations = (
+            FullFittingTask & key
+        ).fetch1("full_latent_dim", "full_kappa", "full_num_iterations")
+
+        kpms_dj_config = load_kpms_dj_config(
+            kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
+        )
+        kpms_dj_config.update(
+            dict(latent_dim=int(full_latent_dim), kappa=int(full_kappa))
+        )
+        generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
+
+        from keypoint_moseq import (
+            load_pca,
+            format_data,
+            init_model,
+            reindex_syllables_in_checkpoint,
+        )
+
+        pca = load_pca(kpms_project_output_dir.as_posix())
+        coordinates, confidences = (LoadKeypointSet & key).fetch1(
+            "coordinates", "confidences"
+        )
+        data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
+        model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
+        model = update_hypparams(
+            model, kappa=int(full_kappa), latent_dim=int(full_latent_dim)
+        )
+
+        start_time = datetime.utcnow()
+        model, model_name = fit_model(
+            model=model,
+            data=data,
+            metadata=metadata,
+            project_dir=kpms_project_output_dir.as_posix(),
+            ar_only=False,
+            num_iters=full_num_iterations,
+        )
         end_time = datetime.utcnow()
         duration_seconds = (end_time - start_time).total_seconds()
         hours, remainder = divmod(duration_seconds, 3600)
@@ -239,245 +343,318 @@ class PreFitting(dj.Computed):
             int(hours), int(minutes), int(seconds)
         )
 
+        reindex_syllables_in_checkpoint(
+            kpms_project_output_dir.as_posix(), Path(model_name).parts[-1]
+        )
+
         self.insert1(
             {
                 **key,
-                "model_name": model_name,
-                "pre_fitting_duration": duration_formatted,
+                "model_name": (
+                    kpms_project_output_dir.relative_to(get_kpms_processed_data_dir())
+                    / model_name
+                ).as_posix(),
+                "full_fitting_duration": duration_formatted,
             }
         )
 
 
 @schema
-class FullFittingTask(dj.Manual):
-    """This table is used to specify the parameters for fitting the full model.
-    The full model will generally require a lower value of kappa to yield the same target syllable durations.
+class Model(dj.Manual):
+    """Table to register the models.
 
     Attributes:
-        kpms_pca.PCAFitting (foreign key)    : PCA fitting task
-        full_latent_dim (int)                : Number of latent dimensions for the full fitting
-        full_kappa (int)                     : Kappa value for the full fitting
-        full_num_iterations (int)            : Number of iterations for the full fitting
-        full_fitting_desc(varchar)           : Description of the full fitting task
-        task_mode ('trigger' or 'load')      : 'trigger' train a new full model, 'load' use an existing model and apply it to a different keypoint formatted data and pca
-        sort_syllables (bool)                : Whether to sort syllables by frequency (reindexing; Optional)
-        results_as_csv (bool)                : Whether to save results as csv (Optional)
-        visualizations (bool)                : Whether to save visualizations (Optional)
+        model_name (varchar)                : Generated model name (output_dir/model_name)
+        latent_dim (int)                    : Number of latent dimensions of the model
+        kappa (int)                         : Kappa value of the model
 
     """
 
     definition = """
-    -> kpms_pca.PCAFitting
-    full_latent_dim              : int
-    full_kappa                   : int
-    full_num_iterations          : int
+    model_name              : varchar(64)  # Generated model name (output_dir/model_name)
     ---
-    full_fitting_desc=''         : varchar(1000)
-    task_mode                    : enum('trigger', 'load') # 'trigger' train a new full model, 'load' use an existing model and apply it to a different keypoint formatted data and pca
-    sort_syllables               : bool # Whether to sort syllables by frequency (reindexing)
-    results_as_csv               : bool # Whether to save results as csv (Optional)
-    visualizations               : bool # Whether to save visualizations (Optional)
+    latent_dim              : int          # Number of latent dimensions of the model
+    kappa                   : int          # Kappa value of the model
     """
 
 
 @schema
-class FullFitting(dj.Computed):
-    """This table is used to fit the full model and store the model and its duration of generation.
+class VideoRecording(dj.Manual):
+    """Set of video recordings for the Keypoint-MoSeq inference.
 
     Attributes:
-        FullFittingTask (foreign key)        : Full fitting task
-        full_fitting_duration (time)         : Duration of generation of the full fitting model
+        Session (foreign key)               : Session primary key.
+        PoseEstimationMethod (foreign key)  : Pose estimation method.
+        recording_id (int)                  : Unique ID for each recording.
     """
 
     definition = """
-    -> FullFittingTask
-    ---
-    full_fitting_duration=NULL    : time  # Duration of generation of the full fitting model 
+    -> Session                  # Session primary key
+    -> PoseEstimationMethod     # Pose estimation method
+    recording_id: int           # Unique ID for each recording
     """
+
+    class File(dj.Part):
+        """File IDs and paths associated with a given `recording_id`.
+
+        Attributes:
+            VideoRecording (foreign key)   : Video recording primary key.
+            file_id(int)                   : Unique ID for each file.
+            file_path (varchar)            : Filepath of each video, relative to root data directory.
+        """
+
+        definition = """
+        -> master               
+        file_id: int             # Unique ID for each file
+        ---
+        file_path: varchar(1000) # Filepath of each video, relative to root data directory.
+        """
+
+
+@schema
+class InferenceTask(dj.Manual):
+    """Table to specify the model, the video set, and the output directory for the inference task
+
+    Attributes:
+        -> VideoRecording                    : Video recording primary key
+        -> Model                             : Model primary key
+        inference_output_dir (varchar)       : Sub-directory where the results will be stored
+        inference_desc (varchar)             : User-defined description of the inference task
+        num_iterations (int)                 : Number of iterations to use for the model inference. If null, the default number internally is 50.
+    """
+
+    definition = """
+    -> VideoRecording                              # Video recording primary key
+    -> Model                                       # Model primary key 
+    ---
+    inference_output_dir=''       : varchar(1000)  # Optional. Sub-directory where the results will be stored
+    inference_desc=''             : varchar(1000)  # Optional. User-defined description of the inference task
+    num_iterations=NULL           : int            # Optional. Number of iterations to use for the model inference. If null, the default number internally is 50.
+    """
+
+
+@schema
+class Inference(dj.Computed):
+    """This table is used to infer the model results from the checkpoint file and save them to `{output_dir}/{model_name}/{inference_output_dir}/results.h5`.
+
+    Attributes:
+        -> InferenceTask                    : InferenceTask primary key
+        inference_duration (time)           : Time duration of the inference computation
+    """
+
+    definition = """
+    -> InferenceTask                    # InferenceTask primary key
+    --- 
+    inference_duration=NULL    : time   # Time duration of the inference computation
+    """
+
+    class MotionSequence(dj.Part):
+        """This table is used to store the results of the model inference.
+
+        Attributes:
+            video_name (varchar)                : Name of the video
+            syllable (longblob)                 : Syllable labels (z). The syllable label assigned to each frame (i.e. the state indexes assigned by the model).
+            latent_state (longblob)             : Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model.
+            centroid (longblob)                 : Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model.
+            heading (longblob)                  : Inferred heading (h). The heading of the animal in each frame, as estimated by the model.
+        """
+
+        definition = """
+        -> master
+        video_name      : varchar(150)    # Name of the video
+        ---
+        syllable        : longblob        # Syllable labels (z). The syllable label assigned to each frame (i.e. the state indexes assigned by the model).
+        latent_state    : longblob        # Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model.
+        centroid        : longblob        # Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model.
+        heading         : longblob        # Inferred heading (h). The heading of the animal in each frame, as estimated by the model.
+        """
+
+    class GridMoviesSampledInstances(dj.Part):
+        """This table is used to store the grid movies sampled instances.
+
+        Attributes:
+            syllable (int)                  : Syllable label
+            instances (longblob)            : List of instances shown in each in grid movie (in row-major order), where each instance is specified as a tuple with the video name, start frame and end frame.
+        """
+
+        definition = """
+        -> master
+        syllable: int           # Syllable label
+        ---
+        instances: longblob     # List of instances shown in each in grid movie (in row-major order), where each instance is specified as a tuple with the video name, start frame and end frame.
+        """
 
     def make(self, key):
         """
-        Make function to fit the full model and store the model and its duration of generation.
+        This function is used to infer the model results from the checkpoint file and save them to `{output_dir}/{model_name}/{inference_output_dir}/results.h5`.
 
         Args:
-            key (dict): Primary key from the FullFittingTask table.
+            key (dict): Primary key from the InferenceTask table.
 
         Raises:
+            NotImplementedError: If the format method is not `deeplabcut`.
 
         High-level Logic:
-        1. Fetch the `output_dir` and parameters specified in the `FullFittingTask` and `PreFitting` tables
-        2. If `task_mode` is 'trigger':
-        - load the initialized model checkpoint
-        - update it with `full_kappa` to maintain the desired syllable time-scale
-        - fit the model for `full_num_iterations` and save the model in the `output_dir`
-        3. If `task_mode` is 'load':
-        - load the chosen model with its most recent checkpoint, and load the corresponding pca object
-        - apply the model to new keypoint data and save the results
+        1. Fetch the `inference_output_dir` where the results will be stored, and if it is not present, create it.
+        2. Fetch the `model_name` and the `num_iterations` from the `InferenceTask` table
+        3. Load the most recent model checkpoint and the pca model
+        4. Load the new keypoint data as `filepath_patterns` and format the data
+        5. Initialize and apply the model with the new keypoint data
+        6. If the `num_iterations` is set, fit the model with the new keypoint data for `num_iterations` iterations; otherwise, fit the model with the default number of iterations (50)
+        7. Save the results as a CSV file and store the histogram showing the frequency of each syllable
+        8. Generate and save the plots showing the median trajectory of poses associated with each given syllable.
+        9. Generate and save video clips showing examples of each syllable.
+        10. Generate and save the dendrogram representing distances between each syllable's median trajectory.
+        11. Insert the inference duration in the `Inference` table
+        12. Insert the results in the `MotionSequence` and `GridMoviesSampledInstances` tables
         """
 
-        output_dir = (PCATask & key).fetch1("output_dir")
-        try:
-            selected_key = (
-                PreFitting
-                & "pre_latent_dim = {}".format(key["full_latent_dim"])
-                & "pre_kappa = {}".format(key["full_kappa"])
-            )
-            model_name, pre_num_iterations = selected_key.fetch1(
-                "model_name", "pre_num_iterations"
-            )
-        except:
-            print("No prefitting model found")
-
-        task_mode, full_kappa, full_num_iterations = (FullFittingTask & key).fetch1(
-            "task_mode", "full_kappa", "full_num_iterations"
+        from keypoint_moseq import (
+            load_pca,
+            load_keypoints,
+            format_data,
+            apply_model,
+            save_results_as_csv,
+            plot_syllable_frequencies,
+            generate_trajectory_plots,
+            generate_grid_movies,
+            plot_similarity_dendrogram,
         )
 
-        if task_mode == "trigger":
-            pre_model, data, metadata, current_iter = load_checkpoint(
-                output_dir, model_name, iteration=pre_num_iterations
+        inference_output_dir, model_name, num_iterations = (InferenceTask & key).fetch1(
+            "inference_output_dir", "model_name", "num_iterations"
+        )
+        inference_output_full_dir = (
+            get_kpms_processed_data_dir() / model_name / inference_output_dir
+        )
+        if not os.path.exists(inference_output_full_dir):
+            os.makedirs(inference_output_full_dir)
+
+        model_full_path = get_kpms_processed_data_dir() / model_name
+        format_method = (VideoRecording & key).fetch1("format_method")
+        file_paths = (VideoRecording.File & key).fetch("file_path")
+
+        pca = load_pca(model_full_path.parent.as_posix())
+        model = load_checkpoint(
+            project_dir=model_full_path.parent, model_name=Path(model_full_path).name
+        )[0]
+
+        filepath_patterns = []
+        for path in file_paths:
+            full_path = find_full_path(get_kpms_root_data_dir(), path)
+            temp = (
+                Path(full_path).parent
+                / (os.path.splitext(os.path.basename(path))[0] + "*")
+            ).as_posix()
+            filepath_patterns.append(temp)
+        kpms_dj_config = load_kpms_dj_config(
+            model_full_path.parent.as_posix(), check_if_valid=True, build_indexes=True
+        )
+
+        if format_method == "deeplabcut":
+            coordinates, confidences, _ = load_keypoints(
+                filepath_pattern=filepath_patterns, format=format_method
             )
-
-            model = update_hypparams(pre_model, kappa=int(full_kappa))
-
-            start_time = datetime.utcnow()
-
-            full_model = fit_model(
-                model,
-                data,
-                metadata,
-                output_dir,
-                model_name,
-                ar_only=False,
-                start_iter=current_iter,
-                num_iters=full_num_iterations,
-            )[0]
-
-            model_path = os.path.join(
-                output_dir + "/" + model_name + "/" + "full_model.pkl"
-            )
-            with open(model_path, "wb") as data_file:
-                pickle.dump(full_model, data_file)
-
-            end_time = datetime.utcnow()
-            duration_seconds = (end_time - start_time).total_seconds()
-            hours, remainder = divmod(duration_seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            duration_formatted = "{:02}:{:02}:{:02}".format(
-                int(hours), int(minutes), int(seconds)
-            )
-
-            self.insert1({**key, "full_fitting_duration": duration_formatted})
-
         else:
-            # load the most recent model checkpoint and pca object
-            model, data, metadata = load_checkpoint(output_dir, model_name)
-            pca = load_pca(output_dir)
-
-            # load the keypoints data
-            # data_path = os.path.join(output_dir, 'data.pkl')
-            # with open(data_path, 'rb') as data_file:
-            #     data = pickle.load(data_file)
-
-            # metadata_path = os.path.join(output_dir, 'metadata.pkl')
-            # with open(metadata_path, 'rb') as data_file:
-            #     metadata = pickle.load(data_file)
-
-            results = apply_model(model, pca, data, metadata, output_dir, model_name)
-
-            # TO-DO: Save the results in files/table
-
-
-@schema
-class GenerateResults(dj.Computed):
-    """
-    This table is used to extract the model results from the checkpoint file and save them to `{output_dir}/{model_name}/results.h5`.
-    The results are stored as follows:
-        results.h5
-        ├──recording_name1
-        │  ├──syllable      # syllable labels (z). The syllable label assigned to each frame (i.e. the state indexes assigned by the model).
-        │  ├──latent_state  # inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model.
-        │  ├──centroid      # inferred centroid (v). The centroid of the animal in each frame, as estimated by the model.
-        │  └──heading       # inferred heading (h). The heading of the animal in each frame, as estimated by the model.
-
-    Attributes:
-        FullFitting (foreign key)               : Unique ID for full fitting task
-        grid_movies_sampled_instances(longlbob) : Dictionary mapping syllables to lists of instances shown in each in grid movie (in row-major order), where each instance is specified as a tuple with the video name, start frame and end frame.
-    """
-
-    definition = """
-    -> FullFitting
-    ---
-    grid_movies_sampled_instances : longblob # Dictionary mapping syllables to lists of instances shown in each in grid movie (in row-major order), where each instance is specified as a tuple with the video name, start frame and end frame.
-    """
-
-    def make(self, key):
-        """
-        Make function to extract the model results from the checkpoint file and save them to `{output_dir}/{model_name}/results.h5`.
-
-        Args:
-            key (dict): Primary key from the FullFitting table.
-
-        Raises:
-
-        High-level Logic:
-        1. Fetch the `output_dir`, `model_name`, and parameters specified in the `FullFitting` table
-        2. Sort syllables if `sort_syllables` is set to True. This function permutes the states and parameters of a saved checkpoint so that syllables are labeled in order of frequency (i.e. so that 0 is the most frequent, 1 is the second most, and so on).
-        3. Load the most recent model checkpoint
-        4. Extract the model results
-        5. If `results_as_csv` is set to True, save the results as csv
-        6. If `visualizations` is set to True, generate visualizations
-        7. Insert the `grid_movies_sampled_instances` into the `GenerateResults` table
-        """
-
-        output_dir = (PCATask & key).fetch1("output_dir")
-        try:
-            selected_key = (
-                PreFitting
-                & "pre_latent_dim = {}".format(key["full_latent_dim"])
-                & "pre_kappa = {}".format(key["full_kappa"])
+            raise NotImplementedError(
+                "The currently supported format method is `deeplabcut`. If you require \
+        support for another format method, please reach out to us at `support@datajoint.com`."
             )
-            model_name, pre_num_iterations = selected_key.fetch1(
-                "model_name", "pre_num_iterations"
+
+        data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
+
+        if num_iterations:
+            start_time = datetime.utcnow()
+            results = apply_model(
+                model=model,
+                data=data,
+                metadata=metadata,
+                pca=pca,
+                project_dir=model_full_path.parent.as_posix(),
+                model_name=Path(model_full_path).name,
+                results_path=(inference_output_full_dir / "results.h5").as_posix(),
+                return_model=False,
+                num_iters=num_iterations,
+                **kpms_dj_config,
             )
-        except:
-            print("No prefitting model found")
-            
-        sort_syllables, results_as_csv, visualizations = (FullFittingTask & key).fetch1(
-            "sort_syllables", "results_as_csv", "visualizations"
+            end_time = datetime.utcnow()
+        else:
+            start_time = datetime.utcnow()
+            results = apply_model(
+                model=model,
+                data=data,
+                metadata=metadata,
+                pca=pca,
+                project_dir=model_full_path.parent.as_posix(),
+                model_name=Path(model_full_path).name,
+                results_path=(inference_output_full_dir / "results.h5").as_posix(),
+                return_model=False,
+                **kpms_dj_config,
+            )
+            end_time = datetime.utcnow()
+
+        duration_seconds = (end_time - start_time).total_seconds()
+        hours, remainder = divmod(duration_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        duration_formatted = "{:02}:{:02}:{:02}".format(
+            int(hours), int(minutes), int(seconds)
         )
 
-        # sort syllables
-        if sort_syllables:
-            reindex_syllables_in_checkpoint(output_dir, model_name)
-
-        model, data, metadata, current_iter = load_checkpoint(
-            output_dir, model_name, iteration=None
+        save_results_as_csv(
+            results=results,
+            project_dir=model_full_path.parent.as_posix(),
+            model_name=Path(model_full_path).name,
+            save_dir=(inference_output_full_dir / "results_as_csv").as_posix(),
         )
 
-        results = extract_results(model, metadata, output_dir, model_name)
+        fig, _ = plot_syllable_frequencies(
+            results=results, path=inference_output_full_dir.as_posix()
+        )
+        fig.savefig(inference_output_full_dir / "syllable_frequencies.png")
+        plt.close(fig)
 
-        if results_as_csv:
-            save_results_as_csv(results, output_dir, model_name)
+        generate_trajectory_plots(
+            coordinates=coordinates,
+            results=results,
+            project_dir=model_full_path.parent.as_posix(),
+            model_name=Path(model_name).parts[-1],
+            output_dir=(inference_output_full_dir / "trajectory_plots").as_posix(),
+            **kpms_dj_config,
+        )
 
-        if visualizations:
-            coordinates = (FormattedDataset & key).fetch1("coordinates")
-            config = load_dj_config(output_dir)
+        sampled_instances = generate_grid_movies(
+            coordinates=coordinates,
+            results=results,
+            project_dir=model_full_path.parent.as_posix(),
+            model_name=Path(model_name).parts[-1],
+            output_dir=(inference_output_full_dir / "grid_movies").as_posix(),
+            **kpms_dj_config,
+        )
 
-            # Generate plots showing the median trajectory of poses associated with each given syllable.
-            generate_trajectory_plots(
-                coordinates, results, output_dir, model_name, **config
+        plot_similarity_dendrogram(
+            coordinates=coordinates,
+            results=results,
+            project_dir=model_full_path.parent.as_posix(),
+            model_name=Path(model_name).parts[-1],
+            save_path=(inference_output_full_dir / "similarity_dendogram").as_posix(),
+            **kpms_dj_config,
+        )
+
+        self.insert1({**key, "inference_duration": duration_formatted})
+
+        for results_idx in results.keys():
+            self.MotionSequence.insert1(
+                {
+                    **key,
+                    "video_name": results_idx,
+                    "syllable": results[results_idx]["syllable"],
+                    "latent_state": results[results_idx]["latent_state"],
+                    "centroid": results[results_idx]["centroid"],
+                    "heading": results[results_idx]["heading"],
+                }
             )
 
-            # Generate video clips showing examples of each syllable.
-            grid_movies_sampled_instances = generate_grid_movies(
-                results, output_dir, model_name, coordinates=coordinates, **config
-            )
-
-            # Plot a dendrogram representing distances between each syllable’s median trajectory.
-            plot_similarity_dendrogram(
-                coordinates, results, output_dir, model_name, **config
-            )
-
-            self.insert1(
-                {**key, "grid_movies_sampled_instances": grid_movies_sampled_instances}
+        for syllable in sampled_instances.keys():
+            self.GridMoviesSampledInstances.insert1(
+                {**key, "syllable": syllable, "instances": sampled_instances[syllable]}
             )
