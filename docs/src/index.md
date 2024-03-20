@@ -2,7 +2,8 @@
 
 DataJoint Element for Motion Sequencing with 
 [Keypoint-MoSeq](https://github.com/dattalab/keypoint-moseq){:target="_blank"}, 
-from keypoint data extracted with [DeepLabCut](x){:target="_blank"}. DataJoint Elements collectively standardize and automate
+from keypoint data extracted with [DeepLabCut](http://www.mackenziemathislab.org/deeplabcut){:target="_blank"}. 
+DataJoint Elements collectively standardize and automate
 data collection and analysis for neuroscience experiments. Each Element is a modular
 pipeline for data storage and processing with corresponding database tables that can be
 combined with other Elements to assemble a fully functional pipeline.
