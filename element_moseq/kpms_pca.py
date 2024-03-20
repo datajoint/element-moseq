@@ -170,8 +170,7 @@ class Bodyparts(dj.Manual):
 
     Attributes:
         KeypointSet (foreign key)       : Unique ID for each keypoint set.
-        bodyparts_id (int)              : Unique ID for each bodypart.
-        bodyparts_desc(varchar)         : Optional. User-entered description.
+        bodyparts_id (int)              : Unique ID for a set of bodyparts for a particular keypoint set.
         anterior_bodyparts (blob)       : List of strings of anterior bodyparts
         posterior_bodyparts (blob)      : List of strings of posterior bodyparts
         use_bodyparts (blob)            : List of strings of bodyparts to be used
@@ -179,7 +178,7 @@ class Bodyparts(dj.Manual):
 
     definition = """
     -> KeypointSet                              # Unique ID for each keypoint set
-    bodyparts_id                : int           # Unique ID for each bodypart
+    bodyparts_id                : int           # Unique ID for a set of bodyparts for a particular keypoint set
     ---
     bodyparts_desc=''           : varchar(1000) # Optional. User-entered description.
     anterior_bodyparts          : blob          # List of strings of anterior bodyparts
