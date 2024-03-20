@@ -1,0 +1,294 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="966pt" height="590pt" viewBox="0.00 0.00 965.74 589.76">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 585.76)">
+<polygon fill="white" stroke="none" points="-4,4 -4,-585.76 961.74,-585.76 961.74,4 -4,4"/>
+<!-- kpms_pca.PCAFitting -->
+<g id="node1" class="node">
+<title>kpms_pca.PCAFitting</title>
+<g id="a_node1"><a xlink:title="→ kpms_pca.LoadKeypointSet------------------------------pca_fitting_time=null ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="643.25" cy="-145.44" rx="12.96" ry="12.96"/>
+<text text-anchor="middle" x="643.25" y="-141.16" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">kpms_pca.PCAFitting</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.FullFittingTask -->
+<g id="node5" class="node">
+<title>kpms_model.FullFittingTask</title>
+<g id="a_node5"><a xlink:title="→ kpms_pca.PCAFittingfull_latent_dim      full_kappa           full_num_iterations  ------------------------------full_fitting_desc=&quot;&quot; ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="542.88,-96.48 377.62,-96.48 377.62,-61.92 542.88,-61.92 542.88,-96.48"/>
+<text text-anchor="start" x="385.62" y="-75.92" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_model.FullFittingTask</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.PCAFitting&#45;&gt;kpms_model.FullFittingTask -->
+<g id="edge1" class="edge">
+<title>kpms_pca.PCAFitting-&gt;kpms_model.FullFittingTask</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M631.52,-140.32C607.07,-131.74 549.44,-111.51 507.77,-96.88"/>
+</g>
+<!-- kpms_model.PreFittingTask -->
+<g id="node11" class="node">
+<title>kpms_model.PreFittingTask</title>
+<g id="a_node11"><a xlink:title="→ kpms_pca.PCAFittingpre_latent_dim       pre_kappa            pre_num_iterations   ------------------------------pre_fitting_desc=&quot;&quot;  ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="725.12,-96.48 561.38,-96.48 561.38,-61.92 725.12,-61.92 725.12,-96.48"/>
+<text text-anchor="start" x="569.38" y="-75.92" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_model.PreFittingTask</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.PCAFitting&#45;&gt;kpms_model.PreFittingTask -->
+<g id="edge2" class="edge">
+<title>kpms_pca.PCAFitting-&gt;kpms_model.PreFittingTask</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M643.25,-132.66C643.25,-122.52 643.25,-107.78 643.25,-96.5"/>
+</g>
+<!-- kpms_pca.LatentDimension -->
+<g id="node21" class="node">
+<title>kpms_pca.LatentDimension</title>
+<g id="a_node21"><a xlink:title="→ kpms_pca.PCAFitting------------------------------variance_percentage  latent_dimension     latent_dim_desc      ">
+<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="850.25" cy="-79.2" rx="107.49" ry="17.28"/>
+<text text-anchor="middle" x="850.25" y="-74.92" font-family="arial" font-size="12.00" fill="#00007f" fill-opacity="0.627451">kpms_pca.LatentDimension</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.PCAFitting&#45;&gt;kpms_pca.LatentDimension -->
+<g id="edge3" class="edge">
+<title>kpms_pca.PCAFitting-&gt;kpms_pca.LatentDimension</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M655.27,-140.71C683.32,-132.01 754.32,-109.97 802.44,-95.04"/>
+</g>
+<!-- kpms_model.VideoRecording.File -->
+<g id="node2" class="node">
+<title>kpms_model.VideoRecording.File</title>
+<g id="a_node2"><a xlink:title="→ kpms_model.VideoRecordingfile_id              ------------------------------file_path            ">
+<polygon fill="none" stroke="none" points="203.38,-362.8 41.12,-362.8 41.12,-342.8 203.38,-342.8 203.38,-362.8"/>
+<text text-anchor="start" x="49.12" y="-350.3" font-family="arial" text-decoration="underline" font-size="10.00">kpms_model.VideoRecording.File</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.PreFitting -->
+<g id="node3" class="node">
+<title>kpms_model.PreFitting</title>
+<g id="a_node3"><a xlink:title="→ kpms_model.PreFittingTask------------------------------model_name=&quot;&quot;        pre_fitting_duration=null ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="643.25" cy="-12.96" rx="12.96" ry="12.96"/>
+<text text-anchor="middle" x="643.25" y="-8.69" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">kpms_model.PreFitting</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.VideoRecording -->
+<g id="node4" class="node">
+<title>kpms_model.VideoRecording</title>
+<g id="a_node4"><a xlink:title="→ session.Session→ kpms_pca.PoseEstimationMethodrecording_id         ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="209,-440.64 35.5,-440.64 35.5,-406.08 209,-406.08 209,-440.64"/>
+<text text-anchor="start" x="43.5" y="-420.09" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_model.VideoRecording</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.VideoRecording&#45;&gt;kpms_model.VideoRecording.File -->
+<g id="edge4" class="edge">
+<title>kpms_model.VideoRecording-&gt;kpms_model.VideoRecording.File</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M122.25,-405.76C122.25,-392.13 122.25,-373.36 122.25,-362.51"/>
+</g>
+<!-- kpms_model.InferenceTask -->
+<g id="node13" class="node">
+<title>kpms_model.InferenceTask</title>
+<g id="a_node13"><a xlink:title="→ kpms_model.VideoRecording→ kpms_model.Model------------------------------inference_output_dir=&quot;&quot; inference_desc=&quot;&quot;    num_iterations=null  ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="383,-370.08 221.5,-370.08 221.5,-335.52 383,-335.52 383,-370.08"/>
+<text text-anchor="middle" x="302.25" y="-348.53" font-family="arial" font-size="12.00" fill="darkgreen">kpms_model.InferenceTask</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.VideoRecording&#45;&gt;kpms_model.InferenceTask -->
+<g id="edge5" class="edge">
+<title>kpms_model.VideoRecording-&gt;kpms_model.InferenceTask</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M166.28,-405.59C194.28,-394.92 230.39,-381.17 258.36,-370.52"/>
+</g>
+<!-- kpms_model.FullFitting -->
+<g id="node7" class="node">
+<title>kpms_model.FullFitting</title>
+<g id="a_node7"><a xlink:title="→ kpms_model.FullFittingTask------------------------------model_name           full_fitting_duration=null ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="460.25" cy="-12.96" rx="12.96" ry="12.96"/>
+<text text-anchor="middle" x="460.25" y="-8.69" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">kpms_model.FullFitting</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.FullFittingTask&#45;&gt;kpms_model.FullFitting -->
+<g id="edge6" class="edge">
+<title>kpms_model.FullFittingTask-&gt;kpms_model.FullFitting</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M460.25,-61.66C460.25,-50.36 460.25,-35.66 460.25,-25.58"/>
+</g>
+<!-- kpms_pca.KeypointSet -->
+<g id="node6" class="node">
+<title>kpms_pca.KeypointSet</title>
+<g id="a_node6"><a xlink:title="kpset_id             ------------------------------→ kpms_pca.PoseEstimationMethodkpset_config_dir     kpset_videos_dir     kpset_desc=&quot;&quot;        ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="550.75,-440.64 411.75,-440.64 411.75,-406.08 550.75,-406.08 550.75,-440.64"/>
+<text text-anchor="start" x="419.75" y="-420.09" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_pca.KeypointSet</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.KeypointSet.VideoFile -->
+<g id="node8" class="node">
+<title>kpms_pca.KeypointSet.VideoFile</title>
+<g id="a_node8"><a xlink:title="→ kpms_pca.KeypointSetvideo_id             ------------------------------video_path           ">
+<polygon fill="none" stroke="none" points="561.62,-362.8 400.88,-362.8 400.88,-342.8 561.62,-342.8 561.62,-362.8"/>
+<text text-anchor="start" x="408.88" y="-350.3" font-family="arial" text-decoration="underline" font-size="10.00">kpms_pca.KeypointSet.VideoFile</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.KeypointSet&#45;&gt;kpms_pca.KeypointSet.VideoFile -->
+<g id="edge7" class="edge">
+<title>kpms_pca.KeypointSet-&gt;kpms_pca.KeypointSet.VideoFile</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M481.25,-405.76C481.25,-392.13 481.25,-373.36 481.25,-362.51"/>
+</g>
+<!-- kpms_pca.Bodyparts -->
+<g id="node12" class="node">
+<title>kpms_pca.Bodyparts</title>
+<g id="a_node12"><a xlink:title="→ kpms_pca.KeypointSetbodyparts_id         ------------------------------bodyparts_desc=&quot;&quot;    anterior_bodyparts   posterior_bodyparts  use_bodyparts        ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="707.12,-370.08 579.38,-370.08 579.38,-335.52 707.12,-335.52 707.12,-370.08"/>
+<text text-anchor="start" x="587.38" y="-349.53" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_pca.Bodyparts</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.KeypointSet&#45;&gt;kpms_pca.Bodyparts -->
+<g id="edge8" class="edge">
+<title>kpms_pca.KeypointSet-&gt;kpms_pca.Bodyparts</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M520.88,-405.59C546.08,-394.92 578.58,-381.17 603.75,-370.52"/>
+</g>
+<!-- kpms_model.Model -->
+<g id="node9" class="node">
+<title>kpms_model.Model</title>
+<g id="a_node9"><a xlink:title="model_name           ------------------------------latent_dim           kappa                ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="362.38,-440.64 242.12,-440.64 242.12,-406.08 362.38,-406.08 362.38,-440.64"/>
+<text text-anchor="start" x="250.12" y="-420.09" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_model.Model</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.Model&#45;&gt;kpms_model.InferenceTask -->
+<g id="edge9" class="edge">
+<title>kpms_model.Model-&gt;kpms_model.InferenceTask</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M302.25,-405.76C302.25,-394.98 302.25,-380.99 302.25,-370.24"/>
+</g>
+<!-- kpms_model.Inference.GridMoviesSampledInstances -->
+<g id="node10" class="node">
+<title>kpms_model.Inference.GridMoviesSampledInstances</title>
+<g id="a_node10"><a xlink:title="→ kpms_model.Inferencesyllable             ------------------------------instances            ">
+<polygon fill="none" stroke="none" points="248.5,-221.68 0,-221.68 0,-201.68 248.5,-201.68 248.5,-221.68"/>
+<text text-anchor="start" x="8" y="-209.18" font-family="arial" text-decoration="underline" font-size="10.00">kpms_model.Inference.GridMoviesSampledInstances</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.PreFittingTask&#45;&gt;kpms_model.PreFitting -->
+<g id="edge10" class="edge">
+<title>kpms_model.PreFittingTask-&gt;kpms_model.PreFitting</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M643.25,-61.66C643.25,-50.36 643.25,-35.66 643.25,-25.58"/>
+</g>
+<!-- kpms_pca.PCATask -->
+<g id="node14" class="node">
+<title>kpms_pca.PCATask</title>
+<g id="a_node14"><a xlink:title="→ kpms_pca.Bodyparts------------------------------kpms_project_output_dir=&quot;&quot; ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="704.5,-299.52 582,-299.52 582,-264.96 704.5,-264.96 704.5,-299.52"/>
+<text text-anchor="middle" x="643.25" y="-277.97" font-family="arial" font-size="12.00" fill="darkgreen">kpms_pca.PCATask</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.Bodyparts&#45;&gt;kpms_pca.PCATask -->
+<g id="edge11" class="edge">
+<title>kpms_pca.Bodyparts-&gt;kpms_pca.PCATask</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M643.25,-335.2C643.25,-324.42 643.25,-310.43 643.25,-299.68"/>
+</g>
+<!-- kpms_model.Inference -->
+<g id="node19" class="node">
+<title>kpms_model.Inference</title>
+<g id="a_node19"><a xlink:title="→ kpms_model.InferenceTask------------------------------inference_duration=null ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="302.25" cy="-282.24" rx="12.96" ry="12.96"/>
+<text text-anchor="middle" x="302.25" y="-277.97" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">kpms_model.Inference</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.InferenceTask&#45;&gt;kpms_model.Inference -->
+<g id="edge12" class="edge">
+<title>kpms_model.InferenceTask-&gt;kpms_model.Inference</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M302.25,-335.2C302.25,-322.84 302.25,-306.25 302.25,-295.17"/>
+</g>
+<!-- kpms_pca.LoadKeypointSet -->
+<g id="node18" class="node">
+<title>kpms_pca.LoadKeypointSet</title>
+<g id="a_node18"><a xlink:title="→ kpms_pca.PCATask------------------------------coordinates          confidences          formatted_bodyparts  average_frame_rate   ">
+<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="643.25" cy="-211.68" rx="108.47" ry="17.28"/>
+<text text-anchor="middle" x="643.25" y="-207.41" font-family="arial" font-size="12.00" fill="#00007f" fill-opacity="0.627451">kpms_pca.LoadKeypointSet</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.PCATask&#45;&gt;kpms_pca.LoadKeypointSet -->
+<g id="edge13" class="edge">
+<title>kpms_pca.PCATask-&gt;kpms_pca.LoadKeypointSet</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M643.25,-264.64C643.25,-253.86 643.25,-239.87 643.25,-229.12"/>
+</g>
+<!-- subject.Subject -->
+<g id="node15" class="node">
+<title>subject.Subject</title>
+<g id="a_node15"><a xlink:title="subject              ------------------------------subject_nickname=&quot;&quot;  sex                  subject_birth_date   subject_description=&quot;&quot; ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="171.12,-581.76 73.38,-581.76 73.38,-547.2 171.12,-547.2 171.12,-581.76"/>
+<text text-anchor="start" x="81.38" y="-561.21" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">subject.Subject</text>
+</a>
+</g>
+</g>
+<!-- session.Session -->
+<g id="node16" class="node">
+<title>session.Session</title>
+<g id="a_node16"><a xlink:title="→ subject.Subjectsession_datetime     ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="174.12,-511.2 70.38,-511.2 70.38,-476.64 174.12,-476.64 174.12,-511.2"/>
+<text text-anchor="start" x="78.38" y="-490.65" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">session.Session</text>
+</a>
+</g>
+</g>
+<!-- subject.Subject&#45;&gt;session.Session -->
+<g id="edge14" class="edge">
+<title>subject.Subject-&gt;session.Session</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M122.25,-546.88C122.25,-536.1 122.25,-522.11 122.25,-511.36"/>
+</g>
+<!-- session.Session&#45;&gt;kpms_model.VideoRecording -->
+<g id="edge15" class="edge">
+<title>session.Session-&gt;kpms_model.VideoRecording</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M122.25,-476.32C122.25,-465.54 122.25,-451.55 122.25,-440.8"/>
+</g>
+<!-- kpms_pca.PoseEstimationMethod -->
+<g id="node17" class="node">
+<title>kpms_pca.PoseEstimationMethod</title>
+<g id="a_node17"><a xlink:title="format_method        ------------------------------pose_estimation_desc ">
+<polygon fill="#000000" fill-opacity="0.125490" stroke="none" points="460.88,-511.2 295.62,-511.2 295.62,-476.64 460.88,-476.64 460.88,-511.2"/>
+<text text-anchor="start" x="303.62" y="-491.42" font-family="arial" text-decoration="underline" font-size="10.00">kpms_pca.PoseEstimationMethod</text>
+</a>
+</g>
+</g>
+<!-- kpms_pca.PoseEstimationMethod&#45;&gt;kpms_model.VideoRecording -->
+<g id="edge16" class="edge">
+<title>kpms_pca.PoseEstimationMethod-&gt;kpms_model.VideoRecording</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M317.58,-476.67C277.51,-465.94 225.14,-451.91 184.71,-441.09"/>
+</g>
+<!-- kpms_pca.PoseEstimationMethod&#45;&gt;kpms_pca.KeypointSet -->
+<g id="edge17" class="edge">
+<title>kpms_pca.PoseEstimationMethod-&gt;kpms_pca.KeypointSet</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-dasharray="5,2" stroke-opacity="0.250980" d="M402.66,-476.67C418.84,-465.9 440.01,-451.81 456.3,-440.97"/>
+</g>
+<!-- kpms_pca.LoadKeypointSet&#45;&gt;kpms_pca.PCAFitting -->
+<g id="edge18" class="edge">
+<title>kpms_pca.LoadKeypointSet-&gt;kpms_pca.PCAFitting</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M643.25,-194.14C643.25,-182.84 643.25,-168.14 643.25,-158.06"/>
+</g>
+<!-- kpms_model.Inference&#45;&gt;kpms_model.Inference.GridMoviesSampledInstances -->
+<g id="edge19" class="edge">
+<title>kpms_model.Inference-&gt;kpms_model.Inference.GridMoviesSampledInstances</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M290.57,-276.74C261.57,-265.57 185.83,-236.4 147.37,-221.59"/>
+</g>
+<!-- kpms_model.Inference.MotionSequence -->
+<g id="node20" class="node">
+<title>kpms_model.Inference.MotionSequence</title>
+<g id="a_node20"><a xlink:title="→ kpms_model.Inferencevideo_name           ------------------------------syllable             latent_state         centroid             heading              ">
+<polygon fill="none" stroke="none" points="457.62,-221.68 266.88,-221.68 266.88,-201.68 457.62,-201.68 457.62,-221.68"/>
+<text text-anchor="start" x="274.88" y="-209.18" font-family="arial" text-decoration="underline" font-size="10.00">kpms_model.Inference.MotionSequence</text>
+</a>
+</g>
+</g>
+<!-- kpms_model.Inference&#45;&gt;kpms_model.Inference.MotionSequence -->
+<g id="edge20" class="edge">
+<title>kpms_model.Inference-&gt;kpms_model.Inference.MotionSequence</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M310.09,-272.28C321.66,-259.06 343.14,-234.52 354.59,-221.43"/>
+</g>
+</g>
+</svg>
