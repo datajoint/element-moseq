@@ -12,6 +12,11 @@ import importlib
 
 from element_interface.utils import find_full_path
 from .readers.kpms_reader import generate_kpms_dj_config, load_kpms_dj_config
+from keypoint_moseq import (
+    setup_project, 
+    load_config, 
+    load_keypoints
+)
 
 
 schema = dj.schema()
@@ -270,8 +275,6 @@ class LoadKeypointSet(dj.Imported):
 
         kpset_config_dir = find_full_path(get_kpms_root_data_dir(), kpset_config_dir)
         kpset_videos_dir = find_full_path(get_kpms_root_data_dir(), kpset_videos_dir)
-
-        from keypoint_moseq import setup_project, load_config, load_keypoints
 
         setup_project(
             kpms_project_output_dir, deeplabcut_config=kpset_config_dir / "config.yaml"
