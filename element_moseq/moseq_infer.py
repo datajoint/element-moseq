@@ -351,7 +351,7 @@ class Inference(dj.Computed):
                 }
             )
 
-        for syllable in sampled_instances.keys():
+        for syllable, sampled_instance in sampled_instances.items():
             self.GridMoviesSampledInstances.insert1(
-                {**key, "syllable": syllable, "instances": sampled_instances[syllable]}
+                {**key, "syllable": syllable, "instances": sampled_instances}
             )
