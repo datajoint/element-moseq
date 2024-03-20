@@ -14,8 +14,16 @@ from element_moseq.kpms_pca import *
 
 from element_interface.utils import find_full_path
 from .readers.kpms_reader import load_kpms_dj_config, generate_kpms_dj_config
-from keypoint_moseq import update_hypparams, fit_model, load_checkpoint
-
+from keypoint_moseq import (
+    update_hypparams, 
+    fit_model, 
+    load_checkpoint,
+    load_pca, 
+    format_data, 
+    init_model, 
+    update_hypparams,
+    reindex_syllables_in_checkpoint
+)
 
 schema = dj.schema()
 _linking_module = None
@@ -184,8 +192,6 @@ class PreFitting(dj.Computed):
             dict(latent_dim=int(pre_latent_dim), kappa=int(pre_kappa))
         )
         generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
-
-        from keypoint_moseq import load_pca, format_data, init_model, update_hypparams
 
         pca = load_pca(kpms_project_output_dir.as_posix())
 
