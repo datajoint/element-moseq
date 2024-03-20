@@ -315,13 +315,6 @@ class FullFitting(dj.Computed):
         )
         generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
 
-        from keypoint_moseq import (
-            load_pca,
-            format_data,
-            init_model,
-            reindex_syllables_in_checkpoint,
-        )
-
         pca = load_pca(kpms_project_output_dir.as_posix())
         coordinates, confidences = (LoadKeypointSet & key).fetch1(
             "coordinates", "confidences"
