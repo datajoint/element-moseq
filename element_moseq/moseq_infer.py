@@ -280,35 +280,20 @@ class Inference(dj.Computed):
 
         data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
 
-        if num_iterations:
-            start_time = datetime.utcnow()
-            results = apply_model(
-                model=model,
-                data=data,
-                metadata=metadata,
-                pca=pca,
-                project_dir=model_full_path.parent.as_posix(),
-                model_name=Path(model_full_path).name,
-                results_path=(inference_output_full_dir / "results.h5").as_posix(),
-                return_model=False,
-                num_iters=num_iterations,
-                **kpms_dj_config,
-            )
-            end_time = datetime.utcnow()
-        else:
-            start_time = datetime.utcnow()
-            results = apply_model(
-                model=model,
-                data=data,
-                metadata=metadata,
-                pca=pca,
-                project_dir=model_full_path.parent.as_posix(),
-                model_name=Path(model_full_path).name,
-                results_path=(inference_output_full_dir / "results.h5").as_posix(),
-                return_model=False,
-                **kpms_dj_config,
-            )
-            end_time = datetime.utcnow()
+        start_time = datetime.utcnow()
+        results = apply_model(
+            model=model,
+            data=data,
+            metadata=metadata,
+            pca=pca,
+            project_dir=model_full_path.parent.as_posix(),
+            model_name=Path(model_full_path).name,
+            results_path=(inference_output_full_dir / "results.h5").as_posix(),
+            return_model=False,
+            num_iters=num_iterations if num_iterations else 50., #default value in the function
+            **kpms_dj_config,
+        )
+        end_time = datetime.utcnow()
 
         duration_seconds = (end_time - start_time).total_seconds()
 
