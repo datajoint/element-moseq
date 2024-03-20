@@ -339,19 +339,19 @@ class Inference(dj.Computed):
 
         self.insert1({**key, "inference_duration": duration_seconds})
 
-        for results_idx in results.keys():
+        for result_idx, result in results.items():
             self.MotionSequence.insert1(
                 {
                     **key,
-                    "video_name": results_idx,
-                    "syllable": results[results_idx]["syllable"],
-                    "latent_state": results[results_idx]["latent_state"],
-                    "centroid": results[results_idx]["centroid"],
-                    "heading": results[results_idx]["heading"],
+                    "video_name": result_idx,
+                    "syllable": result["syllable"],
+                    "latent_state": result["latent_state"],
+                    "centroid": result["centroid"],
+                    "heading": result["heading"],
                 }
             )
 
         for syllable, sampled_instance in sampled_instances.items():
             self.GridMoviesSampledInstances.insert1(
-                {**key, "syllable": syllable, "instances": sampled_instances}
+                {**key, "syllable": syllable, "instances": sampled_instance}
             )
