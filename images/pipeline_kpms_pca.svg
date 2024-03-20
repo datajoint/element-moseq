@@ -1,112 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="361pt" height="457pt" viewBox="0.00 0.00 361.10 457.28">
-<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 453.28)">
-<polygon fill="white" stroke="none" points="-4,4 -4,-453.28 357.1,-453.28 357.1,4 -4,4"/>
-<!-- kpms_pca.PCAFitting -->
-<g id="node1" class="node">
-<title>kpms_pca.PCAFitting</title>
-<g id="a_node1"><a xlink:title="→ kpms_pca.LoadKeypointSet------------------------------pca_fitting_time=null ">
-<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="108.47" cy="-83.52" rx="12.96" ry="12.96"/>
-<text text-anchor="middle" x="108.47" y="-79.25" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">kpms_pca.PCAFitting</text>
-</a>
-</g>
-</g>
-<!-- kpms_pca.LatentDimension -->
-<g id="node6" class="node">
-<title>kpms_pca.LatentDimension</title>
-<g id="a_node6"><a xlink:title="→ kpms_pca.PCAFitting------------------------------variance_percentage  latent_dimension     latent_dim_desc      ">
-<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="108.47" cy="-17.28" rx="107.49" ry="17.28"/>
-<text text-anchor="middle" x="108.47" y="-13.01" font-family="arial" font-size="12.00" fill="#00007f" fill-opacity="0.627451">kpms_pca.LatentDimension</text>
-</a>
-</g>
-</g>
-<!-- kpms_pca.PCAFitting&#45;&gt;kpms_pca.LatentDimension -->
-<g id="edge1" class="edge">
-<title>kpms_pca.PCAFitting-&gt;kpms_pca.LatentDimension</title>
-<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M108.47,-70.74C108.47,-60.6 108.47,-45.86 108.47,-34.58"/>
-</g>
-<!-- kpms_pca.LoadKeypointSet -->
-<g id="node2" class="node">
-<title>kpms_pca.LoadKeypointSet</title>
-<g id="a_node2"><a xlink:title="→ kpms_pca.PCATask------------------------------coordinates          confidences          formatted_bodyparts  average_frame_rate   ">
-<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="108.47" cy="-149.76" rx="108.47" ry="17.28"/>
-<text text-anchor="middle" x="108.47" y="-145.49" font-family="arial" font-size="12.00" fill="#00007f" fill-opacity="0.627451">kpms_pca.LoadKeypointSet</text>
-</a>
-</g>
-</g>
-<!-- kpms_pca.LoadKeypointSet&#45;&gt;kpms_pca.PCAFitting -->
-<g id="edge2" class="edge">
-<title>kpms_pca.LoadKeypointSet-&gt;kpms_pca.PCAFitting</title>
-<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M108.47,-132.22C108.47,-120.92 108.47,-106.22 108.47,-96.14"/>
-</g>
-<!-- kpms_pca.Bodyparts -->
-<g id="node3" class="node">
-<title>kpms_pca.Bodyparts</title>
-<g id="a_node3"><a xlink:title="→ kpms_pca.KeypointSetbodyparts_id         ------------------------------bodyparts_desc=&quot;&quot;    anterior_bodyparts   posterior_bodyparts  use_bodyparts        ">
-<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="172.35,-308.16 44.6,-308.16 44.6,-273.6 172.35,-273.6 172.35,-308.16"/>
-<text text-anchor="start" x="52.6" y="-287.61" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_pca.Bodyparts</text>
-</a>
-</g>
-</g>
-<!-- kpms_pca.PCATask -->
-<g id="node4" class="node">
-<title>kpms_pca.PCATask</title>
-<g id="a_node4"><a xlink:title="→ kpms_pca.Bodyparts------------------------------kpms_project_output_dir=&quot;&quot; ">
-<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="169.72,-237.6 47.22,-237.6 47.22,-203.04 169.72,-203.04 169.72,-237.6"/>
-<text text-anchor="middle" x="108.47" y="-216.05" font-family="arial" font-size="12.00" fill="darkgreen">kpms_pca.PCATask</text>
-</a>
-</g>
-</g>
-<!-- kpms_pca.Bodyparts&#45;&gt;kpms_pca.PCATask -->
-<g id="edge3" class="edge">
-<title>kpms_pca.Bodyparts-&gt;kpms_pca.PCATask</title>
-<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M108.47,-273.28C108.47,-262.5 108.47,-248.51 108.47,-237.76"/>
-</g>
-<!-- kpms_pca.PCATask&#45;&gt;kpms_pca.LoadKeypointSet -->
-<g id="edge4" class="edge">
-<title>kpms_pca.PCATask-&gt;kpms_pca.LoadKeypointSet</title>
-<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M108.47,-202.72C108.47,-191.94 108.47,-177.95 108.47,-167.2"/>
-</g>
-<!-- kpms_pca.KeypointSet -->
-<g id="node5" class="node">
-<title>kpms_pca.KeypointSet</title>
-<g id="a_node5"><a xlink:title="kpset_id             ------------------------------→ kpms_pca.PoseEstimationMethodkpset_config_dir     kpset_videos_dir     kpset_desc=&quot;&quot;        ">
-<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="339.97,-378.72 200.97,-378.72 200.97,-344.16 339.97,-344.16 339.97,-378.72"/>
-<text text-anchor="start" x="208.97" y="-358.17" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">kpms_pca.KeypointSet</text>
-</a>
-</g>
-</g>
-<!-- kpms_pca.KeypointSet&#45;&gt;kpms_pca.Bodyparts -->
-<g id="edge5" class="edge">
-<title>kpms_pca.KeypointSet-&gt;kpms_pca.Bodyparts</title>
-<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M230.84,-343.67C205.64,-333 173.14,-319.25 147.97,-308.6"/>
-</g>
-<!-- kpms_pca.KeypointSet.VideoFile -->
-<g id="node7" class="node">
-<title>kpms_pca.KeypointSet.VideoFile</title>
-<g id="a_node7"><a xlink:title="→ kpms_pca.KeypointSetvideo_id             ------------------------------video_path           ">
-<polygon fill="none" stroke="none" points="350.85,-300.88 190.1,-300.88 190.1,-280.88 350.85,-280.88 350.85,-300.88"/>
-<text text-anchor="start" x="198.1" y="-288.38" font-family="arial" text-decoration="underline" font-size="10.00">kpms_pca.KeypointSet.VideoFile</text>
-</a>
-</g>
-</g>
-<!-- kpms_pca.KeypointSet&#45;&gt;kpms_pca.KeypointSet.VideoFile -->
-<g id="edge6" class="edge">
-<title>kpms_pca.KeypointSet-&gt;kpms_pca.KeypointSet.VideoFile</title>
-<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M270.47,-343.84C270.47,-330.21 270.47,-311.44 270.47,-300.59"/>
-</g>
-<!-- kpms_pca.PoseEstimationMethod -->
-<g id="node8" class="node">
-<title>kpms_pca.PoseEstimationMethod</title>
-<g id="a_node8"><a xlink:title="format_method        ------------------------------pose_estimation_desc ">
-<polygon fill="#000000" fill-opacity="0.125490" stroke="none" points="353.1,-449.28 187.85,-449.28 187.85,-414.72 353.1,-414.72 353.1,-449.28"/>
-<text text-anchor="start" x="195.85" y="-429.5" font-family="arial" text-decoration="underline" font-size="10.00">kpms_pca.PoseEstimationMethod</text>
-</a>
-</g>
-</g>
-<!-- kpms_pca.PoseEstimationMethod&#45;&gt;kpms_pca.KeypointSet -->
-<g id="edge7" class="edge">
-<title>kpms_pca.PoseEstimationMethod-&gt;kpms_pca.KeypointSet</title>
-<path fill="none" stroke="#000000" stroke-width="0.75" stroke-dasharray="5,2" stroke-opacity="0.250980" d="M270.47,-414.75C270.47,-403.98 270.47,-389.89 270.47,-379.05"/>
-</g>
-</g>
-</svg>
