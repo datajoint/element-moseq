@@ -220,6 +220,7 @@ class LoadKeypointSet(dj.Imported):
         confidences (longblob)          : Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts)
         formatted_bodyparts (longblob)  : List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
         average_frame_rate (float0      : Average frame rate of the trained videos
+        frame_rates (longblob)          : List of frame rates of the trained videos
     """
 
     definition = """
@@ -229,6 +230,7 @@ class LoadKeypointSet(dj.Imported):
     confidences             : longblob  # Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts)           
     formatted_bodyparts     : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
     average_frame_rate      : float     # Average frame rate of the trained videos
+    frame_rates             : longblob  # List of frame rates of the trained videos
     """
 
     def make(self, key):
@@ -325,6 +327,7 @@ class LoadKeypointSet(dj.Imported):
                 confidences=confidences,
                 formatted_bodyparts=formatted_bodyparts,
                 average_frame_rate=average_frame_rate,
+                frame_rates=fps_list,
             )
         )
 
