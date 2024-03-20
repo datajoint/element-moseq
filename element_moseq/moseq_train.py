@@ -15,7 +15,12 @@ from .readers.kpms_reader import generate_kpms_dj_config, load_kpms_dj_config
 from keypoint_moseq import (
     setup_project, 
     load_config, 
-    load_keypoints
+    load_keypoints,
+    update_hypparams,
+    reindex_syllables_in_checkpoint,
+    init_model, 
+    update_hypparams, 
+    fit_model, 
 )
 
 
@@ -462,4 +467,246 @@ class LatentDimension(dj.Imported):
                 latent_dimension=latent_dimension,
                 latent_dim_desc=latent_dim_desc,
             )
+        )
+
+@schema
+class PreFittingTask(dj.Manual):
+    """Table to specify the parameters for the pre-fitting (AR-HMM) of the model.
+
+    Attributes:
+        PCAFitting (foreign key)   : PCA fitting task.
+        pre_latent_dim (int)                : Number of latent dimensions to use for the model pre-fitting.
+        pre_kappa (int)                     : Kappa value to use for the model pre-fitting.
+        pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting.
+        pre_fitting_desc(varchar)           : User-defined description of the pre-fitting task.
+    """
+
+    definition = """
+    -> PCAFitting             # PCAFitting Key
+    pre_latent_dim               : int # Number of latent dimensions to use for the model pre-fitting
+    pre_kappa                    : int # Kappa value to use for the model pre-fitting
+    pre_num_iterations           : int # Number of Gibbs sampling iterations to run in the model pre-fitting.
+    ---
+    pre_fitting_desc=''          : varchar(1000) # User-defined description of the pre-fitting task
+    """
+
+
+@schema
+class PreFitting(dj.Computed):
+    """Automated computation to fit a AR-HMM model.
+
+    Attributes:
+        PreFittingTask (foreign key)        : PreFittingTask Key.
+        model_name (varchar)                : Name of the model as "kpms_project_output_dir/model_name".
+        pre_fitting_duration (time)         : Time duration of the model fitting computation.
+    """
+
+    definition = """
+    -> PreFittingTask                           # PreFittingTask Key
+    ---
+    model_name=''                : varchar(100) # Name of the model as "kpms_project_output_dir/model_name"
+    pre_fitting_duration=NULL    : time         # Time duration of the model fitting computation
+    """
+
+    def make(self, key):
+        """
+        Make function to fit the AR-HMM model using the latent trajectory defined by `model['states']['x'].
+
+        Args:
+            key (dict) : dictionary with the `PreFittingTask` Key.
+
+        Raises:
+
+        High-level Logic:
+        1. Fetch the `kpms_project_output_dir` and the model parameters from the `PreFittingTask` table
+        2. Update the `dj_config.yml` with the selected latent dimension and kappa for the AR-HMM fitting.
+        3. Load the pca model
+        4. Fetch `coordinates` and `confidences` scores to format the data for the model initialization. \
+            # Data - contains the data for model fitting. \
+            # Metadata - contains the recordings and start/end frames for the data.
+        5. Initialize the model that create a `model` dict containing states, parameters, hyperparameters, noise prior, and random seed.
+        6. Update the model dict with the selected kappa for the AR-HMM fitting
+        7. Fit the AR-HMM model using the `pre_num_iterations` and create a subdirectory in `kpms_project_output_dir` with the model's latest checkpoint
+        8. Calculate the duration of the model fitting computation and insert it in the `PreFitting` table
+        """
+
+        kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
+        kpms_project_output_dir = (
+            get_kpms_processed_data_dir() / kpms_project_output_dir
+        )
+
+        pre_latent_dim, pre_kappa, pre_num_iterations = (PreFittingTask & key).fetch1(
+            "pre_latent_dim", "pre_kappa", "pre_num_iterations"
+        )
+
+        kpms_dj_config = load_kpms_dj_config(
+            kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
+        )
+        kpms_dj_config.update(
+            dict(latent_dim=int(pre_latent_dim), kappa=int(pre_kappa))
+        )
+        generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
+
+        pca = load_pca(kpms_project_output_dir.as_posix())
+
+        coordinates, confidences = (PCAPrep & key).fetch1(
+            "coordinates", "confidences"
+        )
+        data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
+
+        model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
+
+        model = update_hypparams(
+            model, kappa=int(pre_kappa), latent_dim=int(pre_latent_dim)
+        )
+
+        start_time = datetime.now()
+        model, model_name = fit_model(
+            model=model,
+            data=data,
+            metadata=metadata,
+            project_dir=kpms_project_output_dir.as_posix(),
+            ar_only=True,
+            num_iters=pre_num_iterations,
+        )
+        end_time = datetime.now()
+
+        duration_seconds = (end_time - start_time).total_seconds()
+        hours, remainder = divmod(duration_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        duration_formatted = "{:02}:{:02}:{:02}".format(
+            int(hours), int(minutes), int(seconds)
+        )
+        self.insert1(
+            {
+                **key,
+                "model_name": (
+                    kpms_project_output_dir.relative_to(get_kpms_processed_data_dir())
+                    / model_name
+                ).as_posix(),
+                "pre_fitting_duration": duration_formatted,
+            }
+        )
+
+
+@schema
+class FullFittingTask(dj.Manual):
+    """Table to specify the parameters for the full fitting of the model. The full model will generally require a lower value of kappa to yield the same target syllable durations.
+
+    Attributes:
+        PCAFitting (foreign key)    : PCAFitting Key.
+        full_latent_dim (int)                : Number of latent dimensions to use for the model full fitting.
+        full_kappa (int)                     : Kappa value to use for the model full fitting.
+        full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting.
+        full_fitting_desc(varchar)           : User-defined description of the model full fitting task.
+
+    """
+
+    definition = """
+    -> PCAFitting                          # PCAFitting Key
+    full_latent_dim              : int              # Number of latent dimensions to use for the model full fitting
+    full_kappa                   : int              # Kappa value to use for the model full fitting
+    full_num_iterations          : int              # Number of Gibbs sampling iterations to run in the model full fitting.
+    ---
+    full_fitting_desc=''         : varchar(1000)    # User-defined description of the model full fitting task   
+    """
+
+
+@schema
+class FullFitting(dj.Computed):
+    """Automated computation to fit the full model.
+
+    Attributes:
+        FullFittingTask (foreign key)        : FullFittingTask Key.
+        model_name                           : varchar(100) # Name of the full-fitted model (output_dir/model_name)
+        full_fitting_duration (time)         : Time duration of the full fitting model
+    """
+
+    definition = """
+    -> FullFittingTask                           # FullFittingTask Key
+    ---
+    model_name                    : varchar(100) # Name of the full-fitted model (output_dir/model_name)
+    full_fitting_duration=NULL    : time         # Time duration of the full fitting model 
+    """
+
+    def make(self, key):
+        """
+            Make function to fit the full (keypoint-SLDS) model
+
+            Args:
+                key (dict): dictionary with the `FullFittingTask` Key.
+
+            Raises:
+
+            High-level Logic:
+            1. Fetch the `kpms_project_output_dir` and the model parameters from the `FullFittingTask` table
+            2. Update the `dj_config.yml` with the selected latent dimension and kappa for the full-fitting.
+            3. Initialize and fit the full model in a new `model_name` directory
+            4. Load the pca and fetch the `coordinates` and `confidences` scores to format the data for the model initialization
+            5. Initialize the model that create a `model` dict containing states, parameters, hyperparameters, noise prior, and random seed.
+            6. Update the model dict with the selected kappa for the AR-HMM fitting
+            7. Fit the AR-HMM model using the `full_num_iterations` and create a subdirectory in `kpms_project_output_dir` with the model's latest checkpoint
+            8. Reindex syllable labels by their frequency in the most recent model snapshot in a checkpoint file. \
+                This function permutes the states and parameters of a saved checkpoint so that syllables are labeled \
+                in order of frequency (i.e. so that 0 is the most frequent, 1 is the second most, and so on).
+            8. Calculate the duration of the model fitting computation and insert it in the `PreFitting` table
+        """
+
+        kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
+        kpms_project_output_dir = (
+            get_kpms_processed_data_dir() / kpms_project_output_dir
+        )
+
+        full_latent_dim, full_kappa, full_num_iterations = (
+            FullFittingTask & key
+        ).fetch1("full_latent_dim", "full_kappa", "full_num_iterations")
+
+        kpms_dj_config = load_kpms_dj_config(
+            kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
+        )
+        kpms_dj_config.update(
+            dict(latent_dim=int(full_latent_dim), kappa=int(full_kappa))
+        )
+        generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
+
+        pca = load_pca(kpms_project_output_dir.as_posix())
+        coordinates, confidences = (PCAPrep & key).fetch1(
+            "coordinates", "confidences"
+        )
+        data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
+        model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
+        model = update_hypparams(
+            model, kappa=int(full_kappa), latent_dim=int(full_latent_dim)
+        )
+
+        start_time = datetime.utcnow()
+        model, model_name = fit_model(
+            model=model,
+            data=data,
+            metadata=metadata,
+            project_dir=kpms_project_output_dir.as_posix(),
+            ar_only=False,
+            num_iters=full_num_iterations,
+        )
+        end_time = datetime.utcnow()
+        duration_seconds = (end_time - start_time).total_seconds()
+        hours, remainder = divmod(duration_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        duration_formatted = "{:02}:{:02}:{:02}".format(
+            int(hours), int(minutes), int(seconds)
+        )
+
+        reindex_syllables_in_checkpoint(
+            kpms_project_output_dir.as_posix(), Path(model_name).parts[-1]
+        )
+
+        self.insert1(
+            {
+                **key,
+                "model_name": (
+                    kpms_project_output_dir.relative_to(get_kpms_processed_data_dir())
+                    / model_name
+                ).as_posix(),
+                "full_fitting_duration": duration_formatted,
+            }
         )
