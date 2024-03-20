@@ -482,7 +482,7 @@ class PreFittingTask(dj.Manual):
     """
 
     definition = """
-    -> PCAFitting             # PCAFitting Key
+    -> PCAFitting                      # PCAFitting Key
     pre_latent_dim               : int # Number of latent dimensions to use for the model pre-fitting
     pre_kappa                    : int # Kappa value to use for the model pre-fitting
     pre_num_iterations           : int # Number of Gibbs sampling iterations to run in the model pre-fitting.
@@ -498,14 +498,14 @@ class PreFitting(dj.Computed):
     Attributes:
         PreFittingTask (foreign key)        : PreFittingTask Key.
         model_name (varchar)                : Name of the model as "kpms_project_output_dir/model_name".
-        pre_fitting_duration (time)         : Time duration of the model fitting computation.
+        pre_fitting_duration (float)        : Time duration (seconds) of the model fitting computation.
     """
 
     definition = """
     -> PreFittingTask                           # PreFittingTask Key
     ---
     model_name=''                : varchar(100) # Name of the model as "kpms_project_output_dir/model_name"
-    pre_fitting_duration=NULL    : time         # Time duration of the model fitting computation
+    pre_fitting_duration=NULL    : float        # Time duration (seconds) of the model fitting computation
     """
 
     def make(self, key):
@@ -572,11 +572,7 @@ class PreFitting(dj.Computed):
         end_time = datetime.now()
 
         duration_seconds = (end_time - start_time).total_seconds()
-        hours, remainder = divmod(duration_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        duration_formatted = "{:02}:{:02}:{:02}".format(
-            int(hours), int(minutes), int(seconds)
-        )
+
         self.insert1(
             {
                 **key,
@@ -584,7 +580,7 @@ class PreFitting(dj.Computed):
                     kpms_project_output_dir.relative_to(get_kpms_processed_data_dir())
                     / model_name
                 ).as_posix(),
-                "pre_fitting_duration": duration_formatted,
+                "pre_fitting_duration": duration_seconds,
             }
         )
 
@@ -619,14 +615,14 @@ class FullFitting(dj.Computed):
     Attributes:
         FullFittingTask (foreign key)        : FullFittingTask Key.
         model_name                           : varchar(100) # Name of the full-fitted model (output_dir/model_name)
-        full_fitting_duration (time)         : Time duration of the full fitting model
+        full_fitting_duration (float)        : Time duration (seconds) of the full fitting model
     """
 
     definition = """
     -> FullFittingTask                           # FullFittingTask Key
     ---
     model_name                    : varchar(100) # Name of the full-fitted model (output_dir/model_name)
-    full_fitting_duration=NULL    : time         # Time duration of the full fitting model 
+    full_fitting_duration=NULL    : float        # Time duration (seconds) of the full fitting model 
     """
 
     def make(self, key):
@@ -690,11 +686,6 @@ class FullFitting(dj.Computed):
         )
         end_time = datetime.utcnow()
         duration_seconds = (end_time - start_time).total_seconds()
-        hours, remainder = divmod(duration_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        duration_formatted = "{:02}:{:02}:{:02}".format(
-            int(hours), int(minutes), int(seconds)
-        )
 
         reindex_syllables_in_checkpoint(
             kpms_project_output_dir.as_posix(), Path(model_name).parts[-1]
@@ -707,6 +698,6 @@ class FullFitting(dj.Computed):
                     kpms_project_output_dir.relative_to(get_kpms_processed_data_dir())
                     / model_name
                 ).as_posix(),
-                "full_fitting_duration": duration_formatted,
+                "full_fitting_duration": duration_seconds,
             }
         )

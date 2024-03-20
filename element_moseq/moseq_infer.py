@@ -168,13 +168,13 @@ class Inference(dj.Computed):
 
     Attributes:
         -> InferenceTask                    : InferenceTask primary key
-        inference_duration (time)           : Time duration of the inference computation
+        inference_duration (float)          : Time duration (seconds) of the inference computation
     """
 
     definition = """
-    -> InferenceTask                    # InferenceTask primary key
+    -> InferenceTask                        # InferenceTask primary key
     --- 
-    inference_duration=NULL    : time   # Time duration of the inference computation
+    inference_duration=NULL        : float  # Time duration (seconds) of the inference computation
     """
 
     class MotionSequence(dj.Part):
@@ -311,11 +311,6 @@ class Inference(dj.Computed):
             end_time = datetime.utcnow()
 
         duration_seconds = (end_time - start_time).total_seconds()
-        hours, remainder = divmod(duration_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        duration_formatted = "{:02}:{:02}:{:02}".format(
-            int(hours), int(minutes), int(seconds)
-        )
 
         save_results_as_csv(
             results=results,
@@ -357,7 +352,7 @@ class Inference(dj.Computed):
             **kpms_dj_config,
         )
 
-        self.insert1({**key, "inference_duration": duration_formatted})
+        self.insert1({**key, "inference_duration": duration_seconds})
 
         for results_idx in results.keys():
             self.MotionSequence.insert1(
