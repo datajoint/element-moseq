@@ -19,7 +19,7 @@ DataJoint Elements collectively standardize and automate data collection and ana
 + Clone the repository to your computer.
 
   ```bash
-  git clone https://github.com/<enter_github_username>/element-moseq
+  git clone https://github.com/<enter_github_username>/element-moseq.git
   ```
 
 + Install with `pip`:
