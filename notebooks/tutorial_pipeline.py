@@ -4,7 +4,7 @@ from element_lab import lab
 from element_animal import subject
 from element_session import session_with_datetime as session
 
-from element_moseq import kpms_pca, kpms_model
+from element_moseq import moseq_train, moseq_infer
 
 from element_animal.subject import Subject
 from element_lab.lab import Source, Lab, Protocol, User, Project
@@ -91,5 +91,4 @@ class Device(dj.Lookup):
 
 # Activate element-moseq schemas -----------------------------------
 
-kpms_pca.activate(db_prefix + "kpms_pca", linking_module=__name__)
-kpms_model.activate(db_prefix + "kpms_model", linking_module=__name__)
+moseq_infer.activate(db_prefix + "moseq_model", db_prefix + "moseq_infer",linking_module=__name__)

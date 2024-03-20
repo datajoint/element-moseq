@@ -37,7 +37,8 @@ _linking_module = None
 
 
 def activate(
-    model_schema_name: str,
+    infer_schema_name: str,
+    train_schema_name: str = None,
     *,
     create_schema: bool = True,
     create_tables: bool = True,
@@ -46,12 +47,13 @@ def activate(
     """Activate this schema.
 
     Args:
-        model_schema_name (str): schema name on the database server
-        create_schema (bool): when True (default), create schema in the database if it
+        infer_schema_name (str): Schema name on the database server to activate the `moseq_infer` schema.
+        scan_schema_name (str): Schema name on the database server to activate the `moseq_train` schema.
+        create_schema (bool): When True (default), create schema in the database if it
                             does not yet exist.
-        create_tables (bool): when True (default), create schema tables in the database
+        create_tables (bool): When True (default), create schema tables in the database
                              if they do not yet exist.
-        linking_module (str): a module (or name) containing the required dependencies.
+        linking_module (str): A module (or name) containing the required dependencies.
 
     """
 
@@ -68,13 +70,19 @@ def activate(
     _linking_module = linking_module
 
     # activate
+    moseq_train.activate(
+        train_schema_name,
+        create_schema=create_schema,
+        create_tables=create_tables,
+        linking_module=linking_module,
+    )
     schema.activate(
-        model_schema_name,
+        infer_schema_name,
         create_schema=create_schema,
         create_tables=create_tables,
         add_objects=_linking_module.__dict__,
     )
-
+    
 
 
 # ----------------------------- Table declarations ----------------------
