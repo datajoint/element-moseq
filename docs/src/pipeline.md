@@ -55,14 +55,14 @@ The Element is composed of two main schemas, `kpms_pca` and `kpms_model`. The `k
 
 | Table | Description |
 | --- | --- |
-| PoseEstimationMethod | Table to store the pose estimation methods supported by the keypoint loader of `keypoint-moseq` package. |
-| KeypointSet | Table to store the keypoint data and video set directory to train the model.|
-| KeypointSet.VideoFile | IDs and file paths of each video file that will be used to train the model.|
-| Bodyparts | Table to store the body parts to use in the analysis.|
+| PoseEstimationMethod | Store the pose estimation methods supported by the keypoint loader of `keypoint-moseq` package. |
+| KeypointSet | Store keypoint data and video set directory for model training.|
+| KeypointSet.VideoFile | IDs and file paths of each video file that will be used for model training. |
+| Bodyparts | Store the body parts to use in the analysis. |
 | PCATask | Staging table to define the PCA task and its output directory. |
-| LoadKeypointSet | Table to create the `kpms_project_output_dir`, and create and update the `config.yml` by creating a new `dj_config.yml`. |
-| PCAFitting | Automated fitting of the PCA model.|
-| LatentDimension | Automated computation to calculate the latent dimension as one of the autoregressive hyperparameters (`ar_hypparams`) necessary for the model fitting. |
+| LoadKeypointSet | Create the `kpms_project_output_dir`, and create and update the `config.yml` by creating a new `dj_config.yml`. |
+| PCAFitting | Fit PCA model.|
+| LatentDimension | Calculate the latent dimension as one of the autoregressive hyperparameters (`ar_hypparams`) necessary for the model fitting. |
 
 
 ### `kpms_model` schema
