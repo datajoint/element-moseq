@@ -385,20 +385,20 @@ class PCAFitting(dj.Computed):
 
 @schema
 class LatentDimension(dj.Imported):
-    #     """
-    #     Automated computation to calculate the latent dimension as one of the autoregressive hyperparameters (`ar_hypparams`) \
-    #     necessary for the model fitting.
-    #     The analysis aims to select each of the components that explain the 90% of variance (fixed threshold).
+    """
+    Automated computation to calculate the latent dimension as one of the autoregressive hyperparameters (`ar_hypparams`) \
+    necessary for the model fitting.
+    The analysis aims to select each of the components that explain the 90% of variance (fixed threshold).
 
-    #     Attributes:
-    #         PCAFitting (foreign key)           : PCAFitting Key.
-    #         variance_percentage (float)        : Variance threshold. Fixed value to 90%.
-    #         latent_dimension (int)             : Number of principal components required to explain the specified variance.
-    #         latent_dim_desc (varchar)          : Automated description of the computation result.
-    #     """
+    Attributes:
+        PCAFitting (foreign key)           : PCAFitting Key.
+        variance_percentage (float)        : Variance threshold. Fixed value to 90%.
+        latent_dimension (int)             : Number of principal components required to explain the specified variance.
+        latent_dim_desc (varchar)          : Automated description of the computation result.
+    """
 
     definition = """
--> PCAFitting                                   # PCAFitting Key
+    -> PCAFitting                                   # PCAFitting Key
     ---
     variance_percentage      : float            # Variance threshold. Fixed value to 0.9
     latent_dimension         : int              # Number of principal components required to explain the specified variance.
