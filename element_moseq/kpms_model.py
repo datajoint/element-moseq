@@ -195,7 +195,7 @@ class PreFitting(dj.Computed):
 
         pca = load_pca(kpms_project_output_dir.as_posix())
 
-        coordinates, confidences = (LoadKeypointSet & key).fetch1(
+        coordinates, confidences = (PCAPrep & key).fetch1(
             "coordinates", "confidences"
         )
         data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
@@ -316,7 +316,7 @@ class FullFitting(dj.Computed):
         generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
 
         pca = load_pca(kpms_project_output_dir.as_posix())
-        coordinates, confidences = (LoadKeypointSet & key).fetch1(
+        coordinates, confidences = (PCAPrep & key).fetch1(
             "coordinates", "confidences"
         )
         data, metadata = format_data(coordinates, confidences, **kpms_dj_config)

@@ -211,7 +211,7 @@ class PCATask(dj.Manual):
 
 
 @schema
-class LoadKeypointSet(dj.Imported):
+class PCAPrep(dj.Imported):
     """
     Table to create the `kpms_project_output_dir`, and create and update the `config.yml` by creating a new `kpms_dj_config.yml`.
 
@@ -338,12 +338,12 @@ class PCAFitting(dj.Computed):
     """Automated fitting of the PCA model.
 
     Attributes:
-        LoadKeypointSet (foreign key)   : LoadKeypointSet Key.
+        PCAPrep (foreign key)           : PCAPrep Key.
         pca_fitting_time (datetime)     : datetime of the PCA fitting analysis.
     """
 
     definition = """
-    -> LoadKeypointSet                   # LoadKeypointSet Key
+    -> PCAPrep                           # PCAPrep Key
     ---
     pca_fitting_time=NULL    : datetime  # datetime of the PCA fitting analysis
     """
@@ -353,7 +353,7 @@ class PCAFitting(dj.Computed):
         Make function to format the keypoint data, fit the PCA model, and store it as a `pca.p` file in the KPMS output directory.
         
         Args:
-            key (dict): LoadKeypointSet Key
+            key (dict): PCAPrep Key
 
         Raises:
 
@@ -375,7 +375,7 @@ class PCAFitting(dj.Computed):
         kpms_default_config = load_kpms_dj_config(
             kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
         )
-        coordinates, confidences = (LoadKeypointSet & key).fetch1(
+        coordinates, confidences = (PCAPrep & key).fetch1(
             "coordinates", "confidences"
         )
         data, _ = format_data(
