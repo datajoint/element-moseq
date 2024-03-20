@@ -16,6 +16,8 @@ from .readers.kpms_reader import generate_kpms_dj_config, load_kpms_dj_config
 from keypoint_moseq import (
     setup_project, 
     load_config, 
+    load_pca,
+    format_data,
     load_keypoints,
     update_hypparams,
     reindex_syllables_in_checkpoint,
