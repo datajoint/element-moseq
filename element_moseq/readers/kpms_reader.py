@@ -6,16 +6,16 @@ import jax.numpy as jnp
 logger = logging.getLogger("datajoint")
 
 
-def generate_dj_config(project_dir, **kwargs):
-    """Generate a `dj_config.yml` file with project settings. Default settings
-    will be used unless overriden by a keyword argument.
+def generate_kpms_dj_config(output_dir, **kwargs):
+    """This function mirrors the behavior of the `generate_config` function from the `keypoint_moseq`
+    package. Nonetheless, it produces a duplicate of the initial configuration file, titled
+    `kpms_dj_config.yml`, in the output directory to maintain the integrity of the original file.
+    This replicated file accommodates any customized project settings, with default configurations
+    utilized unless specified differently via keyword arguments.
 
     Args:
-        project_dir (str): Directory containing the `dj_config.yml` that will be generated.
+        output_dir (str): Directory containing the `kpms_dj_config.yml` that will be generated.
         kwargs (dict): Custom project settings.
-
-    Returns:
-        config (dict): configuration settings
     """
 
     def _build_yaml(sections, comments):
@@ -138,42 +138,49 @@ def generate_dj_config(project_dir, **kwargs):
         ("OTHER", other),
     ]
 
-    with open(os.path.join(project_dir, "dj_config.yml"), "w") as f:
+    with open(os.path.join(output_dir, "kpms_dj_config.yml"), "w") as f:
         f.write(_build_yaml(sections, comments))
 
 
-def load_dj_config(output_dir, check_if_valid=True, build_indexes=True):
+def load_kpms_dj_config(output_dir, check_if_valid=True, build_indexes=True):
     """
-    Load a project `dj_config.yml` file from `output_dir`
+    This function mirrors the functionality of the `load_config` function from the `keypoint_moseq`
+    package. Similarly, this function loads the `kpms_dj_config.yml` from the output directory.
 
     Args:
-        project_dir (str): Directory containing the `dj_config.yml` that will be loaded.
+        output_dir (str): Directory containing the `kpms_dj_config.yml` that will be loaded.
         check_if_valid (bool): default=True. Check if the config is valid using :py:func:`keypoint_moseq.io.check_config_validity`
         build_indexes (bool): default=True. Add keys `"anterior_idxs"` and `"posterior_idxs"` to the config. Each maps to a jax array indexing the elements of `config["anterior_bodyparts"]` and `config["posterior_bodyparts"]` by their order in `config["use_bodyparts"]`
 
     Returns:
-        config (dict): configuration settings
+        kpms_dj_config (dict): configuration settings
     """
 
     from keypoint_moseq import check_config_validity
 
-    config_path = os.path.join(output_dir, "dj_config.yml")
+    config_path = os.path.join(output_dir, "kpms_dj_config.yml")
 
     with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
+        kpms_dj_config = yaml.safe_load(f)
 
     if check_if_valid:
-        check_config_validity(config)
+        check_config_validity(kpms_dj_config)
 
     if build_indexes:
-        config["anterior_idxs"] = jnp.array(
-            [config["use_bodyparts"].index(bp) for bp in config["anterior_bodyparts"]]
+        kpms_dj_config["anterior_idxs"] = jnp.array(
+            [
+                kpms_dj_config["use_bodyparts"].index(bp)
+                for bp in kpms_dj_config["anterior_bodyparts"]
+            ]
         )
-        config["posterior_idxs"] = jnp.array(
-            [config["use_bodyparts"].index(bp) for bp in config["posterior_bodyparts"]]
+        kpms_dj_config["posterior_idxs"] = jnp.array(
+            [
+                kpms_dj_config["use_bodyparts"].index(bp)
+                for bp in kpms_dj_config["posterior_bodyparts"]
+            ]
         )
 
-    if not "skeleton" in config or config["skeleton"] is None:
-        config["skeleton"] = []
+    if not "skeleton" in kpms_dj_config or kpms_dj_config["skeleton"] is None:
+        kpms_dj_config["skeleton"] = []
 
-    return config
+    return kpms_dj_config
