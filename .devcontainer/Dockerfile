@@ -44,8 +44,7 @@ ENV DJ_HOST fakeservices.datajoint.io
 ENV DJ_USER root
 ENV DJ_PASS simple
 
-ENV KPMS_ROOT_DATA_DIR /workspaces/element-moseq/example_data/inbox
-ENV KPMS_ROOT_OUTPUT_DIR /workspaces/element-moseq/example_data/outbox
+ENV KPMS_ROOT_DATA_DIR /workspaces/element-moseq/example_data
 ENV DATABASE_PREFIX neuro_
 
 USER vscode
