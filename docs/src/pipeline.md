@@ -71,14 +71,14 @@ The Element is composed of two main schemas, `kpms_pca` and `kpms_model`. The `k
 
 | Table | Description |
 | --- | --- |
-| PreFittingTask | Table to specify the parameters for the pre-fitting (AR-HMM) of the model. |
-| PreFitting | Automated computation to fit a AR-HMM model. |
-| FullFittingTask | Table to specify the parameters for the full fitting of the model. The full model will generally require a lower value of kappa to yield the same target syllable durations. |
-| FullFitting | Automated computation to fit the full model. |
-| Model | Table to register the models. |
+| PreFittingTask | Specify parameters for pre-fitting (AR-HMM). |
+| PreFitting | Pre-fit a AR-HMM model. |
+| FullFittingTask | Specify parameters for the full fitting of the model. |
+| FullFitting | Fit the full model. |
+| Model | Register the models. |
 | VideoRecording | Set of video recordings for the Keypoint-MoSeq inference. |
 | VideoRecording.File | File IDs and paths associated with a given `recording_id`. |
-| InferenceTask | Table to specify the model, the video set, and the output directory for the inference task. |
-| Inference | This table is used to infer the model results from the checkpoint file and save them to `{output_dir}/{model_name}/{inference_output_dir}/results.h5`. |
-| Inference.MotionSequence | This table is used to store the results of the model inference.|
-| Inference.GridMoviesSampledInstances | This table is used to store the grid movies sampled instances.|
+| InferenceTask | Specify the model, the video set, and the output directory for the inference task. |
+| Inference | Infer model results. |
+| Inference.MotionSequence | Results of the model inference. |
+| Inference.GridMoviesSampledInstances | Store the grid movies sampled instances. |
