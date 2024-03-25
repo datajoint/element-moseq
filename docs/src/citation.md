@@ -13,3 +13,6 @@ If your work uses the following resources, please cite the respective manuscript
   + Weinreb C, Pearl J, Lin S, Osman MAM, Zhang L, Annapragada S, Conlin E, Hoffman R, 
   Makowska S, Gillis WF and Jay M. Keypoint-MoSeq: parsing behavior by linking point 
   tracking to pose dynamics. BioRxiv. 2023 Dec 23. doi: https://doi.org/10.1101/2023.03.16.532307
+  + Wiltschko AB, Johnson MJ, Iurilli G, Peterson RE, Katon JM, Pashkovski SL, Abraira VE, 
+  Adams RP, Datta SR. Mapping sub-second structure in mouse behavior. Neuron. 2015 Dec 16;
+  88(6):1121-35.
