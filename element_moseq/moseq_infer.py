@@ -100,7 +100,7 @@ def get_kpms_processed_data_dir() -> Optional[str]:
 
 @schema
 class Model(dj.Manual):
-    """Register a trained model.
+    """Register a model.
 
     Attributes:
         model_id (int)                      : Unique ID for each model.
@@ -267,21 +267,24 @@ class Inference(dj.Computed):
             key (dict): `InferenceTask` primary key.
 
         Raises:
+            FileNotFoundError: If no pca model (`pca.p`) found in the parent model directory.
+            FileNotFoundError: If no model (`checkpoint.h5`) found in the model directory.
             NotImplementedError: If the format method is not `deeplabcut`.
+            FileNotFoundError: If no valid `kpms_dj_config` found in the parent model directory.
 
         High-level Logic:
         1. Fetch the `inference_output_dir` where the results will be stored, and if it does not exist, create it.
-        2. Fetch the `model_name` and the `num_iterations` from the `InferenceTask` table
+        2. Fetch the `model_name` and the `num_iterations` from the `InferenceTask` table.
         3. Load the most recent model checkpoint and the pca model from files in the `kpms_project_output_dir`.
         4. Load the keypoint data for inference as `filepath_patterns` and format it.
         5. Initialize and apply the model with the new keypoint data.
-        6. If the `num_iterations` is set, fit the model with the new keypoint data for `num_iterations` iterations; otherwise, fit the model with the default number of iterations (50)
-        7. Save the results as a CSV file and store the histogram showing the frequency of each syllable
+        6. If the `num_iterations` is set, fit the model with the new keypoint data for `num_iterations` iterations; otherwise, fit the model with the default number of iterations (50).
+        7. Save the results as a CSV file and store the histogram showing the frequency of each syllable.
         8. Generate and save the plots showing the median trajectory of poses associated with each given syllable.
         9. Generate and save video clips showing examples of each syllable.
         10. Generate and save the dendrogram representing distances between each syllable's median trajectory.
-        11. Insert the inference duration in the `Inference` table
-        12. Insert the results in the `MotionSequence` and `GridMoviesSampledInstances` tables
+        11. Insert the inference duration in the `Inference` table.
+        12. Insert the results in the `MotionSequence` and `GridMoviesSampledInstances` tables.
         """
         from keypoint_moseq import (
             load_checkpoint,
@@ -303,7 +306,6 @@ class Inference(dj.Computed):
         kpms_root_inbox,kpms_root_outbox = get_kpms_root_data_dir() 
         model_dir = find_full_path(kpms_root_outbox, (Model & 'model_id = {}'.format(model_id)).fetch1("model_dir"))
         keypointset_dir = find_full_path(kpms_root_inbox, keypointset_dir)
-        video_dir = find_full_path(kpms_root_inbox, (VideoRecording.File & key).fetch("file_path")[0])
 
         inference_output_dir = model_dir / inference_output_dir
         
@@ -364,8 +366,6 @@ class Inference(dj.Computed):
 
         save_results_as_csv(
             results=results,
-            project_dir=model_dir.parent.as_posix(),
-            model_name=Path(model_dir).name,
             save_dir=(inference_output_dir / "results_as_csv").as_posix(),
         )
 
@@ -378,8 +378,6 @@ class Inference(dj.Computed):
         generate_trajectory_plots(
             coordinates=coordinates,
             results=results,
-            project_dir=model_dir.parent.as_posix(),
-            model_name=model_dir.parts[-1],
             output_dir=(inference_output_dir / "trajectory_plots").as_posix(),
             **kpms_dj_config,
         )
@@ -387,7 +385,6 @@ class Inference(dj.Computed):
         sampled_instances = generate_grid_movies(
             coordinates=coordinates,
             results=results,
-            video_dir=video_dir,
             output_dir=(inference_output_dir / "grid_movies").as_posix(),
             **kpms_dj_config,
         )
@@ -395,8 +392,6 @@ class Inference(dj.Computed):
         plot_similarity_dendrogram(
             coordinates=coordinates,
             results=results,
-            project_dir=model_dir.parent.as_posix(),
-            model_name=model_dir.parts[-1],
             save_path=(inference_output_dir / "similarity_dendogram").as_posix(),
             **kpms_dj_config,
         )
