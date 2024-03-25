@@ -14,7 +14,6 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Update - pipeline images
 + Fix - `Dockerfile` environment variables
 + Update - Activation of one schema with two modules
-+ Add - `pytests` directory and moved `tutorial_pipeline.py`
 + Update - remove PyPI release
 + Update - README 
 
