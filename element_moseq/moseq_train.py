@@ -227,7 +227,7 @@ class PCAPrep(dj.Imported):
 
         if pose_estimation_method == "deeplabcut":
             setup_project(
-                project_dir = kpms_project_output_dir.as_posix(),
+                project_dir=kpms_project_output_dir.as_posix(),
                 deeplabcut_config=(kpset_dir / "config.yaml")
                 or (kpset_dir / "config.yml"),
             )
