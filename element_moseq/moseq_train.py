@@ -210,21 +210,20 @@ class PCAPrep(dj.Imported):
             "video_path", "video_id"
         )
 
-        kpms_root_inbox, kpms_root_outbox = moseq_infer.get_kpms_root_data_dir()
+        kpms_root = moseq_infer.get_kpms_root_data_dir()
+        kpms_processed = moseq_infer.get_kpms_processed_data_dir()
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
         try:
             kpms_project_output_dir = find_full_path(
-                kpms_root_outbox, kpms_project_output_dir
+                kpms_processed, kpms_project_output_dir
             )
 
         except:
-            kpms_project_output_dir = kpms_root_outbox / kpms_project_output_dir
-        kpms_project_output_dir.mkdir(parents=True, exist_ok=True)
+            kpms_project_output_dir = kpms_processed / kpms_project_output_dir
 
-        kpset_dir = find_full_path(kpms_root_inbox, kpset_dir)
-
-        videos_dir = find_full_path(kpms_root_inbox, Path(video_paths[0]).parent)
+        kpset_dir = find_full_path(kpms_root, kpset_dir)
+        videos_dir = find_full_path(kpms_root, Path(video_paths[0]).parent)
 
         if (kpset_dir / "config.yaml") or (kpset_dir / "config.yml"):
             if pose_estimation_method == "deeplabcut":
@@ -262,7 +261,7 @@ class PCAPrep(dj.Imported):
 
         frame_rate_list = []
         for fp, _ in zip(video_paths, video_ids):
-            video_path = (find_full_path(kpms_root_inbox, fp)).as_posix()
+            video_path = (find_full_path(kpms_root, fp)).as_posix()
             cap = cv2.VideoCapture(video_path)
             frame_rate_list.append(int(cap.get(cv2.CAP_PROP_FPS)))
             cap.release()
@@ -488,9 +487,10 @@ class PreFit(dj.Computed):
             fit_model,
         )
 
-        _, kpms_root_outbox = moseq_infer.get_kpms_root_data_dir()
+        kpms_processed = moseq_infer.get_kpms_processed_data_dir()
+
         kpms_project_output_dir = find_full_path(
-            kpms_root_outbox, (PCATask & key).fetch1("kpms_project_output_dir")
+            kpms_processed, (PCATask & key).fetch1("kpms_project_output_dir")
         )
 
         pre_latent_dim, pre_kappa, pre_num_iterations = (PreFitTask & key).fetch1(
@@ -539,7 +539,7 @@ class PreFit(dj.Computed):
             {
                 **key,
                 "model_name": (
-                    kpms_project_output_dir.relative_to(kpms_root_outbox) / model_name
+                    kpms_project_output_dir.relative_to(kpms_processed) / model_name
                 ).as_posix(),
                 "pre_fit_duration": duration_seconds,
             }
@@ -620,9 +620,10 @@ class FullFit(dj.Computed):
             reindex_syllables_in_checkpoint,
         )
 
-        _, kpms_root_outbox = moseq_infer.get_kpms_root_data_dir()
+        kpms_processed = moseq_infer.get_kpms_processed_data_dir()
+
         kpms_project_output_dir = find_full_path(
-            kpms_root_outbox, (PCATask & key).fetch1("kpms_project_output_dir")
+            kpms_processed, (PCATask & key).fetch1("kpms_project_output_dir")
         )
 
         full_latent_dim, full_kappa, full_num_iterations = (FullFitTask & key).fetch1(
@@ -672,7 +673,7 @@ class FullFit(dj.Computed):
             {
                 **key,
                 "model_name": (
-                    kpms_project_output_dir.relative_to(kpms_root_outbox) / model_name
+                    kpms_project_output_dir.relative_to(kpms_processed) / model_name
                 ).as_posix(),
                 "full_fit_duration": duration_seconds,
             }

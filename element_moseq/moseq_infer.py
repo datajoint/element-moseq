@@ -313,12 +313,14 @@ class Inference(dj.Computed):
             "pose_estimation_method",
         )
 
-        kpms_root_inbox, kpms_root_outbox = get_kpms_root_data_dir()
+        kpms_root = get_kpms_root_data_dir()
+        kpms_processed = get_kpms_processed_data_dir()
+
         model_dir = find_full_path(
-            kpms_root_outbox,
-            (Model & "model_id = {}".format(model_id)).fetch1("model_dir"),
+            kpms_processed,
+            (Model & f"model_id = {model_id}").fetch1("model_dir"),
         )
-        keypointset_dir = find_full_path(kpms_root_inbox, keypointset_dir)
+        keypointset_dir = find_full_path(kpms_root, keypointset_dir)
 
         inference_output_dir = model_dir / inference_output_dir
 
