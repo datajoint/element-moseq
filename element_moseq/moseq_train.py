@@ -225,21 +225,16 @@ class PCAPrep(dj.Imported):
         kpset_dir = find_full_path(kpms_root, kpset_dir)
         videos_dir = find_full_path(kpms_root, Path(video_paths[0]).parent)
 
-        if (kpset_dir / "config.yaml") or (kpset_dir / "config.yml"):
-            if pose_estimation_method == "deeplabcut":
-                setup_project(
-                    kpms_project_output_dir,
-                    deeplabcut_config=kpset_dir / "config.yaml"
-                    or kpset_dir / "config.yml",
-                )
-            else:
-                raise NotImplementedError(
-                    "The currently supported format method is `deeplabcut`. If you require \
-                    support for another format method, please reach out to us at `support at datajoint.com`."
-                )
+        if pose_estimation_method == "deeplabcut":
+            setup_project(
+                project_dir = kpms_project_output_dir.as_posix(),
+                deeplabcut_config=(kpset_dir / "config.yaml")
+                or (kpset_dir / "config.yml"),
+            )
         else:
-            raise FileNotFoundError(
-                f"No pose estimation `config.yaml` or `config.yml` file found in the specified directory path {kpset_dir}"
+            raise NotImplementedError(
+                "The currently supported format method is `deeplabcut`. If you require \
+                support for another format method, please reach out to us at `support at datajoint.com`."
             )
 
         kpms_config = load_config(
