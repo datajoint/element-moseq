@@ -107,7 +107,7 @@ class Model(dj.Manual):
         model_name (varchar)                : User-friendly model name.
         model_dir (varchar)                 : Model directory relative to root data directory (e.g. `kpms_project_output_dir/2024_03_21-00_51_39`)
         latent_dim (int)                    : Latent dimension of the model.
-        kappa (int)                         : Kappa value of the model.
+        kappa (float)                       : Kappa value of the model.
         model_desc (varchar)                : Optional. User-defined description of the model
 
     """
@@ -118,7 +118,7 @@ class Model(dj.Manual):
     model_name              : varchar(64)  # User-friendly model name
     model_dir               : varchar(1000)# Model directory relative to root data directory
     latent_dim              : int          # Latent dimension of the model
-    kappa                   : int          # Kappa value of the model
+    kappa                   : float        # Kappa value of the model
     model_desc=''           : varchar(1000)# Optional. User-defined description of the model
     """
 

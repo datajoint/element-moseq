@@ -420,7 +420,7 @@ class PreFitTask(dj.Manual):
     Attributes:
         PCAFit (foreign key)                : `PCAFit` task.
         pre_latent_dim (int)                : Latent dimension to use for the model pre-fitting.
-        pre_kappa (int)                     : Kappa value to use for the model pre-fitting.
+        pre_kappa (float)                   : Kappa value to use for the model pre-fitting.
         pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting.
         pre_fit_desc(varchar)               : User-defined description of the pre-fitting task.
     """
@@ -428,7 +428,7 @@ class PreFitTask(dj.Manual):
     definition = """
     -> PCAFit                                       # `PCAFit` Key
     pre_latent_dim               : int              # Latent dimension to use for the model pre-fitting
-    pre_kappa                    : int              # Kappa value to use for the model pre-fitting
+    pre_kappa                    : float            # Kappa value to use for the model pre-fitting
     pre_num_iterations           : int              # Number of Gibbs sampling iterations to run in the model pre-fitting
     ---
     pre_fit_desc=''              : varchar(1000)    # User-defined description of the pre-fitting task
@@ -496,7 +496,7 @@ class PreFit(dj.Computed):
             kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
         )
         kpms_dj_config.update(
-            dict(latent_dim=int(pre_latent_dim), kappa=int(pre_kappa))
+            dict(latent_dim=int(pre_latent_dim), kappa=float(pre_kappa))
         )
         generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
 
@@ -514,7 +514,7 @@ class PreFit(dj.Computed):
         model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
 
         model = update_hypparams(
-            model, kappa=int(pre_kappa), latent_dim=int(pre_latent_dim)
+            model, kappa=float(pre_kappa), latent_dim=int(pre_latent_dim)
         )
 
         start_time = datetime.now()
@@ -549,7 +549,7 @@ class FullFitTask(dj.Manual):
     Attributes:
         PCAFit (foreign key)                 : `PCAFit` Key.
         full_latent_dim (int)                : Latent dimension to use for the model full fitting.
-        full_kappa (int)                     : Kappa value to use for the model full fitting.
+        full_kappa (float)                   : Kappa value to use for the model full fitting.
         full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting.
         full_fit_desc(varchar)               : User-defined description of the model full fitting task.
 
@@ -558,7 +558,7 @@ class FullFitTask(dj.Manual):
     definition = """
     -> PCAFit                                       # `PCAFit` Key
     full_latent_dim              : int              # Latent dimension to use for the model full fitting
-    full_kappa                   : int              # Kappa value to use for the model full fitting
+    full_kappa                   : float            # Kappa value to use for the model full fitting
     full_num_iterations          : int              # Number of Gibbs sampling iterations to run in the model full fitting
     ---
     full_fit_desc=''             : varchar(1000)    # User-defined description of the model full fitting task   
@@ -629,7 +629,7 @@ class FullFit(dj.Computed):
             kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
         )
         kpms_dj_config.update(
-            dict(latent_dim=int(full_latent_dim), kappa=int(full_kappa))
+            dict(latent_dim=int(full_latent_dim), kappa=float(full_kappa))
         )
         generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
 
@@ -645,7 +645,7 @@ class FullFit(dj.Computed):
         data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
         model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
         model = update_hypparams(
-            model, kappa=int(full_kappa), latent_dim=int(full_latent_dim)
+            model, kappa=float(full_kappa), latent_dim=int(full_latent_dim)
         )
 
         start_time = datetime.utcnow()
