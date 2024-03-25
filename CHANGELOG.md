@@ -9,12 +9,12 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Update - Move `PreFit` and `FullFit` to `moseq_train`
 + Update - Additional attributes and data type modification from `time` to `float` for `duration` to eliminate datetime formatting code
 + Update - Code refactoring in `make` functions and enhance path handling
-+ Update - docs and docstrings
++ Update - `docs`, docstrings and table definitions
 + Update - `tutorial.ipynb` according to these changes
-+ Update - pipeline images
++ Update - pipeline `images` according to these changes
 + Fix - `Dockerfile` environment variables
-+ Update - Activation of one schema with two modules
-+ Update - remove PyPI release
++ Update - Activation of one schema with two modules by updating `tutorial_pipeline.ipynb`
++ Update - remove PyPI release from `release.yml`
 + Update - README 
 
 ## [0.1.0] - 2024-03-20
