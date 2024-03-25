@@ -70,7 +70,7 @@ def activate(
 
 @schema
 class KeypointSet(dj.Manual):
-    """Store the keypoint data and the video set directory to train the model.
+    """Store the keypoint data and the video set directory for model training.
 
     Attributes:
         kpset_id (int)                          : Unique ID for each keypoint set.
@@ -88,7 +88,7 @@ class KeypointSet(dj.Manual):
     """
 
     class VideoFile(dj.Part):
-        """Store the IDs and file paths of each video file that will be used to train the model.
+        """Store the IDs and file paths of each video file that will be used for model training.
 
         Attributes:
             KeypointSet (foreign key) : Unique ID for each keypoint set.
@@ -269,17 +269,17 @@ class PCAPrep(dj.Imported):
 
 @schema
 class PCAFit(dj.Computed):
-    """Fit of the PCA model.
+    """Fit PCA model.
 
     Attributes:
         PCAPrep (foreign key)           : `PCAPrep` Key.
-        pca_fitting_time (datetime)     : datetime of the PCA fitting analysis.
+        pca_fit_time (datetime)         : datetime of the PCA fitting analysis.
     """
 
     definition = """
     -> PCAPrep                           # `PCAPrep` Key
     ---
-    pca_fitting_time=NULL    : datetime  # datetime of the PCA fitting analysis
+    pca_fit_time=NULL        : datetime  # datetime of the PCA fitting analysis
     """
 
     def make(self, key):
@@ -296,7 +296,7 @@ class PCAFit(dj.Computed):
         2. Load the `kpms_dj_config` file that contains the updated `video_dir` and bodyparts, \
            and format the keypoint data with the coordinates and confidences scores to be used in the PCA fitting.
         3. Fit the PCA model and save it as `pca.p` file in the output directory.
-        4.Insert the creation datetime as the `pca_fitting_time` into the table.
+        4.Insert the creation datetime as the `pca_fit_time` into the table.
         """
         from keypoint_moseq import format_data, fit_pca, save_pca
 
@@ -316,7 +316,7 @@ class PCAFit(dj.Computed):
 
         creation_datetime = datetime.now(timezone.utc)
         
-        self.insert1(dict(**key, pca_fitting_time=creation_datetime))
+        self.insert1(dict(**key, pca_fit_time=creation_datetime))
 
 
 @schema
@@ -366,9 +366,15 @@ class LatentDimension(dj.Imported):
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
         kpms_project_output_dir = (moseq_infer.get_kpms_processed_data_dir() / kpms_project_output_dir)
-
-        pca = load_pca(kpms_project_output_dir.as_posix())
-
+        
+        pca_path = kpms_project_output_dir / "pca.p"
+        if pca_path:
+            pca = load_pca(
+                kpms_project_output_dir.as_posix()
+            )  
+        else:
+            raise FileNotFoundError(f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}")
+    
         variance_threshold = 0.90
         
         cs = np.cumsum(
@@ -405,7 +411,7 @@ class PreFitTask(dj.Manual):
         pre_latent_dim (int)                : Latent dimension to use for the model pre-fitting.
         pre_kappa (int)                     : Kappa value to use for the model pre-fitting.
         pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting.
-        pre_fitting_desc(varchar)           : User-defined description of the pre-fitting task.
+        pre_fit_desc(varchar)               : User-defined description of the pre-fitting task.
     """
 
     definition = """
@@ -414,25 +420,25 @@ class PreFitTask(dj.Manual):
     pre_kappa                    : int              # Kappa value to use for the model pre-fitting
     pre_num_iterations           : int              # Number of Gibbs sampling iterations to run in the model pre-fitting
     ---
-    pre_fitting_desc=''          : varchar(1000)    # User-defined description of the pre-fitting task
+    pre_fit_desc=''              : varchar(1000)    # User-defined description of the pre-fitting task
     """
 
 
 @schema
 class PreFit(dj.Computed):
-    """Fit the AR-HMM model.
+    """Fit AR-HMM model.
 
     Attributes:
         PreFitTask (foreign key)                : `PreFitTask` Key.
         model_name (varchar)                    : Name of the model as "kpms_project_output_dir/model_name".
-        pre_fitting_duration (float)            : Time duration (seconds) of the model fitting computation.
+        pre_fit_duration (float)                : Time duration (seconds) of the model fitting computation.
     """
 
     definition = """
     -> PreFitTask                               # `PreFitTask` Key
     ---
     model_name=''                : varchar(100) # Name of the model as "kpms_project_output_dir/model_name"
-    pre_fitting_duration=NULL    : float        # Time duration (seconds) of the model fitting computation
+    pre_fit_duration=NULL        : float        # Time duration (seconds) of the model fitting computation
     """
 
     def make(self, key):
@@ -480,8 +486,14 @@ class PreFit(dj.Computed):
         )
         generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
 
-        pca = load_pca(kpms_project_output_dir.as_posix())
-
+        pca_path = kpms_project_output_dir / "pca.p"
+        if pca_path:
+            pca = load_pca(
+                kpms_project_output_dir.as_posix()
+            )  
+        else:
+            raise FileNotFoundError(f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}")
+    
         coordinates, confidences = (PCAPrep & key).fetch1("coordinates", "confidences")
         data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
 
@@ -511,7 +523,7 @@ class PreFit(dj.Computed):
                     kpms_project_output_dir.relative_to(kpms_root_outbox)
                     / model_name
                 ).as_posix(),
-                "pre_fitting_duration": duration_seconds,
+                "pre_fit_duration": duration_seconds,
             }
         )
 
@@ -526,7 +538,7 @@ class FullFitTask(dj.Manual):
         full_latent_dim (int)                : Latent dimension to use for the model full fitting.
         full_kappa (int)                     : Kappa value to use for the model full fitting.
         full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting.
-        full_fitting_desc(varchar)           : User-defined description of the model full fitting task.
+        full_fit_desc(varchar)               : User-defined description of the model full fitting task.
 
     """
 
@@ -536,7 +548,7 @@ class FullFitTask(dj.Manual):
     full_kappa                   : int              # Kappa value to use for the model full fitting
     full_num_iterations          : int              # Number of Gibbs sampling iterations to run in the model full fitting
     ---
-    full_fitting_desc=''         : varchar(1000)    # User-defined description of the model full fitting task   
+    full_fit_desc=''             : varchar(1000)    # User-defined description of the model full fitting task   
     """
 
 
@@ -605,7 +617,14 @@ class FullFit(dj.Computed):
         )
         generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
 
-        pca = load_pca(kpms_project_output_dir.as_posix())
+        pca_path = kpms_project_output_dir / "pca.p"
+        if pca_path:
+            pca = load_pca(
+                kpms_project_output_dir.as_posix()
+            )  
+        else:
+            raise FileNotFoundError(f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}")
+    
         coordinates, confidences = (PCAPrep & key).fetch1("coordinates", "confidences")
         data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
         model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
