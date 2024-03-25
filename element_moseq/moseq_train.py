@@ -211,27 +211,24 @@ class PCAPrep(dj.Imported):
         )
 
         kpms_root_inbox, kpms_root_outbox = moseq_infer.get_kpms_root_data_dir()
-        kpms_project_output_dir = find_full_path(
-            kpms_root_outbox, (PCATask & key).fetch1("kpms_project_output_dir")
-        )
+
+        kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
+        try:
+            kpms_project_output_dir = find_full_path(kpms_root_outbox, kpms_project_output_dir)
+
+        except:
+            kpms_project_output_dir = kpms_root_outbox / kpms_project_output_dir
+        kpms_project_output_dir.mkdir(parents=True, exist_ok=True)
+
         kpset_dir = find_full_path(kpms_root_inbox, kpset_dir)
+        
         videos_dir = find_full_path(kpms_root_inbox, Path(video_paths[0]).parent)
 
-        config_files = ["config.yaml", "config.yml"]
-        config_file_path = next(
-            (
-                kpset_dir / config_file
-                for config_file in config_files
-                if (kpset_dir / config_file).exists()
-            ),
-            None,
-        )
-
-        if config_file_path:
+        if (kpset_dir / "config.yaml") or (kpset_dir / "config.yml"):
             if pose_estimation_method == "deeplabcut":
                 setup_project(
                     kpms_project_output_dir,
-                    deeplabcut_config=kpset_dir / "config.yaml"
+                    deeplabcut_config= kpset_dir / "config.yaml"
                     or kpset_dir / "config.yml",
                 )
             else:
