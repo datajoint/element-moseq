@@ -38,10 +38,7 @@ def get_kpms_processed_data_dir() -> str:
         return None
 
 
-__all__ = [
-    "moseq_train",
-    "moseq_infer"
-]
+__all__ = ["moseq_train", "moseq_infer"]
 
 # Activate schemas  -------------
 
@@ -81,4 +78,6 @@ class Device(dj.Lookup):
 
 # Activate Element MoSeq schema -----------------------------------
 
-moseq_train.activate(db_prefix + "moseq_train", db_prefix + "moseq_infer",linking_module=__name__)
+moseq_train.activate(
+    db_prefix + "moseq_train", db_prefix + "moseq_infer", linking_module=__name__
+)

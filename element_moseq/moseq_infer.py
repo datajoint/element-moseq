@@ -31,10 +31,10 @@ def activate(
         create_tables (bool): When True (default), create schema tables in the database
                              if they do not yet exist.
         linking_module (str): A module (or name) containing the required dependencies.
-    
+
     Functions:
         get_kpms_root_data_dir(): Returns absolute path for root data director(y/ies) with all behavioral recordings, as (list of) string(s)
-        get_kpms_processed_data_dir(): Optional. Returns absolute path for processed data. 
+        get_kpms_processed_data_dir(): Optional. Returns absolute path for processed data.
     """
 
     if isinstance(linking_module, str):
@@ -299,34 +299,49 @@ class Inference(dj.Computed):
             plot_similarity_dendrogram,
         )
 
-        keypointset_dir, inference_output_dir, num_iterations, model_id, pose_estimation_method = (InferenceTask & key).fetch1(
-        "keypointset_dir", "inference_output_dir", "num_iterations", "model_id", "pose_estimation_method"
+        (
+            keypointset_dir,
+            inference_output_dir,
+            num_iterations,
+            model_id,
+            pose_estimation_method,
+        ) = (InferenceTask & key).fetch1(
+            "keypointset_dir",
+            "inference_output_dir",
+            "num_iterations",
+            "model_id",
+            "pose_estimation_method",
         )
-        
-        kpms_root_inbox,kpms_root_outbox = get_kpms_root_data_dir() 
-        model_dir = find_full_path(kpms_root_outbox, (Model & 'model_id = {}'.format(model_id)).fetch1("model_dir"))
+
+        kpms_root_inbox, kpms_root_outbox = get_kpms_root_data_dir()
+        model_dir = find_full_path(
+            kpms_root_outbox,
+            (Model & "model_id = {}".format(model_id)).fetch1("model_dir"),
+        )
         keypointset_dir = find_full_path(kpms_root_inbox, keypointset_dir)
 
         inference_output_dir = model_dir / inference_output_dir
-        
+
         if not os.path.exists(inference_output_dir):
             os.makedirs(model_dir / inference_output_dir)
-        
+
         pca_path = model_dir.parent / "pca.p"
         if pca_path:
-            pca = load_pca(
-                model_dir.parent.as_posix()
-            )  
+            pca = load_pca(model_dir.parent.as_posix())
         else:
-            raise FileNotFoundError(f"No pca model (`pca.p`) found in the parent model directory {model_dir.parent}")
-    
-        model_path = model_dir / "checkpoint.h5"     
+            raise FileNotFoundError(
+                f"No pca model (`pca.p`) found in the parent model directory {model_dir.parent}"
+            )
+
+        model_path = model_dir / "checkpoint.h5"
         if model_path:
             model = load_checkpoint(
                 project_dir=model_dir.parent, model_name=model_dir.parts[-1]
             )[0]
         else:
-            raise FileNotFoundError(f"No model (`checkpoint.h5`) found in the model directory {model_dir}")
+            raise FileNotFoundError(
+                f"No model (`checkpoint.h5`) found in the model directory {model_dir}"
+            )
 
         if pose_estimation_method == "deeplabcut":
             coordinates, confidences, _ = load_keypoints(
@@ -341,12 +356,14 @@ class Inference(dj.Computed):
         kpms_dj_config = load_kpms_dj_config(
             model_dir.parent.as_posix(), check_if_valid=True, build_indexes=True
         )
-        
+
         if kpms_dj_config:
             data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
         else:
-            raise FileNotFoundError(f"No valid `kpms_dj_config` found in the parent model directory {model_dir.parent}")
-        
+            raise FileNotFoundError(
+                f"No valid `kpms_dj_config` found in the parent model directory {model_dir.parent}"
+            )
+
         start_time = datetime.utcnow()
         results = apply_model(
             model=model,
@@ -357,8 +374,9 @@ class Inference(dj.Computed):
             model_name=Path(model_dir).name,
             results_path=(inference_output_dir / "results.h5").as_posix(),
             return_model=False,
-            num_iters=num_iterations or 50.0, # default internal value in the keypoint-moseq function
-            **kpms_dj_config, 
+            num_iters=num_iterations
+            or 50.0,  # default internal value in the keypoint-moseq function
+            **kpms_dj_config,
         )
         end_time = datetime.utcnow()
 

@@ -75,7 +75,7 @@ class KeypointSet(dj.Manual):
     Attributes:
         kpset_id (int)                          : Unique ID for each keypoint set.
         PoseEstimationMethod (foreign key)      : Unique format method used to obtain the keypoints data.
-        kpset_dir (str)                         : Path where the keypoint files are located together with the pose estimation `config` file, relative to root data directory. 
+        kpset_dir (str)                         : Path where the keypoint files are located together with the pose estimation `config` file, relative to root data directory.
         kpset_desc (str)                            : Optional. User-entered description.
     """
 
@@ -188,7 +188,7 @@ class PCAPrep(dj.Imported):
         4. Check that the pose_estimation_method is `deeplabcut` and set up the project output directory with the default `config.yml`.
         5. Create the `kpms_project_output_dir` (if it does not exist), and generates the kpms default `config.yml` with the default values from the pose estimation config.
         6. Create a copy of the kpms `config.yml` named `kpms_dj_config.yml` that will be updated with both the `video_dir` and bodyparts
-        7. Load keypoint data from the keypoint files found in the `kpset_dir` that will serve as the training set. 
+        7. Load keypoint data from the keypoint files found in the `kpset_dir` that will serve as the training set.
         8. As a result of the keypoint loading, the coordinates and confidences scores are generated and will be used to format the data for modeling.
         9. Calculate the average frame rate and the frame rate list of the videoset from which the keypoint set is derived. This two attributes can be used to calculate the kappa value.
         10. Insert the results of this `make` function into the table.
@@ -209,26 +209,40 @@ class PCAPrep(dj.Imported):
         video_paths, video_ids = (KeypointSet.VideoFile & key).fetch(
             "video_path", "video_id"
         )
-        
-        kpms_root_inbox,kpms_root_outbox = moseq_infer.get_kpms_root_data_dir()
-        kpms_project_output_dir = find_full_path(kpms_root_outbox,(PCATask & key).fetch1("kpms_project_output_dir"))
+
+        kpms_root_inbox, kpms_root_outbox = moseq_infer.get_kpms_root_data_dir()
+        kpms_project_output_dir = find_full_path(
+            kpms_root_outbox, (PCATask & key).fetch1("kpms_project_output_dir")
+        )
         kpset_dir = find_full_path(kpms_root_inbox, kpset_dir)
         videos_dir = find_full_path(kpms_root_inbox, Path(video_paths[0]).parent)
 
         config_files = ["config.yaml", "config.yml"]
-        config_file_path = next((kpset_dir / config_file for config_file in config_files if (kpset_dir / config_file).exists()), None)
-        
+        config_file_path = next(
+            (
+                kpset_dir / config_file
+                for config_file in config_files
+                if (kpset_dir / config_file).exists()
+            ),
+            None,
+        )
+
         if config_file_path:
             if pose_estimation_method == "deeplabcut":
                 setup_project(
-                    kpms_project_output_dir, deeplabcut_config= kpset_dir / "config.yaml" or kpset_dir / "config.yml"
+                    kpms_project_output_dir,
+                    deeplabcut_config=kpset_dir / "config.yaml"
+                    or kpset_dir / "config.yml",
                 )
             else:
                 raise NotImplementedError(
                     "The currently supported format method is `deeplabcut`. If you require \
-                    support for another format method, please reach out to us at `support at datajoint.com`.")
+                    support for another format method, please reach out to us at `support at datajoint.com`."
+                )
         else:
-            raise FileNotFoundError(f"No pose estimation `config.yaml` or `config.yml` file found in the specified directory path {kpset_dir}")
+            raise FileNotFoundError(
+                f"No pose estimation `config.yaml` or `config.yml` file found in the specified directory path {kpset_dir}"
+            )
 
         kpms_config = load_config(
             kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=False
@@ -244,8 +258,8 @@ class PCAPrep(dj.Imported):
         generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_config)
 
         coordinates, confidences, formatted_bodyparts = load_keypoints(
-                filepath_pattern=kpset_dir, format=pose_estimation_method
-            )
+            filepath_pattern=kpset_dir, format=pose_estimation_method
+        )
 
         frame_rate_list = []
         for fp, _ in zip(video_paths, video_ids):
@@ -301,7 +315,9 @@ class PCAFit(dj.Computed):
         from keypoint_moseq import format_data, fit_pca, save_pca
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
-        kpms_project_output_dir = (moseq_infer.get_kpms_processed_data_dir() / kpms_project_output_dir)
+        kpms_project_output_dir = (
+            moseq_infer.get_kpms_processed_data_dir() / kpms_project_output_dir
+        )
 
         kpms_default_config = load_kpms_dj_config(
             kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
@@ -315,18 +331,18 @@ class PCAFit(dj.Computed):
         save_pca(pca, kpms_project_output_dir.as_posix())
 
         creation_datetime = datetime.now(timezone.utc)
-        
+
         self.insert1(dict(**key, pca_fit_time=creation_datetime))
 
 
 @schema
 class LatentDimension(dj.Imported):
     """
-    Determine the latent dimension as part of the autoregressive hyperparameters (`ar_hypparams`) for the model fitting. 
-    The objective of the analysis is to inform the user about the number of principal components needed to explain a 
+    Determine the latent dimension as part of the autoregressive hyperparameters (`ar_hypparams`) for the model fitting.
+    The objective of the analysis is to inform the user about the number of principal components needed to explain a
     90% variance threshold. Subsequently, the decision on how many components to utilize for the model fitting is left
     to the user.
-    
+
     Attributes:
         PCAFit (foreign key)               : `PCAFit` Key.
         variance_percentage (float)        : Variance threshold. Fixed value to 90%.
@@ -365,18 +381,20 @@ class LatentDimension(dj.Imported):
         from keypoint_moseq import load_pca
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
-        kpms_project_output_dir = (moseq_infer.get_kpms_processed_data_dir() / kpms_project_output_dir)
-        
+        kpms_project_output_dir = (
+            moseq_infer.get_kpms_processed_data_dir() / kpms_project_output_dir
+        )
+
         pca_path = kpms_project_output_dir / "pca.p"
         if pca_path:
-            pca = load_pca(
-                kpms_project_output_dir.as_posix()
-            )  
+            pca = load_pca(kpms_project_output_dir.as_posix())
         else:
-            raise FileNotFoundError(f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}")
-    
+            raise FileNotFoundError(
+                f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
+            )
+
         variance_threshold = 0.90
-        
+
         cs = np.cumsum(
             pca.explained_variance_ratio_
         )  # explained_variance_ratio_ndarray of shape (n_components,)
@@ -470,9 +488,11 @@ class PreFit(dj.Computed):
             update_hypparams,
             fit_model,
         )
-        
-        _,kpms_root_outbox = moseq_infer.get_kpms_root_data_dir()
-        kpms_project_output_dir = find_full_path(kpms_root_outbox,(PCATask & key).fetch1("kpms_project_output_dir"))
+
+        _, kpms_root_outbox = moseq_infer.get_kpms_root_data_dir()
+        kpms_project_output_dir = find_full_path(
+            kpms_root_outbox, (PCATask & key).fetch1("kpms_project_output_dir")
+        )
 
         pre_latent_dim, pre_kappa, pre_num_iterations = (PreFitTask & key).fetch1(
             "pre_latent_dim", "pre_kappa", "pre_num_iterations"
@@ -488,12 +508,12 @@ class PreFit(dj.Computed):
 
         pca_path = kpms_project_output_dir / "pca.p"
         if pca_path:
-            pca = load_pca(
-                kpms_project_output_dir.as_posix()
-            )  
+            pca = load_pca(kpms_project_output_dir.as_posix())
         else:
-            raise FileNotFoundError(f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}")
-    
+            raise FileNotFoundError(
+                f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
+            )
+
         coordinates, confidences = (PCAPrep & key).fetch1("coordinates", "confidences")
         data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
 
@@ -520,8 +540,7 @@ class PreFit(dj.Computed):
             {
                 **key,
                 "model_name": (
-                    kpms_project_output_dir.relative_to(kpms_root_outbox)
-                    / model_name
+                    kpms_project_output_dir.relative_to(kpms_root_outbox) / model_name
                 ).as_posix(),
                 "pre_fit_duration": duration_seconds,
             }
@@ -530,7 +549,7 @@ class PreFit(dj.Computed):
 
 @schema
 class FullFitTask(dj.Manual):
-    """Insert the parameters for the full (Keypoint-SLDS model) fitting. 
+    """Insert the parameters for the full (Keypoint-SLDS model) fitting.
        The full model will generally require a lower value of kappa to yield the same target syllable durations.
 
     Attributes:
@@ -601,13 +620,15 @@ class FullFit(dj.Computed):
             fit_model,
             reindex_syllables_in_checkpoint,
         )
-        
-        _,kpms_root_outbox = moseq_infer.get_kpms_root_data_dir()
-        kpms_project_output_dir = find_full_path(kpms_root_outbox,(PCATask & key).fetch1("kpms_project_output_dir"))
-        
-        full_latent_dim, full_kappa, full_num_iterations = (
-            FullFitTask & key
-        ).fetch1("full_latent_dim", "full_kappa", "full_num_iterations")
+
+        _, kpms_root_outbox = moseq_infer.get_kpms_root_data_dir()
+        kpms_project_output_dir = find_full_path(
+            kpms_root_outbox, (PCATask & key).fetch1("kpms_project_output_dir")
+        )
+
+        full_latent_dim, full_kappa, full_num_iterations = (FullFitTask & key).fetch1(
+            "full_latent_dim", "full_kappa", "full_num_iterations"
+        )
 
         kpms_dj_config = load_kpms_dj_config(
             kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
@@ -619,12 +640,12 @@ class FullFit(dj.Computed):
 
         pca_path = kpms_project_output_dir / "pca.p"
         if pca_path:
-            pca = load_pca(
-                kpms_project_output_dir.as_posix()
-            )  
+            pca = load_pca(kpms_project_output_dir.as_posix())
         else:
-            raise FileNotFoundError(f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}")
-    
+            raise FileNotFoundError(
+                f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
+            )
+
         coordinates, confidences = (PCAPrep & key).fetch1("coordinates", "confidences")
         data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
         model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
@@ -652,8 +673,7 @@ class FullFit(dj.Computed):
             {
                 **key,
                 "model_name": (
-                    kpms_project_output_dir.relative_to(kpms_root_outbox)
-                    / model_name
+                    kpms_project_output_dir.relative_to(kpms_root_outbox) / model_name
                 ).as_posix(),
                 "full_fit_duration": duration_seconds,
             }

@@ -10,7 +10,7 @@ with open(path.join(here, "README.md"), "r") as f:
     long_description = f.read()
 
 with open(path.join(here, pkg_name, "version.py")) as f:
-   exec(f.read())
+    exec(f.read())
 
 setup(
     name=pkg_name.replace("_", "-"),
@@ -30,8 +30,8 @@ setup(
         "ipykernel>=6.0.1",
         "opencv-python",
         "element-interface @ git+https://github.com/datajoint/element-interface.git",
-        "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq.git"
-        ],
+        "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq.git",
+    ],
     extras_require={
         "elements": [
             "element-animal @ git+https://github.com/datajoint/element-animal.git",
