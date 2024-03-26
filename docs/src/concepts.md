@@ -23,6 +23,4 @@ Key features include:
 - Loading and formatting of 2D deeplabcut keypoint tracking data for model training
 - Queue management and initiation of Keypoint-MoSeq analysis across multiple sessions
 - Ingestion of analysis outcomes such as PCA, AR-HMM, and Keypoint-SLDS components
-- Ingestion of analysis outcomes from motion sequencing inference 
-
-
+- Ingestion of analysis outcomes from motion sequencing inference

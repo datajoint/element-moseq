@@ -5,21 +5,21 @@ corresponding table in the database.  Within the pipeline, Element MoSeq
 connects to upstream Elements including Lab, Animal, Session, and Event. For more 
 detailed documentation on each table, see the API docs for the respective schemas.
 
-The Element is composed of two main schemas, `kpms_pca` and `kpms_model`. The `kpms_pca` schema is designed to handle the analysis and ingestion of PCA model for formatted keypoint tracking. The `kpms_model` schema is designed to handle the analysis and ingestion of Keypoint-MoSeq's motion sequencing on video recordings.
+The Element is composed of two main schemas, `moseq_train` and `moseq_infer`. The `moseq_train` schema is designed to handle the analysis and ingestion of PCA model for formatted keypoint tracking and train the Kepoint-MoSeq model. The `moseq_infer` schema is designed to handle the analysis and ingestion of Keypoint-MoSeq's motion sequencing on video recordings by using one registered model.
 
 ## Diagrams
 
-### `kpms_pca` module
+### `moseq_train` module
 
-- The `kpms_pca` schema is designed to handle the analysis and ingestion of a PCA model for formatted keypoint tracking.
+- The `moseq_train` schema is designed to handle the analysis and ingestion of PCA model for formatted keypoint tracking and train the Kepoint-MoSeq model. 
 
-     ![pipeline](https://raw.githubusercontent.com/datajoint/element-moseq/main/images/pipeline_kpms_pca.svg)
+     ![pipeline](https://raw.githubusercontent.com/datajoint/element-moseq/main/images/pipeline_moseq_train.svg)
 
-### `kpms_model` module
+### `moseq_infer` module
 
-- The `kpms_model` schema is designed to handle the analysis and ingestion of Keypoint-MoSeq's motion sequencing on video recordings.
+- The `moseq_infer` schema is designed to handle the analysis and ingestion of Keypoint-MoSeq's motion sequencing on video recordings by using one registered model.
 
-     ![pipeline](https://raw.githubusercontent.com/datajoint/element-moseq/main/images/pipeline_kpms_model.svg)
+     ![pipeline](https://raw.githubusercontent.com/datajoint/element-moseq/main/images/pipeline_moseq_infer.svg)
 
 ## Table Descriptions
 
@@ -49,36 +49,35 @@ The Element is composed of two main schemas, `kpms_pca` and `kpms_model`. The `k
 | --- | --- |
 | Session | Unique experimental session identifier |
 
-### `kpms_pca` schema
+### `model_train` schema
 
-- For further details see the [kpms_pca schema API docs](https://datajoint.com/docs/elements/element-moseq/latest/api/element_moseq/kpms_pca/)
+- For further details see the [`model_train` schema API docs](https://datajoint.com/docs/elements/element-moseq/latest/api/element_moseq/model_train/)
 
 | Table | Description |
 | --- | --- |
-| PoseEstimationMethod | Table to store the pose estimation methods supported by the keypoint loader of `keypoint-moseq` package. |
-| KeypointSet | Table to store the keypoint data and video set directory to train the model.|
-| KeypointSet.VideoFile | IDs and file paths of each video file that will be used to train the model.|
-| Bodyparts | Table to store the body parts to use in the analysis.|
+| KeypointSet | Store keypoint data and video set directory for model training.|
+| KeypointSet.VideoFile | IDs and file paths of each video file that will be used for model training. |
+| Bodyparts | Store the body parts to use in the analysis. |
 | PCATask | Staging table to define the PCA task and its output directory. |
-| LoadKeypointSet | Table to create the `kpms_project_output_dir`, and create and update the `config.yml` by creating a new `dj_config.yml`. |
-| PCAFitting | Automated fitting of the PCA model.|
-| LatentDimension | Automated computation to calculate the latent dimension as one of the autoregressive hyperparameters (`ar_hypparams`) necessary for the model fitting. |
+| PCAPrep | Setup the Keypoint-MoSeq project output directory (`kpms_project_output_dir`) creating the default `config.yml` and updating it in a new `dj_config.yml`. |
+| PCAFit | Fit PCA model.|
+| LatentDimension | Calculate the latent dimension as one of the autoregressive hyperparameters (`ar_hypparams`) necessary for the model fitting. |
+| PreFitTask | Specify parameters for model (AR-HMM) pre-fitting. |
+| PreFit | Fit AR-HMM model. |
+| FullFitTask | Specify parameters for the model full-fitting. |
+| FullFit | Fit the full (Keypoint-SLDS) model. |
 
+### `moseq_infer` schema
 
-### `kpms_model` schema
-
-- For further details see the [kpms_model schema API docs](https://datajoint.com/docs/elements/element-moseq/latest/api/element_moseq/kpms_model/)
+- For further details see the [`moseq_infer` schema API docs](https://datajoint.com/docs/elements/element-moseq/latest/api/element_moseq/moseq_infer/)
 
 | Table | Description |
 | --- | --- |
-| PreFittingTask | Table to specify the parameters for the pre-fitting (AR-HMM) of the model. |
-| PreFitting | Automated computation to fit a AR-HMM model. |
-| FullFittingTask | Table to specify the parameters for the full fitting of the model. The full model will generally require a lower value of kappa to yield the same target syllable durations. |
-| FullFitting | Automated computation to fit the full model. |
-| Model | Table to register the models. |
+| Model | Register a model. |
 | VideoRecording | Set of video recordings for the Keypoint-MoSeq inference. |
 | VideoRecording.File | File IDs and paths associated with a given `recording_id`. |
-| InferenceTask | Table to specify the model, the video set, and the output directory for the inference task. |
-| Inference | This table is used to infer the model results from the checkpoint file and save them to `{output_dir}/{model_name}/{inference_output_dir}/results.h5`. |
-| Inference.MotionSequence | This table is used to store the results of the model inference.|
-| Inference.GridMoviesSampledInstances | This table is used to store the grid movies sampled instances.|
+| PoseEstimationMethod | Pose estimation methods supported by the keypoint loader of `keypoint-moseq` package. |
+| InferenceTask | Staging table to define the Inference task and its output directory. |
+| Inference | Infer the model from the checkpoint file and save the results as `results.h5` file. |
+| Inference.MotionSequence | Results of the model inference. |
+| Inference.GridMoviesSampledInstances | Store the sampled instances of the grid movies. |

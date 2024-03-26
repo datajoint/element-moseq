@@ -19,7 +19,7 @@ DataJoint Elements collectively standardize and automate data collection and ana
 + Clone the repository to your computer.
 
   ```bash
-  git clone https://github.com/<enter_github_username>/element-moseq
+  git clone https://github.com/<enter_github_username>/element-moseq.git
   ```
 
 + Install with `pip`:
@@ -72,4 +72,4 @@ MYSQL_VER=8.0 docker compose -f docker-compose-db.yaml up --build -d
 
 1. We recommend you start by navigating to the `notebooks` directory on the left panel and go through the `tutorial.ipynb` Jupyter notebook. Execute the cells in the notebook to begin your walkthrough of the tutorial.
 
-1. Once you are done, see the options available to you in the menu in the bottom-left corner. For example, in Codespace you will have an option to `Stop Current Codespace` but when running Dev Container on your own machine the equivalent option is `Reopen folder locally`. By default, GitHub will also automatically stop the Codespace after 30 minutes of inactivity.  Once the Codespace is no longer being used, we recommend deleting the Codespace.
+2. Once you are done, see the options available to you in the menu in the bottom-left corner. For example, in Codespace you will have an option to `Stop Current Codespace` but when running Dev Container on your own machine the equivalent option is `Reopen folder locally`. By default, GitHub will also automatically stop the Codespace after 30 minutes of inactivity.  Once the Codespace is no longer being used, we recommend deleting the Codespace.
