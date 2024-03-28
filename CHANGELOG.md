@@ -3,6 +3,11 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and 
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
+## [0.2.0] - 2024-03-27
++ Add - `load` functions and new secondary attributes for tutorial purposes
++ Add - `outbox` results in the public s3 bucket to be mounted in Codespaces
++ Update - tutorial using `task_mode="load"` and updating markdowns
+
 ## [0.1.1] - 2024-03-21
 
 + Update - Schemas and tables renaming
