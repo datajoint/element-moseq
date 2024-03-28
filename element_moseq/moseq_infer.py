@@ -306,14 +306,14 @@ class Inference(dj.Computed):
             num_iterations,
             model_id,
             pose_estimation_method,
-            task_mode
+            task_mode,
         ) = (InferenceTask & key).fetch1(
             "keypointset_dir",
             "inference_output_dir",
             "num_iterations",
             "model_id",
             "pose_estimation_method",
-            "task_mode"
+            "task_mode",
         )
 
         kpms_root = get_kpms_root_data_dir()
@@ -368,7 +368,7 @@ class Inference(dj.Computed):
             raise FileNotFoundError(
                 f"No valid `kpms_dj_config` found in the parent model directory {model_dir.parent}"
             )
-        
+
         if task_mode == "trigger":
 
             start_time = datetime.utcnow()
@@ -420,7 +420,7 @@ class Inference(dj.Computed):
                 save_path=(inference_output_dir / "similarity_dendogram").as_posix(),
                 **kpms_dj_config,
             )
-        
+
         else:
             from keypoint_moseq import (
                 load_results,
@@ -428,10 +428,13 @@ class Inference(dj.Computed):
                 get_syllable_instances,
                 sample_instances,
             )
+
             # load results
-            results = load_results(project_dir=Path(inference_output_dir).parent,
-                                   model_name=Path(inference_output_dir).parts[-1])
-            
+            results = load_results(
+                project_dir=Path(inference_output_dir).parent,
+                model_name=Path(inference_output_dir).parts[-1],
+            )
+
             # extract sampled_instances
             ## extract syllables from results
             syllables = {k: v["syllable"] for k, v in results.items()}
@@ -439,33 +442,29 @@ class Inference(dj.Computed):
             ## extract and smooth centroids and headings
             centroids = {k: v["centroid"] for k, v in results.items()}
             headings = {k: v["heading"] for k, v in results.items()}
-            
-            filter_size=9 #default value
+
+            filter_size = 9  # default value
             centroids, headings = filter_centroids_headings(
                 centroids, headings, filter_size=filter_size
             )
 
             # sample instances for each syllable
             syllable_instances = get_syllable_instances(
-                syllables,
-                min_duration=3,
-                min_frequency=0.005
+                syllables, min_duration=3, min_frequency=0.005
             )
 
             sampled_instances = sample_instances(
-                syllable_instances = syllable_instances,
-                    num_samples= 4*6, #minimum rows * cols
+                syllable_instances=syllable_instances,
+                num_samples=4 * 6,  # minimum rows * cols
                 coordinates=coordinates,
                 centroids=centroids,
                 headings=headings,
-                
             )
-            
+
             duration_seconds = None
-            
-                      
+
         self.insert1({**key, "inference_duration": duration_seconds})
-            
+
         for result_idx, result in results.items():
             self.MotionSequence.insert1(
                 {
@@ -477,9 +476,8 @@ class Inference(dj.Computed):
                     "heading": result["heading"],
                 }
             )
-            
+
         for syllable, sampled_instance in sampled_instances.items():
             self.GridMoviesSampledInstances.insert1(
                 {**key, "syllable": syllable, "instances": sampled_instance}
             )
-

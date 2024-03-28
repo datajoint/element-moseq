@@ -214,9 +214,11 @@ class PCAPrep(dj.Imported):
         kpms_root = moseq_infer.get_kpms_root_data_dir()
         kpms_processed = moseq_infer.get_kpms_processed_data_dir()
 
-        kpms_project_output_dir, task_mode = (PCATask & key).fetch1("kpms_project_output_dir","task_mode")
-        
-        if task_mode == 'trigger':
+        kpms_project_output_dir, task_mode = (PCATask & key).fetch1(
+            "kpms_project_output_dir", "task_mode"
+        )
+
+        if task_mode == "trigger":
             try:
                 kpms_project_output_dir = find_full_path(
                     kpms_processed, kpms_project_output_dir
@@ -241,7 +243,9 @@ class PCAPrep(dj.Imported):
                 )
 
             kpms_config = load_config(
-                kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=False
+                kpms_project_output_dir.as_posix(),
+                check_if_valid=True,
+                build_indexes=False,
             )
 
             kpms_dj_config_kwargs_dict = dict(
@@ -254,8 +258,8 @@ class PCAPrep(dj.Imported):
             generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_config)
         else:
             kpms_project_output_dir = find_full_path(
-                    kpms_processed, kpms_project_output_dir
-                )
+                kpms_processed, kpms_project_output_dir
+            )
             kpset_dir = find_full_path(kpms_root, kpset_dir)
             videos_dir = find_full_path(kpms_root, Path(video_paths[0]).parent)
 
@@ -316,7 +320,9 @@ class PCAFit(dj.Computed):
         """
         from keypoint_moseq import format_data, fit_pca, save_pca
 
-        kpms_project_output_dir, task_mode = (PCATask & key).fetch1("kpms_project_output_dir","task_mode")
+        kpms_project_output_dir, task_mode = (PCATask & key).fetch1(
+            "kpms_project_output_dir", "task_mode"
+        )
         kpms_project_output_dir = (
             moseq_infer.get_kpms_processed_data_dir() / kpms_project_output_dir
         )
@@ -328,8 +334,8 @@ class PCAFit(dj.Computed):
         data, _ = format_data(
             **kpms_default_config, coordinates=coordinates, confidences=confidences
         )
-        
-        if task_mode =="trigger":
+
+        if task_mode == "trigger":
             pca = fit_pca(**data, **kpms_default_config)
             save_pca(pca, kpms_project_output_dir.as_posix())
             creation_datetime = datetime.now(timezone.utc)
@@ -501,18 +507,28 @@ class PreFit(dj.Computed):
             kpms_processed, (PCATask & key).fetch1("kpms_project_output_dir")
         )
 
-        pre_latent_dim, pre_kappa, pre_num_iterations, task_mode, model_name = (PreFitTask & key).fetch1(
-            "pre_latent_dim", "pre_kappa", "pre_num_iterations", "task_mode", "model_name"
+        pre_latent_dim, pre_kappa, pre_num_iterations, task_mode, model_name = (
+            PreFitTask & key
+        ).fetch1(
+            "pre_latent_dim",
+            "pre_kappa",
+            "pre_num_iterations",
+            "task_mode",
+            "model_name",
         )
         if task_mode == "trigger":
             kpms_dj_config = load_kpms_dj_config(
-                kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
+                kpms_project_output_dir.as_posix(),
+                check_if_valid=True,
+                build_indexes=True,
             )
-            
+
             kpms_dj_config.update(
                 dict(latent_dim=int(pre_latent_dim), kappa=float(pre_kappa))
             )
-            generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
+            generate_kpms_dj_config(
+                kpms_project_output_dir.as_posix(), **kpms_dj_config
+            )
 
             pca_path = kpms_project_output_dir / "pca.p"
             if pca_path:
@@ -522,7 +538,9 @@ class PreFit(dj.Computed):
                     f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
                 )
 
-            coordinates, confidences = (PCAPrep & key).fetch1("coordinates", "confidences")
+            coordinates, confidences = (PCAPrep & key).fetch1(
+                "coordinates", "confidences"
+            )
             data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
 
             model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
@@ -545,7 +563,7 @@ class PreFit(dj.Computed):
             duration_seconds = (end_time - start_time).total_seconds()
         else:
             duration_seconds = None
-            
+
         self.insert1(
             {
                 **key,
@@ -639,17 +657,27 @@ class FullFit(dj.Computed):
             kpms_processed, (PCATask & key).fetch1("kpms_project_output_dir")
         )
 
-        full_latent_dim, full_kappa, full_num_iterations, task_mode, model_name = (FullFitTask & key).fetch1(
-            "full_latent_dim", "full_kappa", "full_num_iterations","task_mode", "model_name"
+        full_latent_dim, full_kappa, full_num_iterations, task_mode, model_name = (
+            FullFitTask & key
+        ).fetch1(
+            "full_latent_dim",
+            "full_kappa",
+            "full_num_iterations",
+            "task_mode",
+            "model_name",
         )
         if task_mode == "trigger":
             kpms_dj_config = load_kpms_dj_config(
-                kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
+                kpms_project_output_dir.as_posix(),
+                check_if_valid=True,
+                build_indexes=True,
             )
             kpms_dj_config.update(
                 dict(latent_dim=int(full_latent_dim), kappa=float(full_kappa))
             )
-            generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_dj_config)
+            generate_kpms_dj_config(
+                kpms_project_output_dir.as_posix(), **kpms_dj_config
+            )
 
             pca_path = kpms_project_output_dir / "pca.p"
             if pca_path:
@@ -659,7 +687,9 @@ class FullFit(dj.Computed):
                     f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
                 )
 
-            coordinates, confidences = (PCAPrep & key).fetch1("coordinates", "confidences")
+            coordinates, confidences = (PCAPrep & key).fetch1(
+                "coordinates", "confidences"
+            )
             data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
             model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
             model = update_hypparams(
@@ -683,7 +713,7 @@ class FullFit(dj.Computed):
             )
         else:
             duration_seconds = None
-            
+
         self.insert1(
             {
                 **key,
