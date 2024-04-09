@@ -142,7 +142,8 @@ class PCATask(dj.Manual):
     -> Bodyparts                                                # Unique ID for each `Bodyparts` key
     ---
     kpms_project_output_dir=''          : varchar(255)          # Keypoint-MoSeq project output directory, relative to root data directory
-    task_mode='trigger'                 :enum('trigger','load') # Trigger or load the task
+    task_mode='load'                 :enum('load','trigger') # Trigger or load the task
+
     """
 
 
