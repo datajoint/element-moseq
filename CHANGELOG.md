@@ -6,7 +6,8 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 ## [0.2.0] - 2024-03-27
 + Add - `load` functions and new secondary attributes for tutorial purposes
 + Add - `outbox` results in the public s3 bucket to be mounted in Codespaces
-+ Update - tutorial using `task_mode="load"` and updating markdowns
++ Update - tutorial using `task_mode="load"` and corresponding markdowns updated accordingly
++ Fix - `scipy.linalg` deprecation in latest release by adjusting version in `setup.py`
 
 ## [0.1.1] - 2024-03-21
 
