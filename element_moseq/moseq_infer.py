@@ -371,7 +371,6 @@ class Inference(dj.Computed):
             )
 
         if task_mode == "trigger":
-
             start_time = datetime.utcnow()
             results = apply_model(
                 model=model,
