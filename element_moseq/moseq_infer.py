@@ -205,7 +205,8 @@ class InferenceTask(dj.Manual):
     inference_output_dir=''       : varchar(1000)           # Optional. Sub-directory where the results will be stored
     inference_desc=''             : varchar(1000)           # Optional. User-defined description of the inference task
     num_iterations=NULL           : int                     # Optional. Number of iterations to use for the model inference. If null, the default number internally is 50.
-    task_mode='trigger'          : enum('trigger', 'load')  # Task mode for the inference task
+    task_mode='load'          : enum('load', 'trigger')  # Task mode for the inference task
+
     """
 
 

@@ -142,7 +142,8 @@ class PCATask(dj.Manual):
     -> Bodyparts                                                # Unique ID for each `Bodyparts` key
     ---
     kpms_project_output_dir=''          : varchar(255)          # Keypoint-MoSeq project output directory, relative to root data directory
-    task_mode='load'                    :enum('trigger','load') # Trigger or load the task
+    task_mode='load'                 :enum('load','trigger') # Trigger or load the task
+
     """
 
 
@@ -224,7 +225,7 @@ class PCAPrep(dj.Imported):
                     kpms_processed, kpms_project_output_dir
                 )
 
-            except:
+            except FileNotFoundError:
                 kpms_project_output_dir = kpms_processed / kpms_project_output_dir
 
             kpset_dir = find_full_path(kpms_root, kpset_dir)
@@ -238,8 +239,7 @@ class PCAPrep(dj.Imported):
                 )
             else:
                 raise NotImplementedError(
-                    "The currently supported format method is `deeplabcut`. If you require \
-                    support for another format method, please reach out to us at `support at datajoint.com`."
+                    "Currently, `deeplabcut` is the only pose estimation method supported by this Element. Please reach out at `support@datajoint.com` if you use another method."
                 )
 
             kpms_config = load_config(
@@ -437,7 +437,7 @@ class PreFitTask(dj.Manual):
     Attributes:
         PCAFit (foreign key)                : `PCAFit` task.
         pre_latent_dim (int)                : Latent dimension to use for the model pre-fitting.
-        pre_kappa (float)                   : Kappa value to use for the model pre-fitting.
+        pre_kappa (int)                     : Kappa value to use for the model pre-fitting.
         pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting.
         pre_fit_desc(varchar)               : User-defined description of the pre-fitting task.
     """
@@ -445,7 +445,7 @@ class PreFitTask(dj.Manual):
     definition = """
     -> PCAFit                                           # `PCAFit` Key
     pre_latent_dim               : int                  # Latent dimension to use for the model pre-fitting
-    pre_kappa                    : float                # Kappa value to use for the model pre-fitting
+    pre_kappa                    : int                  # Kappa value to use for the model pre-fitting
     pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting
     ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
@@ -583,7 +583,7 @@ class FullFitTask(dj.Manual):
     Attributes:
         PCAFit (foreign key)                 : `PCAFit` Key.
         full_latent_dim (int)                : Latent dimension to use for the model full fitting.
-        full_kappa (float)                   : Kappa value to use for the model full fitting.
+        full_kappa (int)                     : Kappa value to use for the model full fitting.
         full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting.
         full_fit_desc(varchar)               : User-defined description of the model full fitting task.
 
@@ -592,11 +592,11 @@ class FullFitTask(dj.Manual):
     definition = """
     -> PCAFit                                           # `PCAFit` Key
     full_latent_dim              : int                  # Latent dimension to use for the model full fitting
-    full_kappa                   : float                # Kappa value to use for the model full fitting
+    full_kappa                   : int                  # Kappa value to use for the model full fitting
     full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting
     ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
-    task_mode='load'             :enum('trigger','load')# Trigger or load the task
+    task_mode='load'             :enum('load','trigger')# Trigger or load the task
     full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task   
     """
 
