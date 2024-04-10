@@ -597,7 +597,8 @@ class FullFitTask(dj.Manual):
     full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting
     ---
     full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task   
-    task_mode='trigger'          :enum('trigger','load')# Trigger or load the task
+    task_mode='load'          :enum('load','trigger')# Trigger or load the task
+
     model_name=''                : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     """
 
