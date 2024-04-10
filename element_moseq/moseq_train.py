@@ -449,9 +449,9 @@ class PreFitTask(dj.Manual):
     pre_kappa                    : float                # Kappa value to use for the model pre-fitting
     pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting
     ---
-    task_mode='trigger'          :enum('trigger','load')# 'load': load computed analysis results, 'trigger': trigger computation
+    model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
+    task_mode='load'             :enum('trigger','load')# 'load': load computed analysis results, 'trigger': trigger computation
     pre_fit_desc=''              : varchar(1000)        # User-defined description of the pre-fitting task
-    model_name=''                : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     """
 
 
@@ -596,10 +596,9 @@ class FullFitTask(dj.Manual):
     full_kappa                   : float                # Kappa value to use for the model full fitting
     full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting
     ---
+    model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
+    task_mode='load'             :enum('load','trigger')# Trigger or load the task
     full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task   
-    task_mode='load'          :enum('load','trigger')# Trigger or load the task
-
-    model_name=''                : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     """
 
 
