@@ -225,7 +225,7 @@ class PCAPrep(dj.Imported):
                     kpms_processed, kpms_project_output_dir
                 )
 
-            except:
+            except FileNotFoundError:
                 kpms_project_output_dir = kpms_processed / kpms_project_output_dir
 
             kpset_dir = find_full_path(kpms_root, kpset_dir)
