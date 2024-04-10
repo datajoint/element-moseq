@@ -242,7 +242,6 @@ class PCAPrep(dj.Imported):
                     "Currently, `deeplabcut` is the only pose estimation method supported by this Element. Please reach out at `support@datajoint.com` if you use another method."
                 )
 
-
             kpms_config = load_config(
                 kpms_project_output_dir.as_posix(),
                 check_if_valid=True,
