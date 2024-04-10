@@ -239,9 +239,9 @@ class PCAPrep(dj.Imported):
                 )
             else:
                 raise NotImplementedError(
-                    "The currently supported format method is `deeplabcut`. If you require \
-                    support for another format method, please reach out to us at `support at datajoint.com`."
+                    "Currently, `deeplabcut` is the only pose estimation method supported by this Element. Please reach out at `support@datajoint.com` if you use another method."
                 )
+
 
             kpms_config = load_config(
                 kpms_project_output_dir.as_posix(),
