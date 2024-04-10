@@ -437,7 +437,7 @@ class PreFitTask(dj.Manual):
     Attributes:
         PCAFit (foreign key)                : `PCAFit` task.
         pre_latent_dim (int)                : Latent dimension to use for the model pre-fitting.
-        pre_kappa (float)                   : Kappa value to use for the model pre-fitting.
+        pre_kappa (int)                     : Kappa value to use for the model pre-fitting.
         pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting.
         pre_fit_desc(varchar)               : User-defined description of the pre-fitting task.
     """
@@ -445,7 +445,7 @@ class PreFitTask(dj.Manual):
     definition = """
     -> PCAFit                                           # `PCAFit` Key
     pre_latent_dim               : int                  # Latent dimension to use for the model pre-fitting
-    pre_kappa                    : float                # Kappa value to use for the model pre-fitting
+    pre_kappa                    : int                  # Kappa value to use for the model pre-fitting
     pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting
     ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
@@ -583,7 +583,7 @@ class FullFitTask(dj.Manual):
     Attributes:
         PCAFit (foreign key)                 : `PCAFit` Key.
         full_latent_dim (int)                : Latent dimension to use for the model full fitting.
-        full_kappa (float)                   : Kappa value to use for the model full fitting.
+        full_kappa (int)                     : Kappa value to use for the model full fitting.
         full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting.
         full_fit_desc(varchar)               : User-defined description of the model full fitting task.
 
@@ -592,7 +592,7 @@ class FullFitTask(dj.Manual):
     definition = """
     -> PCAFit                                           # `PCAFit` Key
     full_latent_dim              : int                  # Latent dimension to use for the model full fitting
-    full_kappa                   : float                # Kappa value to use for the model full fitting
+    full_kappa                   : int                  # Kappa value to use for the model full fitting
     full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting
     ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
