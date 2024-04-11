@@ -8,6 +8,9 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Add - `outbox` results in the public s3 bucket to be mounted in Codespaces
 + Update - tutorial using `task_mode="load"` and corresponding markdowns updated accordingly
 + Fix - `scipy.linalg` deprecation in latest release by adjusting version in `setup.py`
++ Update -  `pre_kappa` and `full_kappa` to integer to simplify equality comparisons
++ Update - `PreFitTask` and `FullFitTask` from `Manual` to `Lookup`
++ Add - `prefit_id`,`fullfit_id` primary key attributes to reduce the number of primary attributes
 
 ## [0.1.1] - 2024-03-21
 
