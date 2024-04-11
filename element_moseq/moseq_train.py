@@ -578,12 +578,13 @@ class PreFit(dj.Computed):
 
 
 @schema
-class FullFitTask(dj.Manual):
+class FullFitTask(dj.Lookup):
     """Insert the parameters for the full (Keypoint-SLDS model) fitting.
        The full model will generally require a lower value of kappa to yield the same target syllable durations.
 
     Attributes:
         PCAFit (foreign key)                 : `PCAFit` Key.
+        fullfit_id (smallint unsigned)       : Unique ID for each full fitting task.
         full_latent_dim (int)                : Latent dimension to use for the model full fitting.
         full_kappa (int)                     : Kappa value to use for the model full fitting.
         full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting.
@@ -593,10 +594,11 @@ class FullFitTask(dj.Manual):
 
     definition = """
     -> PCAFit                                           # `PCAFit` Key
+    fullfit_id                   : smallint unsigned    # Unique ID for each full fitting task
+    ---
     full_latent_dim              : int                  # Latent dimension to use for the model full fitting
     full_kappa                   : int                  # Kappa value to use for the model full fitting
     full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting
-    ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('load','trigger')# Trigger or load the task
     full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task   
