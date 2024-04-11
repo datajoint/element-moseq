@@ -431,11 +431,12 @@ class LatentDimension(dj.Imported):
 
 
 @schema
-class PreFitTask(dj.Manual):
+class PreFitTask(dj.Lookup):
     """Insert the parameters for the model (AR-HMM) pre-fitting.
 
     Attributes:
         PCAFit (foreign key)                : `PCAFit` task.
+        prefit_id (smallint unsigned)       : Unique ID for each pre-fitting task.
         pre_latent_dim (int)                : Latent dimension to use for the model pre-fitting.
         pre_kappa (int)                     : Kappa value to use for the model pre-fitting.
         pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting.
@@ -444,10 +445,11 @@ class PreFitTask(dj.Manual):
 
     definition = """
     -> PCAFit                                           # `PCAFit` Key
+    prefit_id                    : smallint unsigned    # Unique ID for each pre-fitting task
+    ---
     pre_latent_dim               : int                  # Latent dimension to use for the model pre-fitting
     pre_kappa                    : int                  # Kappa value to use for the model pre-fitting
     pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting
-    ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('trigger','load')# 'load': load computed analysis results, 'trigger': trigger computation
     pre_fit_desc=''              : varchar(1000)        # User-defined description of the pre-fitting task
