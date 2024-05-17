@@ -28,7 +28,7 @@ nav:
 # 02. Instead of designating codeblocks with bash, use console. For example..
 #     ```console
 #     cd ../my_dir
-#     ``` 
+#     ```
 # 03. Links across docs should ...
 #     A. Not involve line breaks.
 #     B. Use relative paths to docs in the same repo
@@ -48,15 +48,15 @@ nav:
 #     HOST_UID=$(id -u) docker compose -f docs/docker-compose.yaml up --build
 #     ```
 # 02. The API section will pull docstrings.
-#     A. Follow google styleguide e.g., 
+#     A. Follow google styleguide e.g.,
 #        https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html
 #        With typing suggestions: https://docs.python.org/3/library/typing.html
 #     B. To pull a specific workflow fork, change ./docs/src/api/make_pages.py#L19
 # 03. To see your fork of the workflow-{element} in this render, change the
 #     URL in ./docs/src/api/make_pages.py#L19 to your fork.
-# 04. To deploy this site on your fork, 
+# 04. To deploy this site on your fork,
 #     A. declare a branch called gh-pages
-#     B. go to the your fork > settings > pages 
+#     B. go to the your fork > settings > pages
 #     C. direct pages to render from the gh-pages branch at root
 #     D. push a tag to your fork with the format test*.*.*
 #
@@ -93,13 +93,14 @@ plugins:
       default_handler: python
       handlers:
         python:
+          paths: [../]
           options:
             members_order: source
             group_by_category: false
             line_length: 88
   - gen-files:
       scripts:
-      - ./src/api/make_pages.py
+        - ./src/api/make_pages.py
   - literate-nav:
       nav_file: navigation.md
   - exclude-search:
@@ -172,7 +173,7 @@ extra_css:
   - assets/stylesheets/extra.css
 
 extra_javascript:
-  - https://js-na1.hs-scripts.com/23133402.js  # HubSpot chatbot
+  - https://js-na1.hs-scripts.com/23133402.js # HubSpot chatbot
   - javascripts/mathjax.js
   - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
