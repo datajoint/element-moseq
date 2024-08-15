@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from os import path
 from setuptools import find_packages, setup
-import urllib.request
 
 pkg_name = "element_moseq"
 here = path.abspath(path.dirname(__file__))
@@ -14,7 +13,7 @@ with open(path.join(here, pkg_name, "version.py")) as f:
 
 setup(
     name=pkg_name.replace("_", "-"),
-    version=__version__,  # noqa: F821
+    version=__version__,
     description="Keypoint-MoSeq DataJoint Element",
     long_description=long_description,
     long_description_content_type="text/markdown",
