@@ -33,6 +33,12 @@ def activate(
         create_schema (bool): If True (default), schema  will be created in the database.
         create_tables (bool): If True (default), tables related to the schema will be created in the database.
         linking_module (str): A string containing the module name or module containing the required dependencies to activate the schema.
+    Dependencies:
+    Functions:
+        get_kpms_root_data_dir(): Returns absolute path for root data director(y/ies)
+                                 with all behavioral recordings, as (list of) string(s).
+        get_kpms_processed_data_dir(): Optional. Returns absolute path for processed
+                                      data.
 
     """
 
