@@ -431,12 +431,11 @@ class LatentDimension(dj.Imported):
 
 
 @schema
-class PreFitTask(dj.Lookup):
+class PreFitTask(dj.Manual):
     """Insert the parameters for the model (AR-HMM) pre-fitting.
 
     Attributes:
         PCAFit (foreign key)                : `PCAFit` task.
-        prefit_id (smallint unsigned)       : Unique ID for each pre-fitting task.
         pre_latent_dim (int)                : Latent dimension to use for the model pre-fitting.
         pre_kappa (int)                     : Kappa value to use for the model pre-fitting.
         pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting.
@@ -445,11 +444,10 @@ class PreFitTask(dj.Lookup):
 
     definition = """
     -> PCAFit                                           # `PCAFit` Key
-    prefit_id                    : smallint unsigned    # Unique ID for each pre-fitting task
-    ---
     pre_latent_dim               : int                  # Latent dimension to use for the model pre-fitting
     pre_kappa                    : int                  # Kappa value to use for the model pre-fitting
     pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting
+    ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('trigger','load')# 'load': load computed analysis results, 'trigger': trigger computation
     pre_fit_desc=''              : varchar(1000)        # User-defined description of the pre-fitting task
@@ -578,13 +576,12 @@ class PreFit(dj.Computed):
 
 
 @schema
-class FullFitTask(dj.Lookup):
+class FullFitTask(dj.Manual):
     """Insert the parameters for the full (Keypoint-SLDS model) fitting.
        The full model will generally require a lower value of kappa to yield the same target syllable durations.
 
     Attributes:
         PCAFit (foreign key)                 : `PCAFit` Key.
-        fullfit_id (smallint unsigned)       : Unique ID for each full fitting task.
         full_latent_dim (int)                : Latent dimension to use for the model full fitting.
         full_kappa (int)                     : Kappa value to use for the model full fitting.
         full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting.
@@ -594,11 +591,10 @@ class FullFitTask(dj.Lookup):
 
     definition = """
     -> PCAFit                                           # `PCAFit` Key
-    fullfit_id                   : smallint unsigned    # Unique ID for each full fitting task
-    ---
     full_latent_dim              : int                  # Latent dimension to use for the model full fitting
     full_kappa                   : int                  # Kappa value to use for the model full fitting
     full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting
+    ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('load','trigger')# Trigger or load the task
     full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task   
