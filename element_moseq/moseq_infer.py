@@ -58,7 +58,7 @@ def activate(
     )
 
 
-# -------------- Functions required by the element-moseq ---------------
+# -------------- Functions required by element-moseq ---------------
 
 
 def get_kpms_root_data_dir() -> list:
@@ -87,7 +87,7 @@ def get_kpms_processed_data_dir() -> Optional[str]:
 
     Method in parent namespace should provide a string to a directory where KPMS output
     files will be stored. If unspecified, output files will be stored in the
-    session directory 'videos' folder, per DeepLabCut default.
+    session directory 'videos' folder, per Keypoint-MoSeq default.
     """
     if hasattr(_linking_module, "get_kpms_processed_data_dir"):
         return _linking_module.get_kpms_processed_data_dir()
@@ -205,8 +205,7 @@ class InferenceTask(dj.Manual):
     inference_output_dir=''       : varchar(1000)           # Optional. Sub-directory where the results will be stored
     inference_desc=''             : varchar(1000)           # Optional. User-defined description of the inference task
     num_iterations=NULL           : int                     # Optional. Number of iterations to use for the model inference. If null, the default number internally is 50.
-    task_mode='load'          : enum('load', 'trigger')  # Task mode for the inference task
-
+    task_mode='load'              : enum('load', 'trigger') # Task mode for the inference task
     """
 
 
