@@ -8,8 +8,8 @@ import datajoint as dj
 import importlib
 
 from element_interface.utils import find_full_path
-from .readers.kpms_reader import generate_kpms_dj_config, load_kpms_dj_config
 
+from .readers import kpms_reader
 from . import moseq_infer
 
 schema = dj.schema()
@@ -255,7 +255,9 @@ class PCAPrep(dj.Imported):
                 use_bodyparts=use_bodyparts,
             )
             kpms_config.update(**kpms_dj_config_kwargs_dict)
-            generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_config)
+            kpms_reader.generate_kpms_dj_config(
+                kpms_project_output_dir.as_posix(), **kpms_config
+            )
         else:
             kpms_project_output_dir = find_full_path(
                 kpms_processed, kpms_project_output_dir
@@ -327,7 +329,7 @@ class PCAFit(dj.Computed):
             moseq_infer.get_kpms_processed_data_dir() / kpms_project_output_dir
         )
 
-        kpms_default_config = load_kpms_dj_config(
+        kpms_default_config = kpms_reader.load_kpms_dj_config(
             kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
         )
         coordinates, confidences = (PCAPrep & key).fetch1("coordinates", "confidences")
@@ -517,7 +519,7 @@ class PreFit(dj.Computed):
             "model_name",
         )
         if task_mode == "trigger":
-            kpms_dj_config = load_kpms_dj_config(
+            kpms_dj_config = kpms_reader.load_kpms_dj_config(
                 kpms_project_output_dir.as_posix(),
                 check_if_valid=True,
                 build_indexes=True,
@@ -526,7 +528,7 @@ class PreFit(dj.Computed):
             kpms_dj_config.update(
                 dict(latent_dim=int(pre_latent_dim), kappa=float(pre_kappa))
             )
-            generate_kpms_dj_config(
+            kpms_reader.generate_kpms_dj_config(
                 kpms_project_output_dir.as_posix(), **kpms_dj_config
             )
 
@@ -667,7 +669,7 @@ class FullFit(dj.Computed):
             "model_name",
         )
         if task_mode == "trigger":
-            kpms_dj_config = load_kpms_dj_config(
+            kpms_dj_config = kpms_reader.load_kpms_dj_config(
                 kpms_project_output_dir.as_posix(),
                 check_if_valid=True,
                 build_indexes=True,
@@ -675,7 +677,7 @@ class FullFit(dj.Computed):
             kpms_dj_config.update(
                 dict(latent_dim=int(full_latent_dim), kappa=float(full_kappa))
             )
-            generate_kpms_dj_config(
+            kpms_reader.generate_kpms_dj_config(
                 kpms_project_output_dir.as_posix(), **kpms_dj_config
             )
 
