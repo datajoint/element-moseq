@@ -6,7 +6,7 @@ services:
     build:
       context: ..
       dockerfile: ./.devcontainer/Dockerfile
-    # image: datajoint/element_moseq:latest
+    #image: datajoint/element_moseq:latest
     extra_hosts:
       - fakeservices.datajoint.io:127.0.0.1
     environment:
@@ -23,3 +23,4 @@ services:
     privileged: true # only because of dind
 volumes:
   docker_data:
+
