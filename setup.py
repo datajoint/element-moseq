@@ -29,6 +29,7 @@ setup(
         "ipykernel>=6.0.1",
         "opencv-python",
         "scipy<1.12.0",
+        "pydot==2.0",
         "element-interface @ git+https://github.com/datajoint/element-interface.git",
         "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq.git",
     ],
