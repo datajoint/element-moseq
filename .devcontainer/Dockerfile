@@ -33,7 +33,7 @@ RUN \
     # pipeline dependencies
     apt-get update && \
     apt-get install -y gcc ffmpeg graphviz jupyter_bokeh && \
-    pip install --no-cache-dir -e /tmp/element-moseq[kpms,elements,comb_tutorial,tests] && \
+    pip install --no-cache-dir -e /tmp/element-moseq[elements,tests] && \
     # clean up
     rm -rf /tmp/element-moseq/ && \
     apt-get clean
