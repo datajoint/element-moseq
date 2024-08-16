@@ -32,7 +32,8 @@ COPY ./ /tmp/element-moseq/
 RUN \
     # pipeline dependencies
     apt-get update && \
-    apt-get install -y gcc ffmpeg graphviz ipywidgets && \
+    apt-get install -y gcc ffmpeg graphviz && \
+    pip install ipywidgets && \
     pip install --no-cache-dir -e /tmp/element-moseq[elements,tests] && \
     # clean up
     rm -rf /tmp/element-moseq/ && \
