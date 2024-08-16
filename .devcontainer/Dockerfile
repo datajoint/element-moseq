@@ -31,8 +31,8 @@ COPY ./ /tmp/element-moseq/
 
 RUN \
     # pipeline dependencies
-    apt update && \
-    apt-get install gcc g++ ffmpeg libsm6 libxext6 libgl1 libegl1 -y && \
+    apt-get update && \
+    apt-get install -y gcc ffmpeg graphviz && \
     pip install --no-cache-dir -e /tmp/element-moseq[elements,tests] && \
     # clean up
     rm -rf /tmp/element-moseq/ && \
