@@ -8,8 +8,8 @@ import datajoint as dj
 import importlib
 
 from element_interface.utils import find_full_path
-from .readers.kpms_reader import generate_kpms_dj_config, load_kpms_dj_config
 
+from .readers import kpms_reader
 from . import moseq_infer
 
 schema = dj.schema()
@@ -33,6 +33,12 @@ def activate(
         create_schema (bool): If True (default), schema  will be created in the database.
         create_tables (bool): If True (default), tables related to the schema will be created in the database.
         linking_module (str): A string containing the module name or module containing the required dependencies to activate the schema.
+    Dependencies:
+    Functions:
+        get_kpms_root_data_dir(): Returns absolute path for root data director(y/ies)
+                                 with all behavioral recordings, as (list of) string(s).
+        get_kpms_processed_data_dir(): Optional. Returns absolute path for processed
+                                      data.
 
     """
 
@@ -255,7 +261,9 @@ class PCAPrep(dj.Imported):
                 use_bodyparts=use_bodyparts,
             )
             kpms_config.update(**kpms_dj_config_kwargs_dict)
-            generate_kpms_dj_config(kpms_project_output_dir.as_posix(), **kpms_config)
+            kpms_reader.generate_kpms_dj_config(
+                kpms_project_output_dir.as_posix(), **kpms_config
+            )
         else:
             kpms_project_output_dir = find_full_path(
                 kpms_processed, kpms_project_output_dir
@@ -327,7 +335,7 @@ class PCAFit(dj.Computed):
             moseq_infer.get_kpms_processed_data_dir() / kpms_project_output_dir
         )
 
-        kpms_default_config = load_kpms_dj_config(
+        kpms_default_config = kpms_reader.load_kpms_dj_config(
             kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
         )
         coordinates, confidences = (PCAPrep & key).fetch1("coordinates", "confidences")
@@ -431,12 +439,11 @@ class LatentDimension(dj.Imported):
 
 
 @schema
-class PreFitTask(dj.Lookup):
+class PreFitTask(dj.Manual):
     """Insert the parameters for the model (AR-HMM) pre-fitting.
 
     Attributes:
         PCAFit (foreign key)                : `PCAFit` task.
-        prefit_id (smallint unsigned)       : Unique ID for each pre-fitting task.
         pre_latent_dim (int)                : Latent dimension to use for the model pre-fitting.
         pre_kappa (int)                     : Kappa value to use for the model pre-fitting.
         pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting.
@@ -445,11 +452,10 @@ class PreFitTask(dj.Lookup):
 
     definition = """
     -> PCAFit                                           # `PCAFit` Key
-    prefit_id                    : smallint unsigned    # Unique ID for each pre-fitting task
-    ---
     pre_latent_dim               : int                  # Latent dimension to use for the model pre-fitting
     pre_kappa                    : int                  # Kappa value to use for the model pre-fitting
     pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting
+    ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('trigger','load')# 'load': load computed analysis results, 'trigger': trigger computation
     pre_fit_desc=''              : varchar(1000)        # User-defined description of the pre-fitting task
@@ -519,7 +525,7 @@ class PreFit(dj.Computed):
             "model_name",
         )
         if task_mode == "trigger":
-            kpms_dj_config = load_kpms_dj_config(
+            kpms_dj_config = kpms_reader.load_kpms_dj_config(
                 kpms_project_output_dir.as_posix(),
                 check_if_valid=True,
                 build_indexes=True,
@@ -528,7 +534,7 @@ class PreFit(dj.Computed):
             kpms_dj_config.update(
                 dict(latent_dim=int(pre_latent_dim), kappa=float(pre_kappa))
             )
-            generate_kpms_dj_config(
+            kpms_reader.generate_kpms_dj_config(
                 kpms_project_output_dir.as_posix(), **kpms_dj_config
             )
 
@@ -578,13 +584,12 @@ class PreFit(dj.Computed):
 
 
 @schema
-class FullFitTask(dj.Lookup):
+class FullFitTask(dj.Manual):
     """Insert the parameters for the full (Keypoint-SLDS model) fitting.
        The full model will generally require a lower value of kappa to yield the same target syllable durations.
 
     Attributes:
         PCAFit (foreign key)                 : `PCAFit` Key.
-        fullfit_id (smallint unsigned)       : Unique ID for each full fitting task.
         full_latent_dim (int)                : Latent dimension to use for the model full fitting.
         full_kappa (int)                     : Kappa value to use for the model full fitting.
         full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting.
@@ -594,11 +599,10 @@ class FullFitTask(dj.Lookup):
 
     definition = """
     -> PCAFit                                           # `PCAFit` Key
-    fullfit_id                   : smallint unsigned    # Unique ID for each full fitting task
-    ---
     full_latent_dim              : int                  # Latent dimension to use for the model full fitting
     full_kappa                   : int                  # Kappa value to use for the model full fitting
     full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting
+    ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('load','trigger')# Trigger or load the task
     full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task   
@@ -671,7 +675,7 @@ class FullFit(dj.Computed):
             "model_name",
         )
         if task_mode == "trigger":
-            kpms_dj_config = load_kpms_dj_config(
+            kpms_dj_config = kpms_reader.load_kpms_dj_config(
                 kpms_project_output_dir.as_posix(),
                 check_if_valid=True,
                 build_indexes=True,
@@ -679,7 +683,7 @@ class FullFit(dj.Computed):
             kpms_dj_config.update(
                 dict(latent_dim=int(full_latent_dim), kappa=float(full_kappa))
             )
-            generate_kpms_dj_config(
+            kpms_reader.generate_kpms_dj_config(
                 kpms_project_output_dir.as_posix(), **kpms_dj_config
             )
 
