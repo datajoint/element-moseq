@@ -39,9 +39,6 @@ RUN \
     rm -rf /tmp/element-moseq/ && \
     apt-get clean
 
-# Install Keypoint-MoSeq (CPU version)
-RUN pip install "jax[cpu]==0.3.22" -f https://storage.googleapis.com/jax-releases/jax_releases.html
-
 ENV DJ_HOST fakeservices.datajoint.io
 ENV DJ_USER root
 ENV DJ_PASS simple
