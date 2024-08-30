@@ -39,6 +39,9 @@ RUN \
     rm -rf /tmp/element-moseq/ && \
     apt-get clean
 
+# Install CPU version for KPMS
+RUN pip install "jax[cpu]==0.3.22" -f https://storage.googleapis.com/jax-releases/jax_releases.html
+
 ENV DJ_HOST fakeservices.datajoint.io
 ENV DJ_USER root
 ENV DJ_PASS simple
