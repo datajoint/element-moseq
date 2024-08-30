@@ -49,9 +49,9 @@ The Element is composed of two main schemas, `moseq_train` and `moseq_infer`. Th
 | --- | --- |
 | Session | Unique experimental session identifier |
 
-### `model_train` schema
+### `moseq_train` schema
 
-- For further details see the [`model_train` schema API docs](https://datajoint.com/docs/elements/element-moseq/latest/api/element_moseq/model_train/)
+- For further details see the [`moseq_train` schema API docs](https://datajoint.com/docs/elements/element-moseq/latest/api/element_moseq/moseq_train/)
 
 | Table | Description |
 | --- | --- |

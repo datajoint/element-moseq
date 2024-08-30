@@ -29,7 +29,7 @@ combined with other Elements to assemble a fully functional pipeline.
 + Install with `pip`
 
   ```bash
-  pip install -e .
+  pip install .
   ```
 
 + [Data Pipeline](./pipeline.md) - Pipeline and table descriptions
