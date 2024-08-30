@@ -34,7 +34,7 @@ RUN \
     apt-get update && \
     apt-get install -y gcc ffmpeg graphviz && \
     pip install ipywidgets && \
-    pip install --no-cache-dir -e /tmp/element-moseq[elements,tests] && \
+    pip install --no-cache-dir -e /tmp/element-moseq[kpms,elements,tests] && \
     # clean up
     rm -rf /tmp/element-moseq/ && \
     apt-get clean
