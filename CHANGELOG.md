@@ -3,6 +3,13 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and 
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
+## [0.2.1] - 2024-08-30
++ Fix - `mkdocs` build issues
++ Fix - `reader` module imports by adding `__init__.py`
++ Fix - Move KPMS installation to `extras_require` in `setup` for consistency with other Elements
++ Update - markdown files in `mkdocs`
++ Update- Dockerfile
+
 ## [0.2.0] - 2024-08-16
 + Add - `load` functions and new secondary attributes for tutorial purposes
 + Add - `outbox` results in the public s3 bucket to be mounted in Codespaces

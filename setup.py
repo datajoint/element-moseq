@@ -29,11 +29,12 @@ setup(
         "ipykernel>=6.0.1",
         "opencv-python",
         "scipy<1.12.0",
-        "pydot==2.0",
         "element-interface @ git+https://github.com/datajoint/element-interface.git",
-        "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq.git",
     ],
     extras_require={
+        "kpms": [
+            "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq.git",
+        ],
         "elements": [
             "element-animal @ git+https://github.com/datajoint/element-animal.git",
             "element-event @ git+https://github.com/datajoint/element-event.git",

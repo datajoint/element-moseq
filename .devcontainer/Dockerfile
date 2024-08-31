@@ -34,12 +34,12 @@ RUN \
     apt-get update && \
     apt-get install -y gcc ffmpeg graphviz && \
     pip install ipywidgets && \
-    pip install --no-cache-dir -e /tmp/element-moseq[elements,tests] && \
+    pip install --no-cache-dir -e /tmp/element-moseq[kpms,elements,tests] && \
     # clean up
     rm -rf /tmp/element-moseq/ && \
     apt-get clean
 
-# Install Keypoint-MoSeq (CPU version)
+# Install CPU version for KPMS
 RUN pip install "jax[cpu]==0.3.22" -f https://storage.googleapis.com/jax-releases/jax_releases.html
 
 ENV DJ_HOST fakeservices.datajoint.io
