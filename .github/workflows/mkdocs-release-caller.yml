@@ -5,5 +5,5 @@ on:
 jobs:
   mkdocs_release:
     uses: datajoint/.github/.github/workflows/mkdocs_release.yaml@main
-    permissions:
+    permissions: 
       contents: write
