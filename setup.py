@@ -13,7 +13,7 @@ with open(path.join(here, pkg_name, "version.py")) as f:
 
 setup(
     name=pkg_name.replace("_", "-"),
-    version=__version__,
+    version=__version__,  # noqa: F821
     description="Keypoint-MoSeq DataJoint Element",
     long_description=long_description,
     long_description_content_type="text/markdown",
