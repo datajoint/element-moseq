@@ -1,7 +1,7 @@
 # ---------------------- PROJECT SPECIFIC ---------------------------
 
 site_name: DataJoint Documentation
-site_url: http://localhost/docs/elements/element-moseq
+site_url: https://datajoint.com/docs/elements/element-moseq
 repo_url: https://github.com/datajoint/element-moseq
 repo_name: datajoint/element-moseq
 nav:
