@@ -5,6 +5,7 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 
 ## [0.2.2] - 2025-01-24
 + Fix - `url_site` in `mkdocs.yaml` to point to the correct URL
++ Fix - revert GHA semantic release
 
 ## [0.2.1] - 2024-08-30
 + Fix - `mkdocs` build issues
