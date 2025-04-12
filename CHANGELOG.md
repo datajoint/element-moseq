@@ -3,11 +3,17 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and 
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
+## [0.2.3] - 2025-04-12
+
++ Fix - `moseq_train` to import `keypoint_moseq` functions inside `trigger` mode
+
 ## [0.2.2] - 2025-01-24
+
 + Fix - `url_site` in `mkdocs.yaml` to point to the correct URL
 + Fix - revert GHA semantic release
 
 ## [0.2.1] - 2024-08-30
+
 + Fix - `mkdocs` build issues
 + Fix - `reader` module imports by adding `__init__.py`
 + Fix - Move KPMS installation to `extras_require` in `setup` for consistency with other Elements
@@ -15,6 +21,7 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Update- Dockerfile
 
 ## [0.2.0] - 2024-08-16
+
 + Add - `load` functions and new secondary attributes for tutorial purposes
 + Add - `outbox` results in the public s3 bucket to be mounted in Codespaces
 + Update - tutorial content

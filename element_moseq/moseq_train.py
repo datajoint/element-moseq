@@ -201,7 +201,6 @@ class PCAPrep(dj.Imported):
         9. Calculate the average frame rate and the frame rate list of the videoset from which the keypoint set is derived. This two attributes can be used to calculate the kappa value.
         10. Insert the results of this `make` function into the table.
         """
-        from keypoint_moseq import setup_project, load_config, load_keypoints
 
         anterior_bodyparts, posterior_bodyparts, use_bodyparts = (
             Bodyparts & key
@@ -226,6 +225,8 @@ class PCAPrep(dj.Imported):
         )
 
         if task_mode == "trigger":
+            from keypoint_moseq import setup_project, load_config
+
             try:
                 kpms_project_output_dir = find_full_path(
                     kpms_processed, kpms_project_output_dir
@@ -265,6 +266,8 @@ class PCAPrep(dj.Imported):
                 kpms_project_output_dir.as_posix(), **kpms_config
             )
         else:
+            from keypoint_moseq import load_keypoints
+
             kpms_project_output_dir = find_full_path(
                 kpms_processed, kpms_project_output_dir
             )
