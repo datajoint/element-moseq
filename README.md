@@ -30,7 +30,7 @@ DataJoint Elements collectively standardize and automate data collection and ana
 
 + [Interactive tutorial on GitHub Codespaces](https://github.com/datajoint/element-moseq#interactive-tutorial)
 
-+ [Documentation](https://datajoint.com/docs/elements/element-moseq)
++ [Documentation](https://docs.datajoint.com/elements/element-moseq/)
 
 ## Support
 
