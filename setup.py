@@ -25,15 +25,16 @@ setup(
     packages=find_packages(exclude=["contrib", "docs", "tests*"]),
     scripts=[],
     install_requires=[
-        "datajoint>=0.13.0",
+        "datajoint>=0.14.0",
         "ipykernel>=6.0.1",
         "opencv-python",
         "scipy<1.12.0",
+        "graphviz",
         "element-interface @ git+https://github.com/datajoint/element-interface.git",
     ],
     extras_require={
         "kpms": [
-            "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq.git",
+            "keypoint-moseq",
         ],
         "elements": [
             "element-animal @ git+https://github.com/datajoint/element-animal.git",
