@@ -1,112 +1,112 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="512pt" height="231pt" viewBox="0.00 0.00 512.00 231.04">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="517pt" height="231pt" viewBox="0.00 0.00 517.38 231.04">
 <g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 227.04)">
-<polygon fill="white" stroke="none" points="-4,4 -4,-227.04 508,-227.04 508,4 -4,4"/>
-<!-- moseq_infer.Inference.GridMoviesSampledInstances -->
+<polygon fill="white" stroke="none" points="-4,4 -4,-227.04 513.38,-227.04 513.38,4 -4,4"/>
+<!-- moseq_infer.Inference -->
 <g id="node1" class="node">
-<title>moseq_infer.Inference.GridMoviesSampledInstances</title>
-<g id="a_node1"><a xlink:title="→ moseq_infer.Inferencesyllable             ------------------------------instances            ">
-<polygon fill="none" stroke="none" points="247.88,-20 1.62,-20 1.62,0 247.88,0 247.88,-20"/>
-<text text-anchor="start" x="9.62" y="-7.5" font-family="arial" text-decoration="underline" font-size="10.00">moseq_infer.Inference.GridMoviesSampledInstances</text>
+<title>moseq_infer.Inference</title>
+<g id="a_node1"><a xlink:title="→ moseq_infer.InferenceTask------------------------------inference_duration=null ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="240.12" cy="-68.96" rx="12.96" ry="12.96"/>
+<text text-anchor="middle" x="240.12" y="-64.69" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">moseq_infer.Inference</text>
 </a>
 </g>
 </g>
-<!-- moseq_infer.Inference -->
-<g id="node2" class="node">
-<title>moseq_infer.Inference</title>
-<g id="a_node2"><a xlink:title="→ moseq_infer.InferenceTask------------------------------inference_duration=null ">
-<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="241.75" cy="-68.96" rx="12.96" ry="12.96"/>
-<text text-anchor="middle" x="241.75" y="-64.69" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">moseq_infer.Inference</text>
+<!-- moseq_infer.Inference.GridMoviesSampledInstances -->
+<g id="node4" class="node">
+<title>moseq_infer.Inference.GridMoviesSampledInstances</title>
+<g id="a_node4"><a xlink:title="→ moseq_infer.Inferencesyllable             ------------------------------instances            ">
+<polygon fill="none" stroke="none" points="246.25,-20 0,-20 0,0 246.25,0 246.25,-20"/>
+<text text-anchor="start" x="8" y="-7.5" font-family="arial" text-decoration="underline" font-size="10.00">moseq_infer.Inference.GridMoviesSampledInstances</text>
 </a>
 </g>
 </g>
 <!-- moseq_infer.Inference&#45;&gt;moseq_infer.Inference.GridMoviesSampledInstances -->
 <g id="edge1" class="edge">
 <title>moseq_infer.Inference-&gt;moseq_infer.Inference.GridMoviesSampledInstances</title>
-<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M230.53,-62.5C210.28,-52.64 167.47,-31.8 142.97,-19.87"/>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M228.91,-62.5C208.66,-52.64 165.84,-31.8 141.34,-19.87"/>
 </g>
 <!-- moseq_infer.Inference.MotionSequence -->
-<g id="node7" class="node">
+<g id="node5" class="node">
 <title>moseq_infer.Inference.MotionSequence</title>
-<g id="a_node7"><a xlink:title="→ moseq_infer.Inferencevideo_name           ------------------------------syllable             latent_state         centroid             heading              ">
-<polygon fill="none" stroke="none" points="454,-20 265.5,-20 265.5,0 454,0 454,-20"/>
-<text text-anchor="start" x="273.5" y="-7.5" font-family="arial" text-decoration="underline" font-size="10.00">moseq_infer.Inference.MotionSequence</text>
+<g id="a_node5"><a xlink:title="→ moseq_infer.Inferencevideo_name           ------------------------------syllable             latent_state         centroid             heading              ">
+<polygon fill="none" stroke="none" points="452.38,-20 263.88,-20 263.88,0 452.38,0 452.38,-20"/>
+<text text-anchor="start" x="271.88" y="-7.5" font-family="arial" text-decoration="underline" font-size="10.00">moseq_infer.Inference.MotionSequence</text>
 </a>
 </g>
 </g>
 <!-- moseq_infer.Inference&#45;&gt;moseq_infer.Inference.MotionSequence -->
 <g id="edge2" class="edge">
 <title>moseq_infer.Inference-&gt;moseq_infer.Inference.MotionSequence</title>
-<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M252.64,-62.7C272.84,-52.95 316.31,-31.97 341.22,-19.95"/>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M251.01,-62.7C271.21,-52.95 314.68,-31.97 339.59,-19.95"/>
 </g>
-<!-- moseq_infer.PoseEstimationMethod -->
-<g id="node3" class="node">
-<title>moseq_infer.PoseEstimationMethod</title>
-<g id="a_node3"><a xlink:title="pose_estimation_method ------------------------------pose_estimation_desc ">
-<polygon fill="#000000" fill-opacity="0.125490" stroke="none" points="173.5,-223.04 0,-223.04 0,-188.48 173.5,-188.48 173.5,-223.04"/>
-<text text-anchor="start" x="8" y="-203.26" font-family="arial" text-decoration="underline" font-size="10.00">moseq_infer.PoseEstimationMethod</text>
+<!-- moseq_infer.Model -->
+<g id="node2" class="node">
+<title>moseq_infer.Model</title>
+<g id="a_node2"><a xlink:title="model_id             ------------------------------model_name           model_dir            model_desc=&quot;&quot;        → [nullable] moseq_train.CandidateModel">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="141.75,-223.04 24.5,-223.04 24.5,-188.48 141.75,-188.48 141.75,-223.04"/>
+<text text-anchor="start" x="32.5" y="-202.49" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">moseq_infer.Model</text>
 </a>
 </g>
 </g>
 <!-- moseq_infer.InferenceTask -->
-<g id="node5" class="node">
+<g id="node3" class="node">
 <title>moseq_infer.InferenceTask</title>
-<g id="a_node5"><a xlink:title="→ moseq_infer.VideoRecording→ moseq_infer.Model------------------------------→ moseq_infer.PoseEstimationMethodkeypointset_dir      inference_output_dir=&quot;&quot; inference_desc=&quot;&quot;    num_iterations=null  task_mode=&quot;load&quot;     ">
-<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="321,-152.48 162.5,-152.48 162.5,-117.92 321,-117.92 321,-152.48"/>
-<text text-anchor="middle" x="241.75" y="-130.93" font-family="arial" font-size="12.00" fill="darkgreen">moseq_infer.InferenceTask</text>
-</a>
-</g>
-</g>
-<!-- moseq_infer.PoseEstimationMethod&#45;&gt;moseq_infer.InferenceTask -->
-<g id="edge3" class="edge">
-<title>moseq_infer.PoseEstimationMethod-&gt;moseq_infer.InferenceTask</title>
-<path fill="none" stroke="#000000" stroke-width="0.75" stroke-dasharray="5,2" stroke-opacity="0.250980" d="M123.48,-188.51C147.74,-177.78 179.46,-163.75 203.93,-152.93"/>
-</g>
-<!-- moseq_infer.Model -->
-<g id="node4" class="node">
-<title>moseq_infer.Model</title>
-<g id="a_node4"><a xlink:title="model_id             ------------------------------model_name           model_dir            latent_dim           kappa                model_desc=&quot;&quot;        ">
-<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="308.38,-223.04 191.12,-223.04 191.12,-188.48 308.38,-188.48 308.38,-223.04"/>
-<text text-anchor="start" x="199.12" y="-202.49" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">moseq_infer.Model</text>
+<g id="a_node3"><a xlink:title="→ moseq_infer.VideoRecording→ moseq_infer.Model------------------------------→ reference.PoseEstimationMethodkeypointset_dir      inference_output_dir=&quot;&quot; inference_desc=&quot;&quot;    num_iterations=null  task_mode=&quot;load&quot;     ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="319.38,-152.48 160.88,-152.48 160.88,-117.92 319.38,-117.92 319.38,-152.48"/>
+<text text-anchor="middle" x="240.12" y="-130.93" font-family="arial" font-size="12.00" fill="darkgreen">moseq_infer.InferenceTask</text>
 </a>
 </g>
 </g>
 <!-- moseq_infer.Model&#45;&gt;moseq_infer.InferenceTask -->
-<g id="edge4" class="edge">
+<g id="edge3" class="edge">
 <title>moseq_infer.Model-&gt;moseq_infer.InferenceTask</title>
-<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M247.81,-188.16C246.56,-177.38 244.92,-163.39 243.67,-152.64"/>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M121.53,-187.99C145.95,-177.32 177.45,-163.57 201.84,-152.92"/>
 </g>
 <!-- moseq_infer.InferenceTask&#45;&gt;moseq_infer.Inference -->
-<g id="edge5" class="edge">
+<g id="edge4" class="edge">
 <title>moseq_infer.InferenceTask-&gt;moseq_infer.Inference</title>
-<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M241.75,-117.66C241.75,-106.36 241.75,-91.66 241.75,-81.58"/>
-</g>
-<!-- moseq_infer.VideoRecording.File -->
-<g id="node6" class="node">
-<title>moseq_infer.VideoRecording.File</title>
-<g id="a_node6"><a xlink:title="→ moseq_infer.VideoRecordingfile_id              ------------------------------file_path            ">
-<polygon fill="none" stroke="none" points="498.75,-145.2 338.75,-145.2 338.75,-125.2 498.75,-125.2 498.75,-145.2"/>
-<text text-anchor="start" x="346.75" y="-132.7" font-family="arial" text-decoration="underline" font-size="10.00">moseq_infer.VideoRecording.File</text>
-</a>
-</g>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M240.12,-117.66C240.12,-106.36 240.12,-91.66 240.12,-81.58"/>
 </g>
 <!-- moseq_infer.VideoRecording -->
-<g id="node8" class="node">
+<g id="node6" class="node">
 <title>moseq_infer.VideoRecording</title>
-<g id="a_node8"><a xlink:title="→ session.Sessionrecording_id         ------------------------------→ lab.Device">
-<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="504,-223.04 333.5,-223.04 333.5,-188.48 504,-188.48 504,-223.04"/>
-<text text-anchor="start" x="341.5" y="-202.49" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">moseq_infer.VideoRecording</text>
+<g id="a_node6"><a xlink:title="→ session.Sessionrecording_id         ------------------------------→ Device">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="509.38,-223.04 338.88,-223.04 338.88,-188.48 509.38,-188.48 509.38,-223.04"/>
+<text text-anchor="start" x="346.88" y="-202.49" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">moseq_infer.VideoRecording</text>
 </a>
 </g>
 </g>
 <!-- moseq_infer.VideoRecording&#45;&gt;moseq_infer.InferenceTask -->
-<g id="edge6" class="edge">
+<g id="edge5" class="edge">
 <title>moseq_infer.VideoRecording-&gt;moseq_infer.InferenceTask</title>
-<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M375.45,-187.99C347.92,-177.32 312.41,-163.57 284.91,-152.92"/>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M379.11,-187.99C350.49,-177.32 313.58,-163.57 284.99,-152.92"/>
+</g>
+<!-- moseq_infer.VideoRecording.File -->
+<g id="node7" class="node">
+<title>moseq_infer.VideoRecording.File</title>
+<g id="a_node7"><a xlink:title="→ moseq_infer.VideoRecordingfile_id              ------------------------------file_path            ">
+<polygon fill="none" stroke="none" points="504.12,-145.2 344.12,-145.2 344.12,-125.2 504.12,-125.2 504.12,-145.2"/>
+<text text-anchor="start" x="352.12" y="-132.7" font-family="arial" text-decoration="underline" font-size="10.00">moseq_infer.VideoRecording.File</text>
+</a>
+</g>
 </g>
 <!-- moseq_infer.VideoRecording&#45;&gt;moseq_infer.VideoRecording.File -->
-<g id="edge7" class="edge">
+<g id="edge6" class="edge">
 <title>moseq_infer.VideoRecording-&gt;moseq_infer.VideoRecording.File</title>
-<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M418.75,-188.16C418.75,-174.53 418.75,-155.76 418.75,-144.91"/>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M424.12,-188.16C424.12,-174.53 424.12,-155.76 424.12,-144.91"/>
+</g>
+<!-- reference.PoseEstimationMethod -->
+<g id="node8" class="node">
+<title>reference.PoseEstimationMethod</title>
+<g id="a_node8"><a xlink:title="pose_estimation_method ------------------------------pose_estimation_desc ">
+<polygon fill="#000000" fill-opacity="0.125490" stroke="none" points="320.5,-223.04 159.75,-223.04 159.75,-188.48 320.5,-188.48 320.5,-223.04"/>
+<text text-anchor="start" x="167.75" y="-203.26" font-family="arial" text-decoration="underline" font-size="10.00">reference.PoseEstimationMethod</text>
+</a>
+</g>
+</g>
+<!-- reference.PoseEstimationMethod&#45;&gt;moseq_infer.InferenceTask -->
+<g id="edge7" class="edge">
+<title>reference.PoseEstimationMethod-&gt;moseq_infer.InferenceTask</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-dasharray="5,2" stroke-opacity="0.250980" d="M240.12,-188.51C240.12,-177.74 240.12,-163.65 240.12,-152.81"/>
 </g>
 </g>
 </svg>
