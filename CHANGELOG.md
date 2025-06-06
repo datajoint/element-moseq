@@ -22,6 +22,8 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 
 + Add - Update `tutorial.ipynb` to reflect these changes
 
++ Add - Style and minor bug fixes
+
 
 ## [0.2.3] - 2025-04-12
 
