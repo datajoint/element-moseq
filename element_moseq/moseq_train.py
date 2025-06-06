@@ -1,6 +1,10 @@
+"""
+Code adapted from the Datta Lab
+DataJoint Schema for Keypoint-MoSeq training pipeline
+"""
+import datajoint as dj
 from datetime import datetime, timezone
 import inspect
-import os
 from pathlib import Path
 import cv2
 import numpy as np
@@ -8,19 +12,19 @@ import datajoint as dj
 import importlib
 
 from element_interface.utils import find_full_path
+from element_moseq.reference import PoseEstimationMethod
 
 from .readers import kpms_reader
 from . import moseq_infer
 
 schema = dj.schema()
+logger = dj.logger
 
 _linking_module = None
 
 
 def activate(
     train_schema_name: str,
-    infer_schema_name: str = None,
-    *,
     create_schema: bool = True,
     create_tables: bool = True,
     linking_module: str = None,
@@ -56,13 +60,6 @@ def activate(
     _linking_module = linking_module
 
     # activate
-    moseq_infer.activate(
-        infer_schema_name,
-        create_schema=create_schema,
-        create_tables=create_tables,
-        linking_module=linking_module,
-    )
-
     schema.activate(
         train_schema_name,
         create_schema=create_schema,
@@ -88,7 +85,7 @@ class KeypointSet(dj.Manual):
     definition = """
     kpset_id                        : int           # Unique ID for each keypoint set   
     ---
-    -> moseq_infer.PoseEstimationMethod             # Unique format method used to obtain the keypoints data
+    -> PoseEstimationMethod         # Unique format method used to obtain the keypoints data
     kpset_dir                       : varchar(255)  # Path where the keypoint files are located together with the pose estimation `config` file, relative to root data directory 
     kpset_desc=''                   : varchar(1000) # Optional. User-entered description
     """
@@ -734,3 +731,14 @@ class FullFit(dj.Computed):
                 "full_fit_duration": duration_seconds,
             }
         )
+
+
+@schema
+class CandidateModel(dj.Manual):
+    """Register a model candidate from the training process."""
+    definition = """
+    -> FullFit 
+    ---
+    candidate_model_name         : varchar(64)   # User-friendly model name
+    candidate_model_desc=''      : varchar(1000) # Optional user-defined description
+    """
