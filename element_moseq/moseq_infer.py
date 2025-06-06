@@ -14,8 +14,7 @@ import datajoint as dj
 from element_interface.utils import find_full_path
 from matplotlib import pyplot as plt
 
-from element_moseq.reference import PoseEstimationMethod
-
+from . import moseq_train
 from .readers.kpms_reader import load_kpms_dj_config
 
 schema = dj.schema()
@@ -127,7 +126,7 @@ class Model(dj.Manual):
     model_name              : varchar(64)  # User-friendly model name
     model_dir               : varchar(1000)# Model directory relative to root data directory
     model_desc=''           : varchar(1000)# Optional. User-defined description of the model
-    -> [nullable] moseq_train.CandidateModel # Optional. Link to training pipeline model if applicable
+    [nullable] -> moseq_train.SelectedFullFit
     """
 
 
@@ -182,7 +181,7 @@ class InferenceTask(dj.Manual):
     -> VideoRecording                                       # `VideoRecording` key
     -> Model                                                # `Model` key
     ---
-    -> PoseEstimationMethod                                 # Pose estimation method used for the specified `recording_id`
+    -> moseq_train.PoseEstimationMethod                     # Pose estimation method used for the specified `recording_id`
     keypointset_dir               : varchar(1000)           # Keypointset directory for the specified VideoRecording
     inference_output_dir=''       : varchar(1000)           # Optional. Sub-directory where the results will be stored
     inference_desc=''             : varchar(1000)           # Optional. User-defined description of the inference task
