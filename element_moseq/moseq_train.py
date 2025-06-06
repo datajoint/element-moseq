@@ -2,6 +2,7 @@
 Code adapted from the Datta Lab
 DataJoint Schema for Keypoint-MoSeq training pipeline
 """
+
 import importlib
 import inspect
 from datetime import datetime, timezone

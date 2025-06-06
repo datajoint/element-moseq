@@ -45,7 +45,7 @@ repos:
 
           # these are errors that will be ignored by flake8
           # https://www.flake8rules.com/rules/{code}.html
-          - "--ignore=E203,E501,W503,W605,E402"
+          - "--ignore=E203,E501,W503,W605,E402,F401"
           # E203 - Colons should not have any space before them.
           #        Needed for list indexing
           # E501 - Line lengths are recommended to be no greater than 79 characters.

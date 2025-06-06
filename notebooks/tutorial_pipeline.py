@@ -38,11 +38,7 @@ def get_kpms_processed_data_dir() -> str:
         return None
 
 
-__all__ = [
-    "lab", "subject", "session",
-    "moseq_train", "moseq_infer",
-    "Device"
-]
+__all__ = ["lab", "subject", "session", "moseq_train", "moseq_infer", "Device"]
 
 # Activate schemas  -------------
 
