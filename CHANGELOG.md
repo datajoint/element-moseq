@@ -16,8 +16,6 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 
 + Fix - Updated imports and foreign key references across schemas to match new structure
 
-+ Fix - Updated `setup.py` to include graphviz to resolve dot command error when calling `dj.Diagram`
-
 + Add - Aligned schema design with DataJoint Element conventions to support modular reuse and testing
 
 + Add - Update `images` according to these changes
