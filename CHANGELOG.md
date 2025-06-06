@@ -1,6 +1,6 @@
 # Changelog
 
-Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and 
+Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
 
@@ -49,7 +49,7 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Update - tutorial content
 + Fix - `scipy.linalg` deprecation in latest release by adjusting version in `setup.py`
 + Update -  `pre_kappa` and `full_kappa` to integer to simplify equality comparisons
-+ Update - `images` of the pipeline 
++ Update - `images` of the pipeline
 
 ## [0.1.1] - 2024-03-21
 
@@ -63,7 +63,7 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Fix - `Dockerfile` environment variables
 + Update - Activation of one schema with two modules by updating `tutorial_pipeline.ipynb`
 + Update - remove PyPI release from `release.yml`
-+ Update - README 
++ Update - README
 
 ## [0.1.0] - 2024-03-20
 
@@ -71,8 +71,8 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Add - DevContainer configuration for GitHub Codespaces
 + Add - Updated documentation in `docs` for schemas and tutorial
 + Add - `kpms_reader` readers
-+ Add - `element_moseq` pipeline architecture and design containing `kpms_pca` and `kpms_model` modules 
-+ Add - `images` with flowchart and pipeline images 
++ Add - `element_moseq` pipeline architecture and design containing `kpms_pca` and `kpms_model` modules
++ Add - `images` with flowchart and pipeline images
 + Add - `tutorial.ipynb` consistent across DataJoint Elements that can be launched using GitHub Codespaces
 + Add - `tutorial_pipeline.py` script for notebooks to import and activate schemas
 + Add - spelling, markdown, and pre-commit config files

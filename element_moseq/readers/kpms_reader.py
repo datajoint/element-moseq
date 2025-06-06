@@ -1,7 +1,8 @@
-import os
 import logging
-import yaml
+import os
+
 import jax.numpy as jnp
+import yaml
 
 logger = logging.getLogger("datajoint")
 

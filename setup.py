@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from os import path
+
 from setuptools import find_packages, setup
 
 pkg_name = "element_moseq"

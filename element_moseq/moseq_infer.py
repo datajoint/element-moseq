@@ -2,18 +2,19 @@
 Code adapted from the Datta Lab
 DataJoint Schema for Keypoint-MoSeq inference pipeline
 """
-import datajoint as dj
-from datetime import datetime
+import importlib
 import inspect
 import os
+from datetime import datetime
 from pathlib import Path
-from matplotlib import pyplot as plt
 
 import datajoint as dj
-import importlib
 from element_interface.utils import find_full_path
-from .readers.kpms_reader import load_kpms_dj_config
+from matplotlib import pyplot as plt
+
 from element_moseq.reference import PoseEstimationMethod
+
+from .readers.kpms_reader import load_kpms_dj_config
 
 schema = dj.schema()
 logger = dj.logger
@@ -88,7 +89,7 @@ def get_kpms_root_data_dir() -> list:
     return root_directories
 
 
-def get_kpms_processed_data_dir() -> str:
+def get_kpms_processed_data_dir() -> Optional[str]:
     """Pulls relevant func from parent namespace. Defaults to KPMS's project /videos/.
 
     Method in parent namespace should provide a string to a directory where KPMS output
@@ -98,7 +99,7 @@ def get_kpms_processed_data_dir() -> str:
     if hasattr(_linking_module, "get_kpms_processed_data_dir"):
         return _linking_module.get_kpms_processed_data_dir()
     else:
-        return get_kpms_root_data_dir()[0]
+        return None
 
 
 # ----------------------------- Table declarations ----------------------
@@ -155,7 +156,7 @@ class VideoRecording(dj.Manual):
         """
 
         definition = """
-        -> master               
+        -> master
         file_id: int             # Unique ID for each file
         ---
         file_path: varchar(1000) # Filepath of each video, relative to root data directory.
@@ -177,7 +178,7 @@ class InferenceTask(dj.Manual):
 
     definition = """
     -> VideoRecording                                       # `VideoRecording` key
-    -> Model                                                # `Model` key 
+    -> Model                                                # `Model` key
     ---
     -> PoseEstimationMethod                                 # Pose estimation method used for the specified `recording_id`
     keypointset_dir               : varchar(1000)           # Keypointset directory for the specified VideoRecording
@@ -199,7 +200,7 @@ class Inference(dj.Computed):
 
     definition = """
     -> InferenceTask                        # `InferenceTask` key
-    --- 
+    ---
     inference_duration=NULL        : float  # Time duration (seconds) of the inference computation
     """
 
@@ -267,16 +268,16 @@ class Inference(dj.Computed):
         12. Insert the results in the `MotionSequence` and `GridMoviesSampledInstances` tables.
         """
         from keypoint_moseq import (
-            load_checkpoint,
-            load_pca,
-            load_keypoints,
-            format_data,
             apply_model,
-            save_results_as_csv,
-            plot_syllable_frequencies,
-            generate_trajectory_plots,
+            format_data,
             generate_grid_movies,
+            generate_trajectory_plots,
+            load_checkpoint,
+            load_keypoints,
+            load_pca,
             plot_similarity_dendrogram,
+            plot_syllable_frequencies,
+            save_results_as_csv,
         )
 
         (
@@ -401,9 +402,9 @@ class Inference(dj.Computed):
 
         else:
             from keypoint_moseq import (
-                load_results,
                 filter_centroids_headings,
                 get_syllable_instances,
+                load_results,
                 sample_instances,
             )
 

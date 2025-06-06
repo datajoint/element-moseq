@@ -1,6 +1,7 @@
-import datajoint as dj
-import inspect
 import importlib
+import inspect
+
+import datajoint as dj
 
 schema = dj.schema()
 
@@ -32,13 +33,15 @@ def activate(
 
     # activate
     schema.activate(
-            reference_schema_name,
-            create_schema=create_schema,
-            create_tables=create_tables,
-            add_objects=_linking_module.__dict__,
-        )
+        reference_schema_name,
+        create_schema=create_schema,
+        create_tables=create_tables,
+        add_objects=_linking_module.__dict__,
+    )
+
 
 # ----------------------------- Table declarations ----------------------
+
 
 @schema
 class PoseEstimationMethod(dj.Lookup):
@@ -49,8 +52,8 @@ class PoseEstimationMethod(dj.Lookup):
         pose_estimation_desc    (str): Optional. Pose estimation method description with the supported formats.
     """
 
-    definition = """ 
-    # Pose estimation methods supported by the keypoint loader of `keypoint-moseq` package. 
+    definition = """
+    # Pose estimation methods supported by the keypoint loader of `keypoint-moseq` package.
     pose_estimation_method  : char(15)         # Supported pose estimation method (deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap)
     ---
     pose_estimation_desc    : varchar(1000)    # Optional. Pose estimation method description with the supported formats.

@@ -23,4 +23,3 @@ services:
     privileged: true # only because of dind
 volumes:
   docker_data:
-

@@ -2,20 +2,20 @@
 Code adapted from the Datta Lab
 DataJoint Schema for Keypoint-MoSeq training pipeline
 """
-import datajoint as dj
-from datetime import datetime, timezone
-import inspect
-from pathlib import Path
-import cv2
-import numpy as np
-import datajoint as dj
 import importlib
+import inspect
+from datetime import datetime, timezone
+from pathlib import Path
 
+import cv2
+import datajoint as dj
+import numpy as np
 from element_interface.utils import find_full_path
+
 from element_moseq.reference import PoseEstimationMethod
 
-from .readers import kpms_reader
 from . import moseq_infer
+from .readers import kpms_reader
 
 schema = dj.schema()
 logger = dj.logger
@@ -83,10 +83,10 @@ class KeypointSet(dj.Manual):
     """
 
     definition = """
-    kpset_id                        : int           # Unique ID for each keypoint set   
+    kpset_id                        : int           # Unique ID for each keypoint set
     ---
     -> PoseEstimationMethod         # Unique format method used to obtain the keypoints data
-    kpset_dir                       : varchar(255)  # Path where the keypoint files are located together with the pose estimation `config` file, relative to root data directory 
+    kpset_dir                       : varchar(255)  # Path where the keypoint files are located together with the pose estimation `config` file, relative to root data directory
     kpset_desc=''                   : varchar(1000) # Optional. User-entered description
     """
 
@@ -141,7 +141,7 @@ class PCATask(dj.Manual):
         kpms_project_output_dir (str)   : Keypoint-MoSeq project output directory, relative to root data directory
     """
 
-    definition = """ 
+    definition = """
     -> Bodyparts                                                # Unique ID for each `Bodyparts` key
     ---
     kpms_project_output_dir=''          : varchar(255)          # Keypoint-MoSeq project output directory, relative to root data directory
@@ -168,7 +168,7 @@ class PCAPrep(dj.Imported):
     -> PCATask                          # Unique ID for each `PCATask` key
     ---
     coordinates             : longblob  # Dictionary mapping filenames to keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3])
-    confidences             : longblob  # Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts)           
+    confidences             : longblob  # Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts)
     formatted_bodyparts     : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
     average_frame_rate      : float     # Average frame rate of the videos for model training
     frame_rates             : longblob  # List of the frame rates of the videos for model training
@@ -222,7 +222,7 @@ class PCAPrep(dj.Imported):
         )
 
         if task_mode == "trigger":
-            from keypoint_moseq import setup_project, load_config
+            from keypoint_moseq import load_config, setup_project
 
             try:
                 kpms_project_output_dir = find_full_path(
@@ -313,7 +313,7 @@ class PCAFit(dj.Computed):
     def make(self, key):
         """
         Make function to format the keypoint data, fit the PCA model, and store it as a `pca.p` file in the Keypoint-MoSeq project output directory.
-        
+
         Args:
             key (dict): `PCAPrep` Key
 
@@ -326,7 +326,7 @@ class PCAFit(dj.Computed):
         3. Fit the PCA model and save it as `pca.p` file in the output directory.
         4.Insert the creation datetime as the `pca_fit_time` into the table.
         """
-        from keypoint_moseq import format_data, fit_pca, save_pca
+        from keypoint_moseq import fit_pca, format_data, save_pca
 
         kpms_project_output_dir, task_mode = (PCATask & key).fetch1(
             "kpms_project_output_dir", "task_mode"
@@ -502,11 +502,11 @@ class PreFit(dj.Computed):
         9. Calculate the duration of the model fitting computation and insert it in the `PreFit` table.
         """
         from keypoint_moseq import (
-            load_pca,
+            fit_model,
             format_data,
             init_model,
+            load_pca,
             update_hypparams,
-            fit_model,
         )
 
         kpms_processed = moseq_infer.get_kpms_processed_data_dir()
@@ -605,7 +605,7 @@ class FullFitTask(dj.Manual):
     ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('load','trigger')# Trigger or load the task
-    full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task   
+    full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task
     """
 
 
@@ -623,7 +623,7 @@ class FullFit(dj.Computed):
     -> FullFitTask                               # `FullFitTask` Key
     ---
     model_name                    : varchar(100) # Name of the model as "kpms_project_output_dir/model_name"
-    full_fit_duration=NULL        : float        # Time duration (seconds) of the full fitting computation 
+    full_fit_duration=NULL        : float        # Time duration (seconds) of the full fitting computation
     """
 
     def make(self, key):
@@ -651,12 +651,12 @@ class FullFit(dj.Computed):
             8. Calculate the duration of the model fitting computation and insert it in the `PreFit` table.
         """
         from keypoint_moseq import (
-            load_pca,
+            fit_model,
             format_data,
             init_model,
-            update_hypparams,
-            fit_model,
+            load_pca,
             reindex_syllables_in_checkpoint,
+            update_hypparams,
         )
 
         kpms_processed = moseq_infer.get_kpms_processed_data_dir()
@@ -736,8 +736,9 @@ class FullFit(dj.Computed):
 @schema
 class CandidateModel(dj.Manual):
     """Register a model candidate from the training process."""
+
     definition = """
-    -> FullFit 
+    -> FullFit
     ---
     candidate_model_name         : varchar(64)   # User-friendly model name
     candidate_model_desc=''      : varchar(1000) # Optional user-defined description
