@@ -181,7 +181,7 @@ def load_kpms_dj_config(output_dir, check_if_valid=True, build_indexes=True):
             ]
         )
 
-    if not "skeleton" in kpms_dj_config or kpms_dj_config["skeleton"] is None:
+    if "skeleton" not in kpms_dj_config or kpms_dj_config["skeleton"] is None:
         kpms_dj_config["skeleton"] = []
 
     return kpms_dj_config

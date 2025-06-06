@@ -7,6 +7,7 @@ import inspect
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import datajoint as dj
 from element_interface.utils import find_full_path
@@ -414,11 +415,10 @@ class Inference(dj.Computed):
                 model_name=Path(inference_output_dir).parts[-1],
             )
 
-            # extract sampled_instances
-            ## extract syllables from results
+            # extract syllables from results
             syllables = {k: v["syllable"] for k, v in results.items()}
 
-            ## extract and smooth centroids and headings
+            # extract and smooth centroids and headings
             centroids = {k: v["centroid"] for k, v in results.items()}
             headings = {k: v["heading"] for k, v in results.items()}
 
@@ -427,7 +427,7 @@ class Inference(dj.Computed):
                 centroids, headings, filter_size=filter_size
             )
 
-            # sample instances for each syllable
+            # extract sample instances for each syllable
             syllable_instances = get_syllable_instances(
                 syllables, min_duration=3, min_frequency=0.005
             )
