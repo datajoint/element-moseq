@@ -3,6 +3,28 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and 
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
+
+## [0.3.0] - 2025-06-05
+
++ Add - `CandidateModel` table to register candidate models for downstream inference
+
++ Fix - Invert dependency direction: `moseq_infer` now depends on `moseq_train.CandidateModel` instead of `moseq_train` depending on `moseq_infer.PoseEstimationMethod`
+
++ Add - Moved shared lookup table `PoseEstimationMethod` to new common `reference.py` module to decouple schemas
+
++ Add - Refactored schema activation logic and adjusted     `tutorial_pipeline.py` to reflect the new hierarchy
+
++ Fix - Updated imports and foreign key references across schemas to match new structure
+
++ Fix - Updated `setup.py` to include graphviz to resolve dot command error when calling `dj.Diagram`
+
++ Add - Aligned schema design with DataJoint Element conventions to support modular reuse and testing
+
++ Add - Update `images` according to these changes
+
++ Add - Update `tutorial.ipynb` to reflect these changes
+
+
 ## [0.2.3] - 2025-04-12
 
 + Fix - `moseq_train` to import `keypoint_moseq` functions inside `trigger` mode
