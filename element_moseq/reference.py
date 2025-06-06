@@ -1,7 +1,3 @@
-"""
-Code adapted from the Datta Lab
-DataJoint Schema for Keypoint-MoSeq inference pipeline
-"""
 import datajoint as dj
 import inspect
 import importlib
