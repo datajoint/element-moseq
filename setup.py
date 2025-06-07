@@ -26,7 +26,7 @@ setup(
     packages=find_packages(exclude=["contrib", "docs", "tests*"]),
     scripts=[],
     install_requires=[
-        "datajoint>=0.14.0",
+        "datajoint>=0.13.1",
         "ipykernel>=6.0.1",
         "opencv-python",
         "scipy<1.12.0",
