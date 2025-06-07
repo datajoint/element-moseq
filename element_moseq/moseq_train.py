@@ -5,6 +5,7 @@ DataJoint Schema for Keypoint-MoSeq training pipeline
 
 import importlib
 import inspect
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -17,13 +18,15 @@ from element_interface.utils import find_full_path
 from .readers import kpms_reader
 
 schema = dj.schema()
-logger = dj.logger
 
 _linking_module = None
+
+logger = dj.logger
 
 
 def activate(
     train_schema_name: str,
+    *,
     create_schema: bool = True,
     create_tables: bool = True,
     linking_module: str = None,

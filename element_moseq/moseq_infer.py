@@ -17,9 +17,8 @@ from . import moseq_train
 from .readers.kpms_reader import load_kpms_dj_config
 
 schema = dj.schema()
-logger = dj.logger
-
 _linking_module = None
+logger = dj.logger
 
 
 def activate(
