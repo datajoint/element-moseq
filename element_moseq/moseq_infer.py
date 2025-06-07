@@ -8,6 +8,7 @@ import inspect
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 import datajoint as dj
 from element_interface.utils import find_full_path
@@ -63,6 +64,43 @@ def activate(
         create_tables=create_tables,
         add_objects=_linking_module.__dict__,
     )
+
+
+# -------------- Functions required by element-moseq ---------------
+
+
+def get_kpms_root_data_dir() -> list:
+    """Pulls relevant func from parent namespace to specify root data dir(s).
+
+    It is recommended that all paths in DataJoint Elements stored as relative
+    paths, with respect to some user-configured "root" director(y/ies). The
+    root(s) may vary between data modalities and user machines. Returns a full path
+    string or list of strings for possible root data directories.
+    """
+    root_directories = _linking_module.get_kpms_root_data_dir()
+    if isinstance(root_directories, (str, Path)):
+        root_directories = [root_directories]
+
+    if (
+        hasattr(_linking_module, "get_kpms_processed_data_dir")
+        and get_kpms_processed_data_dir() not in root_directories
+    ):
+        root_directories.append(_linking_module.get_kpms_processed_data_dir())
+
+    return root_directories
+
+
+def get_kpms_processed_data_dir() -> Optional[str]:
+    """Pulls relevant func from parent namespace. Defaults to KPMS's project /videos/.
+
+    Method in parent namespace should provide a string to a directory where KPMS output
+    files will be stored. If unspecified, output files will be stored in the
+    session directory 'videos' folder, per Keypoint-MoSeq default.
+    """
+    if hasattr(_linking_module, "get_kpms_processed_data_dir"):
+        return _linking_module.get_kpms_processed_data_dir()
+    else:
+        return None
 
 
 # ----------------------------- Table declarations ----------------------
