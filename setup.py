@@ -26,12 +26,12 @@ setup(
     packages=find_packages(exclude=["contrib", "docs", "tests*"]),
     scripts=[],
     install_requires=[
-        "datajoint>=0.13.1",
-        "ipykernel>=6.0.1",
+        "datajoint>=0.14.0",
+        "ipykernel",
+        "ipywidgets",
         "opencv-python",
-        "scipy<1.12.0",
         "graphviz",
-        "element-interface @ git+https://github.com/datajoint/element-interface.git",
+        "pydot",
     ],
     extras_require={
         "kpms": [
@@ -42,6 +42,7 @@ setup(
             "element-event @ git+https://github.com/datajoint/element-event.git",
             "element-lab @ git+https://github.com/datajoint/element-lab.git",
             "element-session @ git+https://github.com/datajoint/element-session.git",
+            "element-interface @ git+https://github.com/datajoint/element-interface.git",
         ],
         "tests": ["pytest", "pytest-cov", "shutils"],
     },
