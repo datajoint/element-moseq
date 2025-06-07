@@ -12,6 +12,7 @@ import cv2
 import datajoint as dj
 import numpy as np
 from element_interface.utils import find_full_path
+
 from element_moseq.moseq_infer import (
     get_kpms_processed_data_dir,
     get_kpms_root_data_dir,
