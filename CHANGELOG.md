@@ -4,26 +4,20 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
 
-## [0.3.0] - 2025-06-05
+## [0.3.0] - 2025-06-07
 
-+ Add - `CandidateModel` table to register candidate models for downstream inference
-
-+ Fix - Invert dependency direction: `moseq_infer` now depends on `moseq_train.CandidateModel` instead of `moseq_train` depending on `moseq_infer.PoseEstimationMethod`
-
-+ Add - Moved shared lookup table `PoseEstimationMethod` to new common `reference.py` module to decouple schemas
-
-+ Add - Refactored schema activation logic and adjusted     `tutorial_pipeline.py` to reflect the new hierarchy
-
++ Feat - Created new `SelectedFullFit` table to register selected trained models for downstream inference
++ Feat - Updated pipeline architecture by inverting dependency direction:`moseq_infer.PoseEstimationMethod` is moved from `moseq_infer` to `moseq_train` and now the new table `SelectedFullFit` is a nullable foreign key in `moseq_infer.Model`.
 + Fix - Updated imports and foreign key references across schemas to match new structure
-
++ Fix - Pinned `keypoint-moseq` and `scikit-learn` versions in `setup.py` to ensure consistent environment setup.
++ Fix - `pre-commit` hooks to exclude removal of used dependencies into the table definitions (`E401`)
++ Add - Refactored `setup.py` to organize dependencies more cleanly and into optional dependencies.
++ Add - Refactored schema activation logic
++ Add - Adjusted `tutorial_pipeline.py` to reflect the new hierarchy
 + Add - Aligned schema design with DataJoint Element conventions to support modular reuse and testing
-
 + Add - Update `images` according to these changes
-
 + Add - Update `tutorial.ipynb` to reflect these changes
-
 + Add - Style and minor bug fixes
-
 
 ## [0.2.3] - 2025-04-12
 
