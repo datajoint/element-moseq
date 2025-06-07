@@ -275,8 +275,8 @@ class PCAPrep(dj.Imported):
             "video_path", "video_id"
         )
 
-        kpms_root = moseq_infer.get_kpms_root_data_dir()
-        kpms_processed = moseq_infer.get_kpms_processed_data_dir()
+        kpms_root = get_kpms_root_data_dir()
+        kpms_processed = get_kpms_processed_data_dir()
 
         kpms_project_output_dir, task_mode = (PCATask & key).fetch1(
             "kpms_project_output_dir", "task_mode"
@@ -393,7 +393,7 @@ class PCAFit(dj.Computed):
             "kpms_project_output_dir", "task_mode"
         )
         kpms_project_output_dir = (
-            moseq_infer.get_kpms_processed_data_dir() / kpms_project_output_dir
+            get_kpms_processed_data_dir() / kpms_project_output_dir
         )
 
         kpms_default_config = kpms_reader.load_kpms_dj_config(
@@ -461,7 +461,7 @@ class LatentDimension(dj.Imported):
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
         kpms_project_output_dir = (
-            moseq_infer.get_kpms_processed_data_dir() / kpms_project_output_dir
+            get_kpms_processed_data_dir() / kpms_project_output_dir
         )
 
         pca_path = kpms_project_output_dir / "pca.p"
@@ -570,7 +570,7 @@ class PreFit(dj.Computed):
             update_hypparams,
         )
 
-        kpms_processed = moseq_infer.get_kpms_processed_data_dir()
+        kpms_processed = get_kpms_processed_data_dir()
 
         kpms_project_output_dir = find_full_path(
             kpms_processed, (PCATask & key).fetch1("kpms_project_output_dir")
@@ -720,7 +720,7 @@ class FullFit(dj.Computed):
             update_hypparams,
         )
 
-        kpms_processed = moseq_infer.get_kpms_processed_data_dir()
+        kpms_processed = get_kpms_processed_data_dir()
 
         kpms_project_output_dir = find_full_path(
             kpms_processed, (PCATask & key).fetch1("kpms_project_output_dir")
