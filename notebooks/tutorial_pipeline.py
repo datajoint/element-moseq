@@ -4,7 +4,7 @@ from collections import abc
 from element_lab import lab
 from element_animal import subject
 from element_session import session_with_datetime as session
-from element_moseq import moseq_train, moseq_infer, reference
+from element_moseq import moseq_train, moseq_infer
 
 from element_animal.subject import Subject
 from element_lab.lab import Source, Lab, Protocol, User, Project
@@ -77,10 +77,6 @@ class Device(dj.Lookup):
 
 
 # Activate Element MoSeq schema -----------------------------------
-reference.activate(db_prefix + "reference", linking_module=__name__)
-PoseEstimationMethod = reference.PoseEstimationMethod
 
 moseq_train.activate(db_prefix + "moseq_train", linking_module=__name__)
-CandidateModel = moseq_train.CandidateModel
-
 moseq_infer.activate(db_prefix + "moseq_infer", linking_module=__name__)
