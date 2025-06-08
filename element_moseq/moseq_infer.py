@@ -358,7 +358,7 @@ class Inference(dj.Computed):
             plot_similarity_dendrogram(
                 coordinates=coordinates,
                 results=results,
-                save_path=(inference_output_dir / "similarity_dendogram").as_posix(),
+                save_path=(inference_output_dir / "similarity_dendrogram").as_posix(),
                 **kpms_dj_config,
             )
 
@@ -392,7 +392,7 @@ class Inference(dj.Computed):
             syllable_instances = get_syllable_instances(
                 syllables, min_duration=3, min_frequency=0.005
             )
-
+            # Map each syllable to a list of its sampled events.
             sampled_instances = sample_instances(
                 syllable_instances=syllable_instances,
                 num_samples=4 * 6,  # minimum rows * cols
