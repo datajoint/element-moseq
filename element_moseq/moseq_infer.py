@@ -6,7 +6,7 @@ DataJoint Schema for Keypoint-MoSeq inference pipeline
 import importlib
 import inspect
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import datajoint as dj
@@ -312,7 +312,7 @@ class Inference(dj.Computed):
             )
 
         if task_mode == "trigger":
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
             results = apply_model(
                 model=model,
                 data=data,
@@ -326,7 +326,7 @@ class Inference(dj.Computed):
                 or 50,  # default internal value in the keypoint-moseq function
                 **kpms_dj_config,
             )
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
 
             duration_seconds = (end_time - start_time).total_seconds()
 

@@ -624,7 +624,7 @@ class PreFit(dj.Computed):
                 model, kappa=float(pre_kappa), latent_dim=int(pre_latent_dim)
             )
 
-            start_time = datetime.now()
+            start_time = datetime.now(timezone.utc)
             model, model_name = fit_model(
                 model=model,
                 data=data,
@@ -633,7 +633,7 @@ class PreFit(dj.Computed):
                 ar_only=True,
                 num_iters=pre_num_iterations,
             )
-            end_time = datetime.now()
+            end_time = datetime.now(timezone.utc)
 
             duration_seconds = (end_time - start_time).total_seconds()
         else:
@@ -771,7 +771,7 @@ class FullFit(dj.Computed):
                 model, kappa=float(full_kappa), latent_dim=int(full_latent_dim)
             )
 
-            start_time = datetime.utcnow()
+            start_time = datetime.now(timezone.utc)
             model, model_name = fit_model(
                 model=model,
                 data=data,
@@ -780,7 +780,7 @@ class FullFit(dj.Computed):
                 ar_only=False,
                 num_iters=full_num_iterations,
             )
-            end_time = datetime.utcnow()
+            end_time = datetime.now(timezone.utc)
             duration_seconds = (end_time - start_time).total_seconds()
 
             reindex_syllables_in_checkpoint(
