@@ -9,7 +9,6 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Feat - Created new `SelectedFullFit` table to register selected trained models for downstream inference
 + Feat - Updated pipeline architecture by inverting dependency direction:`moseq_infer.PoseEstimationMethod` is moved from `moseq_infer` to `moseq_train` and now the new table `SelectedFullFit` is a nullable foreign key in `moseq_infer.Model`.
 + Fix - Updated imports and foreign key references across schemas to match new structure.
-+ Fix - Pinned `keypoint-moseq` and `scikit-learn` versions in `setup.py` to ensure consistent environment setup.
 + Fix - `pre-commit` hooks to exclude removal of used dependencies into the table definitions (`F401`).
 + Add - Refactored `setup.py` to organize dependencies more cleanly and into optional dependencies.
 + Add - Refactored schema activation logic.
