@@ -35,13 +35,9 @@ setup(
     ],
     extras_require={
         "kpms": [
-            "keypoint-moseq==0.4.8",
-            "scikit-learn==1.3.2",
-            "scipy<1.12.0",
+            "keypoint-moseq",
         ],
         "elements": [
-            "element-animal @ git+https://github.com/datajoint/element-animal.git",
-            "element-event @ git+https://github.com/datajoint/element-event.git",
             "element-lab @ git+https://github.com/datajoint/element-lab.git",
             "element-session @ git+https://github.com/datajoint/element-session.git",
             "element-interface @ git+https://github.com/datajoint/element-interface.git",
