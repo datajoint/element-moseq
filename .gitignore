@@ -112,6 +112,8 @@ dj_local_c*.json
 dj_*.y*ml
 temp*
 temp/*
+test_*
+example_*
 
 # docs
 /docs/site

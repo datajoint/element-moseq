@@ -34,7 +34,7 @@ DataJoint Elements collectively standardize and automate data collection and ana
 
 ## Support
 
-+ If you need help getting started or run into any errors, please open a GitHub Issue 
++ If you need help getting started or run into any errors, please open a GitHub Issue
 or contact our team by email at support@datajoint.com.
 
 ## Interactive Tutorial
