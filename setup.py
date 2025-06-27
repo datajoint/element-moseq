@@ -32,11 +32,9 @@ setup(
         "opencv-python",
         "graphviz",
         "pydot",
+        "keypoint-moseq==0.4.8",
     ],
     extras_require={
-        "kpms": [
-            "keypoint-moseq",
-        ],
         "elements": [
             "element-lab @ git+https://github.com/datajoint/element-lab.git",
             "element-session @ git+https://github.com/datajoint/element-session.git",
