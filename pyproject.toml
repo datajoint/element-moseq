@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=62.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "element-moseq"
+version = "0.3.1"
+description = "Keypoint-MoSeq DataJoint Element"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "DataJoint", email = "info@datajoint.com"}
+]
+keywords = ["neuroscience", "keypoint-moseq", "science", "datajoint","workflow"]
+classifiers = [
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+]
+requires-python = ">=3.10,<3.12"
+dependencies = [
+    "datajoint>=0.14.0",
+    "ipykernel>=6.0.1",
+    "ipywidgets",
+    "opencv-python",
+    "keypoint-moseq==0.4.8",
+    "dynamax==0.1.4",
+    "jax==0.4.13",
+    "jaxlib==0.4.13",
+    "jaxtyping==0.2.14",
+    "jupyter_bokeh",
+]
+
+[project.optional-dependencies]
+elements = [
+    "element-lab @ git+https://github.com/datajoint/element-lab.git",
+    "element-session @ git+https://github.com/datajoint/element-session.git",
+    "element-interface @ git+https://github.com/datajoint/element-interface.git",
+    "element-animal @ git+https://github.com/datajoint/element-animal.git",
+]
+tests = [
+    "pytest",
+    "pytest-cov",
+    "shutils",
+]
+
+[project.urls]
+Homepage = "https://github.com/datajoint/element-moseq"
+Repository = "https://github.com/datajoint/element-moseq"
+Documentation = "https://github.com/datajoint/element-moseq"
+
+[tool.setuptools.packages.find]
+exclude = ["contrib", "docs", "tests*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.md", "*.txt", "*.yml", "*.yaml"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["*.pyc", "*.pyo", "*.pyd", "__pycache__", "*.so"]

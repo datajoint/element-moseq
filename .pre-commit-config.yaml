@@ -10,6 +10,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-added-large-files # prevent giant files from being committed
+        args: ['--maxkb=1000']
       - id: requirements-txt-fixer
       - id: mixed-line-ending
         args: ["--fix=lf"]
