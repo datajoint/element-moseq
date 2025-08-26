@@ -35,13 +35,12 @@ def activate(
 
     Args:
         train_schema_name (str): A string containing the name of the `moseq_train` schema.
-        infer_schema_name (str): A string containing the name of the `moseq_infer` schema.
         create_schema (bool): If True (default), schema  will be created in the database.
         create_tables (bool): If True (default), tables related to the schema will be created in the database.
         linking_module (str): A string containing the module name or module containing the required dependencies to activate the schema.
     Dependencies:
     Functions:
-        get_kpms_root_data_dir(): Returns absolute path for root data director(y/ies)
+        get_kpms_root_data_dir(): Returns absolute path for root data directory/ies.
                                  with all behavioral recordings, as (list of) string(s).
         get_kpms_processed_data_dir(): Optional. Returns absolute path for processed
                                       data.
@@ -52,7 +51,7 @@ def activate(
         linking_module = importlib.import_module(linking_module)
     assert inspect.ismodule(
         linking_module
-    ), "The argument 'dependency' must be a module's name or a module"
+    ), "The argument 'dependency' must be a module's name or a module object"
 
     assert hasattr(
         linking_module, "get_kpms_root_data_dir"
@@ -77,7 +76,7 @@ def get_kpms_root_data_dir() -> list:
     """Pulls relevant func from parent namespace to specify root data dir(s).
 
     It is recommended that all paths in DataJoint Elements stored as relative
-    paths, with respect to some user-configured "root" director(y/ies). The
+    paths, with respect to some user-configured "root" directory/ies. The
     root(s) may vary between data modalities and user machines. Returns a full path
     string or list of strings for possible root data directories.
     """
@@ -209,6 +208,7 @@ class PCATask(dj.Manual):
     definition = """
     -> Bodyparts                                                # Unique ID for each `Bodyparts` key
     ---
+    outlier_scale_factor=6          : int                 # Scale factor for outlier detection (default: 6)
     kpms_project_output_dir=''          : varchar(255)          # Keypoint-MoSeq project output directory, relative to root data directory
     task_mode='load'                 :enum('load','trigger') # Trigger or load the task
 
@@ -216,7 +216,7 @@ class PCATask(dj.Manual):
 
 
 @schema
-class PCAPrep(dj.Imported):
+class PreProcessing(dj.Imported):
     """
     Table to set up the Keypoint-MoSeq project output directory (`kpms_project_output_dir`) , creating the default `config.yml` and updating it in a new `kpms_dj_config.yml`.
 
@@ -239,7 +239,7 @@ class PCAPrep(dj.Imported):
     frame_rates             : longblob  # List of the frame rates of the videos for model training
     """
 
-    def make(self, key):
+    def make_fetch(self, key):
         """
         Make function to:
         1. Generate and update the `kpms_dj_config.yml` with both the videoset directory and the bodyparts.
@@ -260,7 +260,7 @@ class PCAPrep(dj.Imported):
         6. Create a copy of the kpms `config.yml` named `kpms_dj_config.yml` that will be updated with both the `video_dir` and bodyparts
         7. Load keypoint data from the keypoint files found in the `kpset_dir` that will serve as the training set.
         8. As a result of the keypoint loading, the coordinates and confidences scores are generated and will be used to format the data for modeling.
-        9. Calculate the average frame rate and the frame rate list of the videoset from which the keypoint set is derived. This two attributes can be used to calculate the kappa value.
+        9. Calculate the average frame rate and the frame rate list of the videoset from which the keypoint set is derived. These two attributes can be used to calculate the kappa value.
         10. Insert the results of this `make` function into the table.
         """
 
@@ -283,8 +283,64 @@ class PCAPrep(dj.Imported):
             "kpms_project_output_dir", "task_mode"
         )
 
+        outlier_scale_factor = (PCATask & key).fetch1("outlier_scale_factor")
+
+        return (
+            anterior_bodyparts,
+            posterior_bodyparts,
+            use_bodyparts,
+            pose_estimation_method,
+            kpset_dir,
+            video_paths,
+            video_ids,
+            kpms_project_output_dir,
+            task_mode,
+            outlier_scale_factor,
+        )
+
+    def make_compute(
+        self,
+        key,
+        anterior_bodyparts,
+        posterior_bodyparts,
+        use_bodyparts,
+        pose_estimation_method,
+        kpset_dir,
+        video_paths,
+        video_ids,
+        kpms_project_output_dir,
+        task_mode,
+        outlier_scale_factor,
+    ):
+        """Compute the outlier keypoints and interpolate them.
+
+        Args:
+            key (dict): Primary key from the `PCATask` table.
+            anterior_bodyparts (list): List of anterior bodyparts.
+            posterior_bodyparts (list): List of posterior bodyparts.
+
+        Raises:
+            NotImplementedError: `pose_estimation_method` is only supported for `deeplabcut`.
+            FileNotFoundError: No DLC config.(yml|yaml) found in `kpset_dir`.
+            Exception: Could not create outlier plot for `recording_name`.
+
+        Logic:
+            1. Load the project configuration for outlier detection
+            2. Find outliers using medoid distance analysis
+            3. Interpolate keypoints to fix outliers
+            4. Update confidences for outlier points
+            5. Store results
+        """
+
+        from keypoint_moseq import (
+            find_medoid_distance_outliers,
+            interpolate_keypoints,
+            load_keypoints,
+            plot_medoid_distance_outliers,
+        )
+
         if task_mode == "trigger":
-            from keypoint_moseq import load_config, setup_project
+            from keypoint_moseq import setup_project
 
             try:
                 kpms_project_output_dir = find_full_path(
@@ -293,7 +349,7 @@ class PCAPrep(dj.Imported):
 
             except FileNotFoundError:
                 kpms_project_output_dir = (
-                    get_kpms_processed_data_dir() / kpms_project_output_dir
+                    Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
                 )
 
             kpset_dir = find_full_path(get_kpms_root_data_dir(), kpset_dir)
@@ -302,35 +358,25 @@ class PCAPrep(dj.Imported):
             )
 
             if pose_estimation_method == "deeplabcut":
+                cfg = kpset_dir / "config.yaml"
+                if not cfg.exists():
+                    cfg = kpset_dir / "config.yml"
+                if not cfg.exists():
+                    raise FileNotFoundError(
+                        f"No DLC config.(yml|yaml) found in {kpset_dir}"
+                    )
+                # base `config.yml` is created with task_mode='trigger'
                 setup_project(
                     project_dir=kpms_project_output_dir.as_posix(),
-                    deeplabcut_config=(kpset_dir / "config.yaml")
-                    or (kpset_dir / "config.yml"),
+                    deeplabcut_config=cfg.as_posix(),
                 )
+
             else:
                 raise NotImplementedError(
                     "Currently, `deeplabcut` is the only pose estimation method supported by this Element. Please reach out at `support@datajoint.com` if you use another method."
                 )
 
-            kpms_config = load_config(
-                kpms_project_output_dir.as_posix(),
-                check_if_valid=True,
-                build_indexes=False,
-            )
-
-            kpms_dj_config_kwargs_dict = dict(
-                video_dir=videos_dir.as_posix(),
-                anterior_bodyparts=anterior_bodyparts,
-                posterior_bodyparts=posterior_bodyparts,
-                use_bodyparts=use_bodyparts,
-            )
-            kpms_config.update(**kpms_dj_config_kwargs_dict)
-            kpms_reader.generate_kpms_dj_config(
-                kpms_project_output_dir.as_posix(), **kpms_config
-            )
         else:
-            from keypoint_moseq import load_keypoints
-
             kpms_project_output_dir = find_full_path(
                 get_kpms_processed_data_dir(), kpms_project_output_dir
             )
@@ -339,23 +385,96 @@ class PCAPrep(dj.Imported):
                 get_kpms_root_data_dir(), Path(video_paths[0]).parent
             )
 
-        coordinates, confidences, formatted_bodyparts = load_keypoints(
+        raw_coordinates, raw_confidences, formatted_bodyparts = load_keypoints(
             filepath_pattern=kpset_dir, format=pose_estimation_method
         )
 
+        # compute FPS
         frame_rate_list = []
         for fp, _ in zip(video_paths, video_ids):
             video_path = (find_full_path(get_kpms_root_data_dir(), fp)).as_posix()
             cap = cv2.VideoCapture(video_path)
-            frame_rate_list.append(int(cap.get(cv2.CAP_PROP_FPS)))
+            fps = float(cap.get(cv2.CAP_PROP_FPS))
             cap.release()
-        average_frame_rate = int(np.mean(frame_rate_list))
+            frame_rate_list.append(fps)
+        average_frame_rate = float(np.mean(frame_rate_list))
 
+        # Generate a copy of config.yml with the generated/updated info after it is known
+        kpms_reader.dj_generate_config(
+            project_dir=kpms_project_output_dir,
+            video_dir=str(videos_dir),
+            use_bodyparts=list(use_bodyparts),
+            anterior_bodyparts=list(anterior_bodyparts),
+            posterior_bodyparts=list(posterior_bodyparts),
+            outlier_scale_factor=float(outlier_scale_factor),
+        )
+        kpms_reader.dj_update_config(
+            kpms_project_output_dir,
+            fps=average_frame_rate,
+        )
+
+        # Remove outlier keypoints
+        kpms_config = kpms_reader.dj_load_config(kpms_project_output_dir)
+        cleaned_coordinates = {}
+        cleaned_confidences = {}
+
+        for recording_name in raw_coordinates:
+            raw_coords = raw_coordinates[recording_name].copy()
+            raw_conf = raw_confidences[recording_name].copy()
+
+            # Find outliers using medoid distance analysis
+            outliers = find_medoid_distance_outliers(
+                raw_coords, outlier_scale_factor=outlier_scale_factor
+            )
+
+            # Interpolate keypoints to fix outliers
+            cleaned_coords = interpolate_keypoints(raw_coords, outliers["mask"])
+
+            # Update confidences for outlier points
+            cleaned_conf = np.where(outliers["mask"], 0, raw_conf)
+
+            # Store results
+            cleaned_coordinates[recording_name] = cleaned_coords
+            cleaned_confidences[recording_name] = cleaned_conf
+
+            # Plot outliers
+            if formatted_bodyparts is not None:
+                try:
+                    plot_medoid_distance_outliers(
+                        project_dir=kpms_project_output_dir.as_posix(),
+                        recording_name=recording_name,
+                        original_coordinates=raw_coords,
+                        interpolated_coordinates=cleaned_coords,
+                        outlier_mask=outliers["mask"],
+                        outlier_thresholds=outliers["thresholds"],
+                        **kpms_config,
+                    )
+
+                except Exception as e:
+                    print(f"Could not create outlier plot for {recording_name}: {e}")
+
+        return (
+            cleaned_coordinates,
+            cleaned_confidences,
+            formatted_bodyparts,
+            average_frame_rate,
+            frame_rate_list,
+        )
+
+    def make_insert(
+        self,
+        key,
+        cleaned_coordinates,
+        cleaned_confidences,
+        formatted_bodyparts,
+        average_frame_rate,
+        frame_rate_list,
+    ):
         self.insert1(
             dict(
                 **key,
-                coordinates=coordinates,
-                confidences=confidences,
+                coordinates=cleaned_coordinates,
+                confidences=cleaned_confidences,
                 formatted_bodyparts=formatted_bodyparts,
                 average_frame_rate=average_frame_rate,
                 frame_rates=frame_rate_list,
@@ -368,12 +487,12 @@ class PCAFit(dj.Computed):
     """Fit PCA model.
 
     Attributes:
-        PCAPrep (foreign key)           : `PCAPrep` Key.
+        PreProcessing (foreign key)     : `PreProcessing` Key.
         pca_fit_time (datetime)         : datetime of the PCA fitting analysis.
     """
 
     definition = """
-    -> PCAPrep                           # `PCAPrep` Key
+    -> PreProcessing                      # `PreProcessing` Key
     ---
     pca_fit_time=NULL        : datetime  # datetime of the PCA fitting analysis
     """
@@ -383,7 +502,7 @@ class PCAFit(dj.Computed):
         Make function to format the keypoint data, fit the PCA model, and store it as a `pca.p` file in the Keypoint-MoSeq project output directory.
 
         Args:
-            key (dict): `PCAPrep` Key
+            key (dict): `PreProcessing` Key
 
         Raises:
 
@@ -400,13 +519,13 @@ class PCAFit(dj.Computed):
             "kpms_project_output_dir", "task_mode"
         )
         kpms_project_output_dir = (
-            get_kpms_processed_data_dir() / kpms_project_output_dir
+            Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
         )
 
-        kpms_default_config = kpms_reader.load_kpms_dj_config(
-            kpms_project_output_dir.as_posix(), check_if_valid=True, build_indexes=True
+        kpms_default_config = kpms_reader.dj_load_config(kpms_project_output_dir)
+        coordinates, confidences = (PreProcessing & key).fetch1(
+            "coordinates", "confidences"
         )
-        coordinates, confidences = (PCAPrep & key).fetch1("coordinates", "confidences")
         data, _ = format_data(
             **kpms_default_config, coordinates=coordinates, confidences=confidences
         )
@@ -464,37 +583,38 @@ class LatentDimension(dj.Imported):
                 it sets the `latent_dimension` to the number of components that explain the specified variance and `variance_percentage` to the specified variance threshold.
         4. Insert the results of this `make` function into the table.
         """
+
+        VARIANCE_THRESHOLD = 0.90
+
         from keypoint_moseq import load_pca
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
         kpms_project_output_dir = (
-            get_kpms_processed_data_dir() / kpms_project_output_dir
+            Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
         )
 
         pca_path = kpms_project_output_dir / "pca.p"
-        if pca_path:
+        if pca_path.exists():
             pca = load_pca(kpms_project_output_dir.as_posix())
         else:
             raise FileNotFoundError(
                 f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
             )
 
-        variance_threshold = 0.90
-
         cs = np.cumsum(
             pca.explained_variance_ratio_
         )  # explained_variance_ratio_ndarray of shape (n_components,)
 
-        if cs[-1] < variance_threshold:
+        if cs[-1] < VARIANCE_THRESHOLD:
             latent_dimension = len(cs)
             variance_percentage = cs[-1] * 100
             latent_dim_desc = (
                 f"All components together only explain {cs[-1]*100}% of variance."
             )
         else:
-            latent_dimension = (cs > variance_threshold).nonzero()[0].min() + 1
-            variance_percentage = variance_threshold * 100
-            latent_dim_desc = f">={variance_threshold*100}% of variance explained by {(cs>variance_threshold).nonzero()[0].min()+1} components."
+            latent_dimension = (cs > VARIANCE_THRESHOLD).nonzero()[0].min() + 1
+            variance_percentage = VARIANCE_THRESHOLD * 100
+            latent_dim_desc = f">={VARIANCE_THRESHOLD*100}% of variance explained by {(cs>VARIANCE_THRESHOLD).nonzero()[0].min()+1} components."
 
         self.insert1(
             dict(
@@ -525,7 +645,7 @@ class PreFitTask(dj.Manual):
     pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting
     ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
-    task_mode='load'             :enum('trigger','load')# 'load': load computed analysis results, 'trigger': trigger computation
+    task_mode='load'             :enum('load','trigger')# 'load': load computed analysis results, 'trigger': trigger computation
     pre_fit_desc=''              : varchar(1000)        # User-defined description of the pre-fitting task
     """
 
@@ -592,31 +712,31 @@ class PreFit(dj.Computed):
             "model_name",
         )
         if task_mode == "trigger":
-            kpms_dj_config = kpms_reader.load_kpms_dj_config(
-                kpms_project_output_dir.as_posix(),
-                check_if_valid=True,
-                build_indexes=True,
+
+            # Update the existing kpms_dj_config.yml with new latent_dim and kappa values
+            kpms_reader.dj_update_config(
+                kpms_project_output_dir,
+                latent_dim=int(pre_latent_dim),
+                kappa=float(pre_kappa),
             )
 
-            kpms_dj_config.update(
-                dict(latent_dim=int(pre_latent_dim), kappa=float(pre_kappa))
-            )
-            kpms_reader.generate_kpms_dj_config(
-                kpms_project_output_dir.as_posix(), **kpms_dj_config
-            )
+            # Load the updated config for use in model fitting
+            kpms_dj_config = kpms_reader.dj_load_config(kpms_project_output_dir)
 
             pca_path = kpms_project_output_dir / "pca.p"
-            if pca_path:
+            if pca_path.exists():
                 pca = load_pca(kpms_project_output_dir.as_posix())
             else:
                 raise FileNotFoundError(
                     f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
                 )
 
-            coordinates, confidences = (PCAPrep & key).fetch1(
+            coordinates, confidences = (PreProcessing & key).fetch1(
                 "coordinates", "confidences"
             )
-            data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
+            data, metadata = format_data(
+                coordinates=coordinates, confidences=confidences, **kpms_dj_config
+            )
 
             model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
 
@@ -742,30 +862,28 @@ class FullFit(dj.Computed):
             "model_name",
         )
         if task_mode == "trigger":
-            kpms_dj_config = kpms_reader.load_kpms_dj_config(
-                kpms_project_output_dir.as_posix(),
-                check_if_valid=True,
-                build_indexes=True,
-            )
-            kpms_dj_config.update(
-                dict(latent_dim=int(full_latent_dim), kappa=float(full_kappa))
-            )
-            kpms_reader.generate_kpms_dj_config(
-                kpms_project_output_dir.as_posix(), **kpms_dj_config
+            kpms_reader.dj_update_config(
+                kpms_project_output_dir,
+                latent_dim=int(full_latent_dim),
+                kappa=float(full_kappa),
             )
 
+            kpms_dj_config = kpms_reader.dj_load_config(kpms_project_output_dir)
+
             pca_path = kpms_project_output_dir / "pca.p"
-            if pca_path:
+            if pca_path.exists():
                 pca = load_pca(kpms_project_output_dir.as_posix())
             else:
                 raise FileNotFoundError(
                     f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
                 )
 
-            coordinates, confidences = (PCAPrep & key).fetch1(
+            coordinates, confidences = (PreProcessing & key).fetch1(
                 "coordinates", "confidences"
             )
-            data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
+            data, metadata = format_data(
+                coordinates=coordinates, confidences=confidences, **kpms_dj_config
+            )
             model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
             model = update_hypparams(
                 model, kappa=float(full_kappa), latent_dim=int(full_latent_dim)

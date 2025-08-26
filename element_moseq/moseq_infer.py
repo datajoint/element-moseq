@@ -14,7 +14,7 @@ from element_interface.utils import find_full_path
 from matplotlib import pyplot as plt
 
 from . import moseq_train
-from .readers.kpms_reader import load_kpms_dj_config
+from .readers import kpms_reader
 
 schema = dj.schema()
 _linking_module = None
@@ -300,9 +300,7 @@ class Inference(dj.Computed):
         support for another format method, please reach out to us at `support@datajoint.com`."
             )
 
-        kpms_dj_config = load_kpms_dj_config(
-            model_dir.parent.as_posix(), check_if_valid=True, build_indexes=True
-        )
+        kpms_dj_config = kpms_reader.dj_load_config(model_dir.parent)
 
         if kpms_dj_config:
             data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
