@@ -3,6 +3,11 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
+## [0.3.2] - 2025-08-25
++ Feat - modernize packaging and environment management migrating from `setup.py` to `pyproject.toml`and `env.yml`
++ Fix - JAX compatibility issues
++ Add - update pre-commit hooks
+
 ## [0.3.1] - 2025-06-27
 
 + Fix - `setup.py` to install `keypoint-moseq` as a required dependency
