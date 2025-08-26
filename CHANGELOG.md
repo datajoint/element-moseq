@@ -3,6 +3,13 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
+## [0.4.0] - 2025-08-26
++ Fix - Fix generation of `kpms_dj_config.yml` in `kpms_reader` to use `dj_load_config` and `dj_update_config` functions
++ Fix - Rename `PCAPrep` to `PreProcessing`
++ Feat - Add new attribute `outlier_scale_factor` in `PCATask` table
++ Feat - Add feature to remove outlier keypoints in `PreProcessing` table
++ Fix - `moseq_train` and `moseq_infer` to use `dj_load_config` and `dj_update_config` functions
+
 ## [0.3.2] - 2025-08-25
 + Feat - modernize packaging and environment management migrating from `setup.py` to `pyproject.toml`and `env.yml`
 + Fix - JAX compatibility issues
