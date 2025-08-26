@@ -9,6 +9,7 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Feat - Add new attribute `outlier_scale_factor` in `PCATask` table
 + Feat - Add feature to remove outlier keypoints in `PreProcessing` table
 + Fix - `moseq_train` and `moseq_infer` to use `dj_load_config` and `dj_update_config` functions
++ Feat - Refactor `PreProcessing` table to use 3-part make function
 
 ## [0.3.2] - 2025-08-25
 + Feat - modernize packaging and environment management migrating from `setup.py` to `pyproject.toml`and `env.yml`
