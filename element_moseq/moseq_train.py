@@ -690,21 +690,27 @@ class LatentDimension(dj.Imported):
 
 @schema
 class PreFitTask(dj.Manual):
-    """Insert the parameters for the model (AR-HMM) pre-fitting.
+    """Define parameters for Stage 1: Auto-Regressive Hidden Markov Model (AR-HMM) pre-fitting.
+
+    This table defines the parameters for the first stage of the two-stage Keypoint-MoSeq training
+    approach. The pre-fitting stage focuses on learning temporal behavioral dynamics and discrete
+    syllable states without incorporating spatial pose dynamics. This stage is designed for rapid
+    hyperparameter exploration, particularly for finding optimal kappa values that yield desired
+    syllable durations.
 
     Attributes:
         PCAFit (foreign key)                : `PCAFit` task.
         pre_latent_dim (int)                : Latent dimension to use for the model pre-fitting.
-        pre_kappa (int)                     : Kappa value to use for the model pre-fitting.
-        pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting.
+        pre_kappa (int)                     : Kappa value to use for the model pre-fitting (controls syllable duration).
+        pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting (typically 10-50).
         pre_fit_desc(varchar)               : User-defined description of the pre-fitting task.
     """
 
     definition = """
     -> PCAFit                                           # `PCAFit` Key
-    pre_latent_dim               : int                  # Latent dimension to use for the model pre-fitting
-    pre_kappa                    : int                  # Kappa value to use for the model pre-fitting
-    pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting
+    pre_latent_dim               : int                  # Latent dimension to use for the model pre-fitting.
+    pre_kappa                    : int                  # Kappa value to use for the model pre-fitting (controls syllable duration).
+    pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting (typically 10-50).
     ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('load','trigger')# 'load': load computed analysis results, 'trigger': trigger computation
@@ -714,7 +720,13 @@ class PreFitTask(dj.Manual):
 
 @schema
 class PreFit(dj.Computed):
-    """Fit AR-HMM model.
+    """Stage 1: Fit Auto-Regressive Hidden Markov Model (AR-HMM) for initial behavioral syllable discovery.
+
+    This is the first stage of the two-stage Keypoint-MoSeq training approach. The PreFit step focuses
+    exclusively on learning the temporal dynamics and discrete behavioral states (syllables) without
+    incorporating spatial pose dynamics. This stage is computationally efficient and allows for rapid
+    exploration of hyperparameters (particularly kappa for syllable duration) before the expensive
+    full model fitting.
 
     Attributes:
         PreFitTask (foreign key)                : `PreFitTask` Key.
