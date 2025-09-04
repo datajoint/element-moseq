@@ -168,6 +168,8 @@ class KeypointSet(dj.Manual):
         video_id                    : int           # Unique ID for each video corresponding to each keypoint data file, relative to root data directory
         ---
         video_path                  : varchar(1000) # Filepath of each video from which the keypoints are derived, relative to root data directory
+        group_label=''              : varchar(100)  # Assign a group label (such as “mutant” or “wildtype”) to each recording. Relevant for performing group-wise comparisons.
+        video_duration=0            : int           # Duration of each video in minutes (if not provided, it will be automatically calculated in `PreProcessing`).
         """
 
 
