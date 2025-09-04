@@ -407,14 +407,22 @@ class PreProcessing(dj.Imported):
             filepath_pattern=kpset_dir, format=pose_estimation_method
         )
 
-        # compute FPS
+        # compute FPS and video duration
         frame_rate_list = []
-        for fp, _ in zip(video_paths, video_ids):
+        video_duration_list = []
+        for fp, video_id in zip(video_paths, video_ids):
             video_path = (find_full_path(get_kpms_root_data_dir(), fp)).as_posix()
             cap = cv2.VideoCapture(video_path)
             fps = float(cap.get(cv2.CAP_PROP_FPS))
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             cap.release()
+
+            # Calculate duration in minutes
+            duration_minutes = (frame_count / fps) / 60.0
+
             frame_rate_list.append(fps)
+            video_duration_list.append((video_id, int(duration_minutes)))
+
         average_frame_rate = float(np.mean(frame_rate_list))
 
         # Generate a copy of config.yml with the generated/updated info after it is known
@@ -477,6 +485,7 @@ class PreProcessing(dj.Imported):
             formatted_bodyparts,
             average_frame_rate,
             frame_rate_list,
+            video_duration_list,
         )
 
     def make_insert(
@@ -487,7 +496,9 @@ class PreProcessing(dj.Imported):
         formatted_bodyparts,
         average_frame_rate,
         frame_rate_list,
+        video_duration_list,
     ):
+        # Insert the main preprocessing results
         self.insert1(
             dict(
                 **key,
@@ -498,6 +509,30 @@ class PreProcessing(dj.Imported):
                 frame_rates=frame_rate_list,
             )
         )
+
+        # Update video durations in KeypointSet.VideoFile table
+        for video_id, duration_minutes in video_duration_list:
+            try:
+                # Check if the video record exists
+                video_key = {"kpset_id": key["kpset_id"], "video_id": video_id}
+                if KeypointSet.VideoFile & video_key:
+                    # For Manual tables, we need to get the existing record and update it
+                    existing_record = (KeypointSet.VideoFile & video_key).fetch1()
+
+                    # Create updated record with new video_duration
+                    updated_record = dict(existing_record)
+                    updated_record["video_duration"] = duration_minutes
+
+                    # Delete the old record and insert the updated one
+                    KeypointSet.VideoFile.update1(updated_record)
+                else:
+                    logger.warning(f"Video record not found for video_id {video_id}")
+
+            except Exception as e:
+                logger.warning(
+                    f"Warning: Could not update video duration for video_id {video_id}: {e}"
+                )
+                # Continue processing even if update fails
 
 
 @schema
