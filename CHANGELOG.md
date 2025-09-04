@@ -17,9 +17,10 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Fix - Rename `PCAPrep` to `PreProcessing`
 + Fix - Remove JAX dependencies from `pyproject.toml`
 + Fix - Update dockerfile to use Python 3.11
++ Fix - update folder name to primary attributes instead of datetime in `PreFit` and `FullFit`
++ Fix - Refactor `moseq_infer` paths
 + Add - Update docstrings
-
-
++ Add - Update pre-commit file
 
 ## [0.3.2] - 2025-08-25
 + Feat - modernize packaging and environment management migrating from `setup.py` to `pyproject.toml`and `env.yml`
