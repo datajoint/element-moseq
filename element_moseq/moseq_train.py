@@ -1009,9 +1009,16 @@ class FullFit(dj.Computed):
                 model, kappa=float(full_kappa), latent_dim=int(full_latent_dim)
             )
 
+            dj_model_name = {
+                "latent_dim": int(full_latent_dim),
+                "full_kappa": float(full_kappa),
+                "full_num_iterations": int(full_num_iterations),
+            }
+
             start_time = datetime.now(timezone.utc)
             model, model_name = fit_model(
                 model=model,
+                model_name=dj_model_name,
                 data=data,
                 metadata=metadata,
                 project_dir=kpms_project_output_dir.as_posix(),
@@ -1022,8 +1029,12 @@ class FullFit(dj.Computed):
             duration_seconds = (end_time - start_time).total_seconds()
 
             reindex_syllables_in_checkpoint(
-                kpms_project_output_dir.as_posix(), Path(model_name).parts[-1]
+                project_dir=kpms_project_output_dir.as_posix(),
+                model_name=Path(model_name).parts[-1],
             )
+
+            # Save of results will be applied during the Inference
+
         else:
             duration_seconds = None
 
