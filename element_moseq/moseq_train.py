@@ -200,19 +200,27 @@ class Bodyparts(dj.Manual):
 @schema
 class PCATask(dj.Manual):
     """
-    Staging table to define the PCA task and its output directory.
+    Define the Principal Component Analysis (PCA) task for dimensionality reduction of keypoint data.
+
+    This table defines the parameters for the PCA preprocessing step, which is a prerequisite for both
+    stages of the Keypoint-MoSeq training pipeline. The PCA step reduces the dimensionality of the
+    keypoint data by projecting it onto the principal components that capture the most variance in
+    the pose dynamics. This dimensionality reduction is essential for efficient model training and
+    helps identify the optimal latent dimension for the subsequent AR-HMM and Keypoint-SLDS model fitting.
 
     Attributes:
         Bodyparts (foreign key)         : Unique ID for each `Bodyparts` key
+        outlier_scale_factor (int)      : Scale factor for outlier detection in keypoint data (default: 6)
         kpms_project_output_dir (str)   : Keypoint-MoSeq project output directory, relative to root data directory
+        task_mode (enum)                : 'load' to load existing results, 'trigger' to compute new PCA
     """
 
     definition = """
     -> Bodyparts                                                # Unique ID for each `Bodyparts` key
     ---
-    outlier_scale_factor=6          : int                 # Scale factor for outlier detection (default: 6)
+    outlier_scale_factor=6          : int                 # Scale factor for outlier detection in keypoint data (default: 6)
     kpms_project_output_dir=''          : varchar(255)          # Keypoint-MoSeq project output directory, relative to root data directory
-    task_mode='load'                 :enum('load','trigger') # Trigger or load the task
+    task_mode='load'                 :enum('load','trigger') # 'load' to load existing results, 'trigger' to compute new PCA
 
     """
 
