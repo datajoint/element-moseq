@@ -830,14 +830,23 @@ class PreFit(dj.Computed):
                 model, kappa=float(pre_kappa), latent_dim=int(pre_latent_dim)
             )
 
+            dj_model_name = {
+                "latent_dim": int(pre_latent_dim),
+                "pre_kappa": float(pre_kappa),
+                "pre_num_iterations": int(pre_num_iterations),
+            }
+
             start_time = datetime.now(timezone.utc)
             model, model_name = fit_model(
                 model=model,
+                model_name=dj_model_name,
                 data=data,
                 metadata=metadata,
                 project_dir=kpms_project_output_dir.as_posix(),
                 ar_only=True,
                 num_iters=pre_num_iterations,
+                generate_progress_plots=True,  # saved to {project_dir}/{model_name}/plots/
+                save_every_n_iters=25,
             )
             end_time = datetime.now(timezone.utc)
 
