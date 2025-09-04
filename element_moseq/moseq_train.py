@@ -1052,7 +1052,12 @@ class FullFit(dj.Computed):
 
 @schema
 class SelectedFullFit(dj.Manual):
-    """Selected FullFit model for use in the inference pipeline"""
+    """Register selected FullFit models for use in the inference pipeline.
+
+    This table allows users to select and register specific FullFit models (from Stage 2 of the training
+    pipeline) for use in downstream inference tasks. Users can provide descriptive names and descriptions
+    for their trained models to facilitate model management and selection for behavioral analysis on new data.
+    """
 
     definition = """
     -> FullFit
