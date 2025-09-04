@@ -900,7 +900,13 @@ class FullFitTask(dj.Manual):
 
 @schema
 class FullFit(dj.Computed):
-    """Fit the full (Keypoint-SLDS) model.
+    """Stage 2: Fit the complete Keypoint Switching Linear Dynamical System (Keypoint-SLDS) model.
+
+    This is the second stage of the two-stage Keypoint-MoSeq training approach. The FullFit step refines
+    the model by incorporating all parameters including spatial pose dynamics, centroid, heading, noise
+    estimates, and continuous latent states. This stage builds upon the initial behavioral exploration
+    discovered in the pre-fitting stage to create a complete behavioral model with both temporal and
+    spatial dynamics.
 
     Attributes:
         FullFitTask (foreign key)            : `FullFitTask` Key.
@@ -919,25 +925,24 @@ class FullFit(dj.Computed):
         """
             Make function to fit the full (keypoint-SLDS) model
 
-            Args:
-                key (dict): dictionary with the `FullFitTask` Key.
+        Args:
+            key (dict): dictionary with the `FullFitTask` Key.
 
-            Raises:
+        Raises:
 
-            High-level Logic:
-            1. Fetch the `kpms_project_output_dir` and define the full path.
-            2. Fetch the model parameters from the `FullFitTask` table.
-            2. Update the `dj_config.yml` with the selected latent dimension and kappa for the full-fitting.
-            3. Initialize and fit the full model in a new `model_name` directory.
-            4. Load the pca model from file in the `kpms_project_output_dir`.
-            5. Fetch the `coordinates` and `confidences` scores to format the data for the model initialization.
-            6. Initialize the model that create a `model` dict containing states, parameters, hyperparameters, noise prior, and random seed.
-            7. Update the model dict with the selected kappa for the Keypoint-SLDS fitting.
-            8. Fit the Keypoint-SLDS model using the `full_num_iterations` and create a subdirectory in `kpms_project_output_dir` with the model's latest checkpoint file.
-            8. Reindex syllable labels by their frequency in the most recent model snapshot in the checkpoint file. \
-                This function permutes the states and parameters of a saved checkpoint so that syllables are labeled \
-                in order of frequency (i.e. so that 0 is the most frequent, 1 is the second most, and so on).
-            8. Calculate the duration of the model fitting computation and insert it in the `PreFit` table.
+        High-level Logic:
+        1. Fetch the `kpms_project_output_dir` and define the full path.
+        2. Fetch the model parameters from the `FullFitTask` table.
+        3. Update the `dj_config.yml` with the selected latent dimension and kappa for the full-fitting.
+        4. Load the pca model from file in the `kpms_project_output_dir`.
+        5. Fetch the `coordinates` and `confidences` scores to format the data for the model initialization.
+        6. Initialize the model that create a `model` dict containing states, parameters, hyperparameters, noise prior, and random seed.
+        7. Update the model dict with the selected kappa for the Keypoint-SLDS fitting.
+        8. Fit the Keypoint-SLDS model using the `full_num_iterations` and create a subdirectory in `kpms_project_output_dir` with the model's latest checkpoint file.
+        9. Reindex syllable labels by their frequency in the most recent model snapshot in the checkpoint file. \
+            This function permutes the states and parameters of a saved checkpoint so that syllables are labeled \
+            in order of frequency (i.e. so that 0 is the most frequent, 1 is the second most, and so on).
+        10. Calculate the duration of the model fitting computation and insert it in the `FullFit` table.
         """
         from keypoint_moseq import (
             fit_model,
