@@ -267,10 +267,10 @@ class Inference(dj.Computed):
         )
         keypointset_dir = find_full_path(kpms_root, keypointset_dir)
 
-        inference_output_dir = os.path.join(model_dir, inference_output_dir)
+        inference_output_dir = Path(os.path.join(model_dir, inference_output_dir))
 
-        if not os.path.exists(inference_output_dir):
-            os.makedirs(model_dir / inference_output_dir)
+        if not inference_output_dir.exists():
+            inference_output_dir.mkdir(parents=True, exist_ok=True)
 
         pca_path = model_dir.parent / "pca.p"
         if pca_path:
@@ -370,8 +370,8 @@ class Inference(dj.Computed):
 
             # load results
             results = load_results(
-                project_dir=Path(inference_output_dir).parent,
-                model_name=Path(inference_output_dir).parts[-1],
+                project_dir=inference_output_dir.parent,
+                model_name=inference_output_dir.parts[-1],
             )
 
             # extract syllables from results
