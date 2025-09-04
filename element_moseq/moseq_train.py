@@ -602,10 +602,13 @@ class PCAFit(dj.Computed):
 @schema
 class LatentDimension(dj.Imported):
     """
-    Determine the latent dimension as part of the autoregressive hyperparameters (`ar_hypparams`) for the model fitting.
-    The objective of the analysis is to inform the user about the number of principal components needed to explain a
-    90% variance threshold. Subsequently, the decision on how many components to utilize for the model fitting is left
-    to the user.
+    Determine the optimal latent dimension for model fitting based on variance explained by PCA components.
+
+    This table analyzes the fitted PCA model to determine the number of principal components needed to
+    explain a specified variance threshold (default: 90%). This analysis helps users make informed decisions
+    about the latent dimension parameter for both stages of the Keypoint-MoSeq training pipeline. The
+    recommended approach is to use the number of components that explain 90% of the variance, or a maximum
+    of 10 dimensions, whichever is lower.
 
     Attributes:
         PCAFit (foreign key)               : `PCAFit` Key.
