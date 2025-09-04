@@ -228,14 +228,21 @@ class PCATask(dj.Manual):
 @schema
 class PreProcessing(dj.Imported):
     """
-    Table to set up the Keypoint-MoSeq project output directory (`kpms_project_output_dir`) , creating the default `config.yml` and updating it in a new `kpms_dj_config.yml`.
+    Preprocess keypoint data by cleaning outliers and setting up the Keypoint-MoSeq project configuration.
+
+    This table handles the initial data preprocessing step that prepares keypoint data for the PCA and
+    subsequent model fitting stages. It performs outlier detection and removal using medoid distance
+    analysis, interpolates missing keypoints, and sets up the project configuration with video paths,
+    bodypart specifications, and frame rate information. This preprocessing also calculates and updates
+    video duration metadata in the KeypointSet.VideoFile table. This preprocessing is essential for
+    ensuring data quality and proper model initialization.
 
     Attributes:
         PCATask (foreign key)           : Unique ID for each `PCATask` key.
-        coordinates (longblob)          : Dictionary mapping filenames to keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3]).
-        confidences (longblob)          : Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts).
+        coordinates (longblob)          : Dictionary mapping filenames to cleaned keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3]).
+        confidences (longblob)          : Dictionary mapping filenames to updated likelihood scores as ndarrays of shape (n_frames, n_bodyparts).
         formatted_bodyparts (longblob)  : List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
-        average_frame_rate (float)      : Average frame rate of the videos for model training.
+        average_frame_rate (float)      : Average frame rate of the videos for model training (used for kappa calculation).
         frame_rates (longblob)          : List of the frame rates of the videos for model training.
     """
 
@@ -245,7 +252,7 @@ class PreProcessing(dj.Imported):
     coordinates             : longblob  # Dictionary mapping filenames to keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3])
     confidences             : longblob  # Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts)
     formatted_bodyparts     : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
-    average_frame_rate      : float     # Average frame rate of the videos for model training
+    average_frame_rate      : float     # Average frame rate of the videos for model training (used for kappa calculation).
     frame_rates             : longblob  # List of the frame rates of the videos for model training
     """
 
@@ -322,7 +329,7 @@ class PreProcessing(dj.Imported):
         task_mode,
         outlier_scale_factor,
     ):
-        """Compute the outlier keypoints and interpolate them.
+        """Compute the outlier keypoints, interpolate them, and extract video metadata.
 
         Args:
             key (dict): Primary key from the `PCATask` table.
@@ -339,7 +346,8 @@ class PreProcessing(dj.Imported):
             2. Find outliers using medoid distance analysis
             3. Interpolate keypoints to fix outliers
             4. Update confidences for outlier points
-            5. Store results
+            5. Calculate video frame rates and update video durations in KeypointSet.VideoFile table
+            6. Store results
         """
 
         from keypoint_moseq import (
