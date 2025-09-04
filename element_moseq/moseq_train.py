@@ -830,16 +830,12 @@ class PreFit(dj.Computed):
                 model, kappa=float(pre_kappa), latent_dim=int(pre_latent_dim)
             )
 
-            dj_model_name = {
-                "latent_dim": int(pre_latent_dim),
-                "pre_kappa": float(pre_kappa),
-                "pre_num_iterations": int(pre_num_iterations),
-            }
+            model_name_str = f"latent_dim_{int(pre_latent_dim)}_kappa_{float(pre_kappa)}_iters_{int(pre_num_iterations)}"
 
             start_time = datetime.now(timezone.utc)
             model, model_name = fit_model(
                 model=model,
-                model_name=dj_model_name,
+                model_name=model_name_str,
                 data=data,
                 metadata=metadata,
                 project_dir=kpms_project_output_dir.as_posix(),
@@ -1009,16 +1005,12 @@ class FullFit(dj.Computed):
                 model, kappa=float(full_kappa), latent_dim=int(full_latent_dim)
             )
 
-            dj_model_name = {
-                "latent_dim": int(full_latent_dim),
-                "full_kappa": float(full_kappa),
-                "full_num_iterations": int(full_num_iterations),
-            }
+            model_name_str = f"latent_dim_{int(full_latent_dim)}_kappa_{float(full_kappa)}_iters_{int(full_num_iterations)}"
 
             start_time = datetime.now(timezone.utc)
             model, model_name = fit_model(
                 model=model,
-                model_name=dj_model_name,
+                model_name=model_name_str,
                 data=data,
                 metadata=metadata,
                 project_dir=kpms_project_output_dir.as_posix(),
