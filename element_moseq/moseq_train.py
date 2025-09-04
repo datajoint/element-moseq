@@ -945,6 +945,7 @@ class FullFit(dj.Computed):
         10. Calculate the duration of the model fitting computation and insert it in the `FullFit` table.
         """
         from keypoint_moseq import (
+            estimate_sigmasq_loc,
             fit_model,
             format_data,
             init_model,
@@ -969,12 +970,14 @@ class FullFit(dj.Computed):
         )
         if task_mode == "trigger":
             kpms_reader.dj_update_config(
-                kpms_project_output_dir,
+                project_dir=kpms_project_output_dir,
                 latent_dim=int(full_latent_dim),
                 kappa=float(full_kappa),
             )
 
-            kpms_dj_config = kpms_reader.dj_load_config(kpms_project_output_dir)
+            kpms_dj_config = kpms_reader.dj_load_config(
+                project_dir=kpms_project_output_dir
+            )
 
             pca_path = kpms_project_output_dir / "pca.p"
             if pca_path.exists():
@@ -990,6 +993,17 @@ class FullFit(dj.Computed):
             data, metadata = format_data(
                 coordinates=coordinates, confidences=confidences, **kpms_dj_config
             )
+            kpms_reader.dj_update_config(
+                project_dir=kpms_project_output_dir,
+                sigmasq_loc=estimate_sigmasq_loc(
+                    data["Y"], data["mask"], filter_size=int(kpms_dj_config["fps"])
+                ),
+            )
+
+            kpms_dj_config = kpms_reader.dj_load_config(
+                project_dir=kpms_project_output_dir
+            )
+
             model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
             model = update_hypparams(
                 model, kappa=float(full_kappa), latent_dim=int(full_latent_dim)
