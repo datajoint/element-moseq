@@ -3,13 +3,23 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
-## [0.4.0] - 2025-08-26
-+ Fix - Fix generation of `kpms_dj_config.yml` in `kpms_reader` to use `dj_load_config` and `dj_update_config` functions
-+ Fix - Rename `PCAPrep` to `PreProcessing`
+## [0.4.0] - 2025-09-04
 + Feat - Add new attribute `outlier_scale_factor` in `PCATask` table
 + Feat - Add feature to remove outlier keypoints in `PreProcessing` table
-+ Fix - `moseq_train` and `moseq_infer` to use `dj_load_config` and `dj_update_config` functions
 + Feat - Refactor `PreProcessing` table to use 3-part make function
++ Feat - Add new attribute `registered_model_name` and `registered_model_desc` in `SelectedFullFit` table
++ Feat - Add new attribute `group_label` in `VideoFile` table for downstream statistical analysis
++ Feat - Add new attributes  `video_duration` in `VideoFile` table and `average_frame_rate` in `PreProcessing` table
++ Feat - Add new computation for FPS and video duration in `PreProcessing` to calculate `video_duration` and `average_frame_rate`
++ Feat - Add `sigmasq_loc` feature in `PreFit` and `FullFit` to automatically estimate sigmasq_loc (prior controlling the centroid movement across frames)
++ Fix - Fix generation of `kpms_dj_config.yml` in `kpms_reader` to use `dj_load_config` and `dj_update_config` functions
++ Fix - `moseq_train` and `moseq_infer` to use `dj_load_config` and `dj_update_config` functions
++ Fix - Rename `PCAPrep` to `PreProcessing`
++ Fix - Remove JAX dependencies from `pyproject.toml`
++ Fix - Update dockerfile to use Python 3.11
++ Add - Update docstrings
+
+
 
 ## [0.3.2] - 2025-08-25
 + Feat - modernize packaging and environment management migrating from `setup.py` to `pyproject.toml`and `env.yml`
