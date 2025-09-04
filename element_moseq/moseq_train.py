@@ -537,7 +537,13 @@ class PreProcessing(dj.Imported):
 
 @schema
 class PCAFit(dj.Computed):
-    """Fit PCA model.
+    """Fit Principal Component Analysis (PCA) model for dimensionality reduction of keypoint data.
+
+    This table computes the PCA model that reduces the dimensionality of the keypoint data by projecting
+    it onto the principal components that capture the most variance in the pose dynamics. The fitted PCA
+    model is essential for both stages of the Keypoint-MoSeq training pipeline, as it provides the
+    low-dimensional representation of pose trajectories that will be used in the AR-HMM and Keypoint-SLDS
+    model fitting.
 
     Attributes:
         PreProcessing (foreign key)     : `PreProcessing` Key.
