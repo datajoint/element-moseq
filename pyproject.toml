@@ -24,12 +24,7 @@ dependencies = [
     "ipykernel>=6.0.1",
     "ipywidgets",
     "opencv-python",
-    "keypoint-moseq==0.4.8",
-    "dynamax==0.1.4",
-    "jax==0.4.13",
-    "jaxlib==0.4.13",
-    "jaxtyping==0.2.14",
-    "jupyter_bokeh",
+    "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq/",
 ]
 
 [project.optional-dependencies]
