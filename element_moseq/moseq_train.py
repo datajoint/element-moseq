@@ -786,6 +786,7 @@ class PreFit(dj.Computed):
             "model_name",
         )
         if task_mode == "trigger":
+            from keypoint_moseq import estimate_sigmasq_loc
 
             # Update the existing kpms_dj_config.yml with new latent_dim and kappa values
             kpms_reader.dj_update_config(
@@ -810,6 +811,17 @@ class PreFit(dj.Computed):
             )
             data, metadata = format_data(
                 coordinates=coordinates, confidences=confidences, **kpms_dj_config
+            )
+
+            kpms_reader.dj_update_config(
+                kpms_project_output_dir,
+                sigmasq_loc=estimate_sigmasq_loc(
+                    data["Y"], data["mask"], filter_size=int(kpms_dj_config["fps"])
+                ),
+            )
+
+            kpms_dj_config = kpms_reader.dj_load_config(
+                project_dir=kpms_project_output_dir
             )
 
             model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
