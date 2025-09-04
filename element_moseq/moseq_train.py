@@ -868,23 +868,29 @@ class PreFit(dj.Computed):
 
 @schema
 class FullFitTask(dj.Manual):
-    """Insert the parameters for the full (Keypoint-SLDS model) fitting.
-       The full model will generally require a lower value of kappa to yield the same target syllable durations.
+    """Define parameters for Stage 2: Full Keypoint Switching Linear Dynamical System (Keypoint-SLDS) model fitting.
+
+    This table defines the parameters for the second stage of the two-stage Keypoint-MoSeq training approach.
+    The full fitting stage refines the model by incorporating all parameters including spatial pose dynamics,
+    centroid, heading, noise estimates, and continuous latent states. This stage builds upon the initial
+    behavioral structure discovered in the pre-fitting stage to create a complete behavioral model.
+
+    Note: The full model will generally require a lower value of kappa to yield the same target syllable
+    durations compared to the pre-fitting stage, as the additional spatial dynamics provide more information.
 
     Attributes:
         PCAFit (foreign key)                 : `PCAFit` Key.
         full_latent_dim (int)                : Latent dimension to use for the model full fitting.
-        full_kappa (int)                     : Kappa value to use for the model full fitting.
-        full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting.
+        full_kappa (int)                     : Kappa value to use for the model full fitting (typically lower than pre-fit kappa).
+        full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting (typically 200-500).
         full_fit_desc(varchar)               : User-defined description of the model full fitting task.
-
     """
 
     definition = """
     -> PCAFit                                           # `PCAFit` Key
     full_latent_dim              : int                  # Latent dimension to use for the model full fitting
-    full_kappa                   : int                  # Kappa value to use for the model full fitting
-    full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting
+    full_kappa                   : int                  # Kappa value to use for the model full fitting (typically lower than pre-fit kappa).
+    full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting (typically 200-500).
     ---
     model_name                   : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('load','trigger')# Trigger or load the task
