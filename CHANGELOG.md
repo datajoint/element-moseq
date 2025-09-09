@@ -3,23 +3,25 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
-## [0.4.0] - 2025-09-04
+## [0.4.0] - 2025-09-09
+
+> **BREAKING CHANGES** - This version contains breaking changes due to keypoint-moseq upgrade and API refactoring. Please review the changes below and update your code accordingly.
+
++ Feat - **BREAKING**: Upgrade keypoint-moseq from pinned 0.4.8 version to the latest version with breaking changes adding new features that are not compatible with the previous kpms versions.
++ Fix - **BREAKING**: Rename `kpms_reader` functions and add support for both `config.yml` and `config.yaml` file extensions
++ Fix - **BREAKING**: Correct generation of `kpms_dj_config.yml` and refactor `moseq_train` and `moseq_infer` to use the renamed functions.
++ Fix - **BREAKING**: Rename `PCAPrep` to `PreProcessing`
 + Feat - Add new attribute `outlier_scale_factor` in `PCATask` table
-+ Feat - Add feature to remove outlier keypoints in `PreProcessing` table
-+ Feat - Refactor `PreProcessing` table to use 3-part make function
-+ Feat - Add new attribute `registered_model_name` and `registered_model_desc` in `SelectedFullFit` table
-+ Feat - Add new attribute `group_label` in `VideoFile` table for downstream statistical analysis
-+ Feat - Add new attributes  `video_duration` in `VideoFile` table and `average_frame_rate` in `PreProcessing` table
-+ Feat - Add new computation for FPS and video duration in `PreProcessing` to calculate `video_duration` and `average_frame_rate`
-+ Feat - Add `sigmasq_loc` feature in `PreFit` and `FullFit` to automatically estimate sigmasq_loc (prior controlling the centroid movement across frames)
-+ Fix - Fix generation of `kpms_dj_config.yml` in `kpms_reader` to use `dj_load_config` and `dj_update_config` functions
-+ Fix - `moseq_train` and `moseq_infer` to use `dj_load_config` and `dj_update_config` functions
-+ Fix - Rename `PCAPrep` to `PreProcessing`
++ Feat - **BREAKING**: Add feature to remove outlier keypoints in `PreProcessing` table
++ Feat - Refactor `PreProcessing` table to use 3-part make function and add a new  `Video` part table
++ Feat - Add new attributes `video_duration`, `frame_rate` and `average_frame_rate`in `PreProcessing` table and add new `Video` table to store these new computations
++ Feat - **BREAKING**: Add `sigmasq_loc` feature in `PreFit` and `FullFit` to automatically estimate sigmasq_loc (prior controlling the centroid movement across frames)
 + Fix - Remove JAX dependencies from `pyproject.toml`
-+ Fix - Update dockerfile to use Python 3.11
-+ Fix - update folder name to primary attributes instead of datetime in `PreFit` and `FullFit`
++ Fix - Update dockerfile to use Python 3.11 and upgrade dependencies
++ Fix - Update folder name to a string of combined primary attributes instead of datetime in `PreFit` and `FullFit`
 + Fix - Refactor `moseq_infer` paths
 + Add - Update docstrings
++ Add - Update Images
 + Add - Update pre-commit file
 
 ## [0.3.2] - 2025-08-25
