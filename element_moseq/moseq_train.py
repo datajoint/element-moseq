@@ -18,9 +18,7 @@ from element_interface.utils import find_full_path
 from .readers import kpms_reader
 
 schema = dj.schema()
-
 _linking_module = None
-
 logger = dj.logger
 
 
@@ -168,8 +166,6 @@ class KeypointSet(dj.Manual):
         video_id                    : int           # Unique ID for each video corresponding to each keypoint data file, relative to root data directory
         ---
         video_path                  : varchar(1000) # Filepath of each video from which the keypoints are derived, relative to root data directory
-        group_label=''              : varchar(100)  # Assign a group label (such as “mutant” or “wildtype”) to each recording. Relevant for performing group-wise comparisons.
-        video_duration=0            : int           # Duration of each video in minutes (if not provided, it will be automatically calculated in `PreProcessing`).
         """
 
 
@@ -226,7 +222,7 @@ class PCATask(dj.Manual):
 
 
 @schema
-class PreProcessing(dj.Imported):
+class PreProcessing(dj.Computed):
     """
     Preprocess keypoint data by cleaning outliers and setting up the Keypoint-MoSeq project configuration.
 
@@ -253,8 +249,16 @@ class PreProcessing(dj.Imported):
     confidences             : longblob  # Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts)
     formatted_bodyparts     : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
     average_frame_rate      : float     # Average frame rate of the videos for model training (used for kappa calculation).
-    frame_rates             : longblob  # List of the frame rates of the videos for model training
     """
+
+    class Video(dj.Part):
+        definition = """
+        -> master
+        video_name: varchar(255)
+        ---
+        video_duration=0            : int           # Duration of each video in minutes (if not provided, it will be automatically calculated in `PreProcessing`).
+        frame_rate=0                : float         # Frame rate of the video.
+        """
 
     def make_fetch(self, key):
         """
@@ -376,14 +380,14 @@ class PreProcessing(dj.Imported):
             )
 
             if pose_estimation_method == "deeplabcut":
-                cfg = kpset_dir / "config.yaml"
-                if not cfg.exists():
-                    cfg = kpset_dir / "config.yml"
-                if not cfg.exists():
+                from .readers.kpms_reader import _base_config_path
+
+                cfg_path = _base_config_path(kpset_dir)
+                if not os.path.exists(cfg_path):
                     raise FileNotFoundError(
                         f"No DLC config.(yml|yaml) found in {kpset_dir}"
                     )
-                # base `config.yml` is created with task_mode='trigger'
+                cfg = Path(cfg_path)
                 setup_project(
                     project_dir=kpms_project_output_dir.as_posix(),
                     deeplabcut_config=cfg.as_posix(),
@@ -407,9 +411,9 @@ class PreProcessing(dj.Imported):
             filepath_pattern=kpset_dir, format=pose_estimation_method
         )
 
-        # compute FPS and video duration
         frame_rate_list = []
         video_duration_list = []
+        video_metadata_list = []
         for fp, video_id in zip(video_paths, video_ids):
             video_path = (find_full_path(get_kpms_root_data_dir(), fp)).as_posix()
             cap = cv2.VideoCapture(video_path)
@@ -423,6 +427,24 @@ class PreProcessing(dj.Imported):
             frame_rate_list.append(fps)
             video_duration_list.append((video_id, int(duration_minutes)))
 
+            # Get video name for the Video part table
+            video_key = {"kpset_id": key["kpset_id"], "video_id": video_id}
+            if KeypointSet.VideoFile & video_key:
+                video_record = (KeypointSet.VideoFile & video_key).fetch1()
+                video_name = Path(
+                    video_record["video_path"]
+                ).stem  # Get filename without extension
+                video_metadata_list.append(
+                    {
+                        "video_id": video_id,
+                        "video_name": video_name,
+                        "video_duration": int(duration_minutes),
+                        "frame_rate": fps,
+                    }
+                )
+            else:
+                logger.warning(f"Video record not found for video_id {video_id}")
+
         average_frame_rate = float(np.mean(frame_rate_list))
 
         # Generate a copy of config.yml with the generated/updated info after it is known
@@ -434,13 +456,13 @@ class PreProcessing(dj.Imported):
             posterior_bodyparts=list(posterior_bodyparts),
             outlier_scale_factor=float(outlier_scale_factor),
         )
-        kpms_reader.dj_update_config(
+        kpms_reader.update_kpms_dj_config(
             kpms_project_output_dir,
             fps=average_frame_rate,
         )
 
         # Remove outlier keypoints
-        kpms_config = kpms_reader.dj_load_config(kpms_project_output_dir)
+        kpms_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
         cleaned_coordinates = {}
         cleaned_confidences = {}
 
@@ -486,6 +508,7 @@ class PreProcessing(dj.Imported):
             average_frame_rate,
             frame_rate_list,
             video_duration_list,
+            video_metadata_list,
         )
 
     def make_insert(
@@ -497,6 +520,7 @@ class PreProcessing(dj.Imported):
         average_frame_rate,
         frame_rate_list,
         video_duration_list,
+        video_metadata_list,
     ):
         # Insert the main preprocessing results
         self.insert1(
@@ -506,33 +530,19 @@ class PreProcessing(dj.Imported):
                 confidences=cleaned_confidences,
                 formatted_bodyparts=formatted_bodyparts,
                 average_frame_rate=average_frame_rate,
-                frame_rates=frame_rate_list,
             )
         )
 
-        # Update video durations in KeypointSet.VideoFile table
-        for video_id, duration_minutes in video_duration_list:
-            try:
-                # Check if the video record exists
-                video_key = {"kpset_id": key["kpset_id"], "video_id": video_id}
-                if KeypointSet.VideoFile & video_key:
-                    # For Manual tables, we need to get the existing record and update it
-                    existing_record = (KeypointSet.VideoFile & video_key).fetch1()
-
-                    # Create updated record with new video_duration
-                    updated_record = dict(existing_record)
-                    updated_record["video_duration"] = duration_minutes
-
-                    # Delete the old record and insert the updated one
-                    KeypointSet.VideoFile.update1(updated_record)
-                else:
-                    logger.warning(f"Video record not found for video_id {video_id}")
-
-            except Exception as e:
-                logger.warning(
-                    f"Warning: Could not update video duration for video_id {video_id}: {e}"
+        # Insert video metadata into the Video part table
+        for video_metadata in video_metadata_list:
+            self.Video.insert1(
+                dict(
+                    **key,
+                    video_name=video_metadata["video_name"],
+                    video_duration=video_metadata["video_duration"],
+                    frame_rate=video_metadata["frame_rate"],
                 )
-                # Continue processing even if update fails
+            )
 
 
 @schema
@@ -581,7 +591,7 @@ class PCAFit(dj.Computed):
             Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
         )
 
-        kpms_default_config = kpms_reader.dj_load_config(kpms_project_output_dir)
+        kpms_default_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
         coordinates, confidences = (PreProcessing & key).fetch1(
             "coordinates", "confidences"
         )
@@ -789,14 +799,14 @@ class PreFit(dj.Computed):
             from keypoint_moseq import estimate_sigmasq_loc
 
             # Update the existing kpms_dj_config.yml with new latent_dim and kappa values
-            kpms_reader.dj_update_config(
+            kpms_reader.update_kpms_dj_config(
                 kpms_project_output_dir,
                 latent_dim=int(pre_latent_dim),
                 kappa=float(pre_kappa),
             )
 
             # Load the updated config for use in model fitting
-            kpms_dj_config = kpms_reader.dj_load_config(kpms_project_output_dir)
+            kpms_dj_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
 
             pca_path = kpms_project_output_dir / "pca.p"
             if pca_path.exists():
@@ -813,14 +823,14 @@ class PreFit(dj.Computed):
                 coordinates=coordinates, confidences=confidences, **kpms_dj_config
             )
 
-            kpms_reader.dj_update_config(
+            kpms_reader.update_kpms_dj_config(
                 kpms_project_output_dir,
                 sigmasq_loc=estimate_sigmasq_loc(
                     data["Y"], data["mask"], filter_size=int(kpms_dj_config["fps"])
                 ),
             )
 
-            kpms_dj_config = kpms_reader.dj_load_config(
+            kpms_dj_config = kpms_reader.load_kpms_dj_config(
                 project_dir=kpms_project_output_dir
             )
 
@@ -965,13 +975,13 @@ class FullFit(dj.Computed):
             "model_name",
         )
         if task_mode == "trigger":
-            kpms_reader.dj_update_config(
+            kpms_reader.update_kpms_dj_config(
                 project_dir=kpms_project_output_dir,
                 latent_dim=int(full_latent_dim),
                 kappa=float(full_kappa),
             )
 
-            kpms_dj_config = kpms_reader.dj_load_config(
+            kpms_dj_config = kpms_reader.load_kpms_dj_config(
                 project_dir=kpms_project_output_dir
             )
 
@@ -989,14 +999,14 @@ class FullFit(dj.Computed):
             data, metadata = format_data(
                 coordinates=coordinates, confidences=confidences, **kpms_dj_config
             )
-            kpms_reader.dj_update_config(
+            kpms_reader.update_kpms_dj_config(
                 project_dir=kpms_project_output_dir,
                 sigmasq_loc=estimate_sigmasq_loc(
                     data["Y"], data["mask"], filter_size=int(kpms_dj_config["fps"])
                 ),
             )
 
-            kpms_dj_config = kpms_reader.dj_load_config(
+            kpms_dj_config = kpms_reader.load_kpms_dj_config(
                 project_dir=kpms_project_output_dir
             )
 
