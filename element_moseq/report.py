@@ -152,7 +152,9 @@ class PCAReport(dj.Computed):
         kpms_project_output_dir = (
             moseq_train.get_kpms_processed_data_dir() / kpms_project_output_dir
         )
-        kpms_dj_config = kpms_reader.dj_load_config(project_dir=kpms_project_output_dir)
+        kpms_dj_config = kpms_reader.load_kpms_dj_config(
+            project_dir=kpms_project_output_dir
+        )
 
         pca = load_pca(kpms_project_output_dir.as_posix())
 
