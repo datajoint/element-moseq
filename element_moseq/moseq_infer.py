@@ -5,7 +5,6 @@ DataJoint Schema for Keypoint-MoSeq inference pipeline
 
 import importlib
 import inspect
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -163,6 +162,7 @@ class Inference(dj.Computed):
     definition = """
     -> InferenceTask                        # `InferenceTask` key
     ---
+    file_h5                        : attach # File path of the results.h5 file
     inference_duration=NULL        : float  # Time duration (seconds) of the inference computation
     """
 
@@ -185,6 +185,7 @@ class Inference(dj.Computed):
         latent_state    : longblob        # Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model
         centroid        : longblob        # Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model
         heading         : longblob        # Inferred heading (h). The heading of the animal in each frame, as estimated by the model
+        file_csv        : attach          # File path of the results.csv file
         """
 
     class GridMoviesSampledInstances(dj.Part):
@@ -267,7 +268,7 @@ class Inference(dj.Computed):
         )
         keypointset_dir = find_full_path(kpms_root, keypointset_dir)
 
-        inference_output_dir = Path(os.path.join(model_dir, inference_output_dir))
+        inference_output_dir = Path(model_dir) / inference_output_dir
 
         if not inference_output_dir.exists():
             inference_output_dir.mkdir(parents=True, exist_ok=True)
@@ -300,7 +301,7 @@ class Inference(dj.Computed):
         support for another format method, please reach out to us at `support@datajoint.com`."
             )
 
-        kpms_dj_config = kpms_reader.dj_load_config(model_dir.parent)
+        kpms_dj_config = kpms_reader.load_kpms_dj_config(model_dir.parent)
 
         if kpms_dj_config:
             data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
@@ -401,7 +402,13 @@ class Inference(dj.Computed):
 
             duration_seconds = None
 
-        self.insert1({**key, "inference_duration": duration_seconds})
+        self.insert1(
+            {
+                **key,
+                "inference_duration": duration_seconds,
+                "file_h5": (inference_output_dir / "results.h5").as_posix(),
+            }
+        )
 
         for result_idx, result in results.items():
             self.MotionSequence.insert1(
@@ -412,6 +419,9 @@ class Inference(dj.Computed):
                     "latent_state": result["latent_state"],
                     "centroid": result["centroid"],
                     "heading": result["heading"],
+                    "file_csv": (
+                        inference_output_dir / "results_as_csv" / f"{result_idx}.csv"
+                    ).as_posix(),
                 }
             )
 
