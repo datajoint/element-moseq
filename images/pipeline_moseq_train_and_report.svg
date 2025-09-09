@@ -1,0 +1,275 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="903pt" height="593pt" viewBox="0.00 0.00 902.62 593.00">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 589)">
+<polygon fill="white" stroke="transparent" points="-4,4 -4,-589 898.62,-589 898.62,4 -4,4"/>
+<!-- moseq_train.KeypointSet -->
+<g id="node1" class="node">
+<title>moseq_train.KeypointSet</title>
+<g id="a_node1"><a xlink:title="kpset_id             ------------------------------→ moseq_train.PoseEstimationMethodkpset_dir            kpset_desc=&quot;&quot;        ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="577,-514 426,-514 426,-479 577,-479 577,-514"/>
+<text text-anchor="start" x="434" y="-494.4" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">moseq_train.KeypointSet</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.KeypointSet.VideoFile -->
+<g id="node8" class="node">
+<title>moseq_train.KeypointSet.VideoFile</title>
+<g id="a_node8"><a xlink:title="→ moseq_train.KeypointSetvideo_id             ------------------------------video_path           ">
+<polygon fill="transparent" stroke="transparent" points="500.5,-435 330.5,-435 330.5,-416 500.5,-416 500.5,-435"/>
+<text text-anchor="start" x="338.5" y="-424" font-family="arial" text-decoration="underline" font-size="10.00">moseq_train.KeypointSet.VideoFile</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.KeypointSet&#45;&gt;moseq_train.KeypointSet.VideoFile -->
+<g id="edge1" class="edge">
+<title>moseq_train.KeypointSet-&gt;moseq_train.KeypointSet.VideoFile</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M480.68,-478.8C463.58,-465.08 440.04,-446.19 426.42,-435.27"/>
+</g>
+<!-- moseq_train.Bodyparts -->
+<g id="node9" class="node">
+<title>moseq_train.Bodyparts</title>
+<g id="a_node9"><a xlink:title="→ moseq_train.KeypointSetbodyparts_id         ------------------------------anterior_bodyparts   posterior_bodyparts  use_bodyparts        bodyparts_desc=&quot;&quot;    ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="658.5,-443 518.5,-443 518.5,-408 658.5,-408 658.5,-443"/>
+<text text-anchor="start" x="526.5" y="-423.4" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">moseq_train.Bodyparts</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.KeypointSet&#45;&gt;moseq_train.Bodyparts -->
+<g id="edge2" class="edge">
+<title>moseq_train.KeypointSet-&gt;moseq_train.Bodyparts</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M522.56,-478.8C536.24,-467.95 553.99,-453.87 567.63,-443.05"/>
+</g>
+<!-- moseq_train.PCATask -->
+<g id="node2" class="node">
+<title>moseq_train.PCATask</title>
+<g id="a_node2"><a xlink:title="→ moseq_train.Bodyparts------------------------------outlier_scale_factor=6 kpms_project_output_dir=&quot;&quot; task_mode=&quot;load&quot;     ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="655.5,-372 521.5,-372 521.5,-337 655.5,-337 655.5,-372"/>
+<text text-anchor="middle" x="588.5" y="-351.4" font-family="arial" font-size="12.00" fill="darkgreen">moseq_train.PCATask</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.PreProcessing -->
+<g id="node19" class="node">
+<title>moseq_train.PreProcessing</title>
+<g id="a_node19"><a xlink:title="→ moseq_train.PCATask------------------------------coordinates          confidences          formatted_bodyparts  average_frame_rate   ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="588.5" cy="-288" rx="13" ry="13"/>
+<text text-anchor="middle" x="588.5" y="-284.9" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">moseq_train.PreProcessing</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.PCATask&#45;&gt;moseq_train.PreProcessing -->
+<g id="edge3" class="edge">
+<title>moseq_train.PCATask-&gt;moseq_train.PreProcessing</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M588.5,-336.89C588.5,-325.69 588.5,-311.17 588.5,-301.07"/>
+</g>
+<!-- moseq_train.SelectedFullFit -->
+<g id="node3" class="node">
+<title>moseq_train.SelectedFullFit</title>
+<g id="a_node3"><a xlink:title="→ moseq_train.FullFit------------------------------registered_model_name registered_model_desc=&quot;&quot; ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="167,-35 0,-35 0,0 167,0 167,-35"/>
+<text text-anchor="middle" x="83.5" y="-14.4" font-family="arial" font-size="12.00" fill="darkgreen">moseq_train.SelectedFullFit</text>
+</a>
+</g>
+</g>
+<!-- report.PCAReport -->
+<g id="node4" class="node">
+<title>report.PCAReport</title>
+<g id="a_node4"><a xlink:title="→ moseq_train.LatentDimension------------------------------scree_plot           pcs_plot             ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="625.5" cy="-84" rx="13" ry="13"/>
+<text text-anchor="middle" x="625.5" y="-80.9" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">report.PCAReport</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.FullFit -->
+<g id="node5" class="node">
+<title>moseq_train.FullFit</title>
+<g id="a_node5"><a xlink:title="→ moseq_train.FullFitTask------------------------------model_name=&quot;&quot;        full_fit_duration=null ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="260.5" cy="-84" rx="13" ry="13"/>
+<text text-anchor="middle" x="260.5" y="-80.9" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">moseq_train.FullFit</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.FullFit&#45;&gt;moseq_train.SelectedFullFit -->
+<g id="edge4" class="edge">
+<title>moseq_train.FullFit-&gt;moseq_train.SelectedFullFit</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M248.61,-78.67C224.58,-69.91 169.12,-49.7 129.1,-35.12"/>
+</g>
+<!-- report.FullFitReport -->
+<g id="node18" class="node">
+<title>report.FullFitReport</title>
+<g id="a_node18"><a xlink:title="→ moseq_train.FullFit------------------------------fitting_progress_pdf ">
+<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="260.5" cy="-17.5" rx="75" ry="17.5"/>
+<text text-anchor="middle" x="260.5" y="-14.4" font-family="arial" font-size="12.00" fill="#00007f" fill-opacity="0.627451">report.FullFitReport</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.FullFit&#45;&gt;report.FullFitReport -->
+<g id="edge5" class="edge">
+<title>moseq_train.FullFit-&gt;report.FullFitReport</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M260.5,-70.87C260.5,-60.8 260.5,-46.37 260.5,-35.2"/>
+</g>
+<!-- moseq_train.FullFitTask -->
+<g id="node6" class="node">
+<title>moseq_train.FullFitTask</title>
+<g id="a_node6"><a xlink:title="→ moseq_train.PCAFitfull_latent_dim      full_kappa           full_num_iterations  ------------------------------model_name=&quot;&quot;        task_mode=&quot;load&quot;     full_fit_desc=&quot;&quot;     ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="334.5,-168 190.5,-168 190.5,-133 334.5,-133 334.5,-168"/>
+<text text-anchor="start" x="198.5" y="-148.4" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">moseq_train.FullFitTask</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.FullFitTask&#45;&gt;moseq_train.FullFit -->
+<g id="edge6" class="edge">
+<title>moseq_train.FullFitTask-&gt;moseq_train.FullFit</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M261.98,-132.89C261.64,-121.69 261.19,-107.17 260.87,-97.07"/>
+</g>
+<!-- moseq_train.PreFitTask -->
+<g id="node7" class="node">
+<title>moseq_train.PreFitTask</title>
+<g id="a_node7"><a xlink:title="→ moseq_train.PCAFitpre_latent_dim       pre_kappa            pre_num_iterations   ------------------------------model_name=&quot;&quot;        task_mode=&quot;load&quot;     pre_fit_desc=&quot;&quot;      ">
+<polygon fill="#00ff00" fill-opacity="0.188235" stroke="#00ff00" stroke-opacity="0.188235" points="497,-168 354,-168 354,-133 497,-133 497,-168"/>
+<text text-anchor="start" x="362" y="-148.4" font-family="arial" text-decoration="underline" font-size="12.00" fill="darkgreen">moseq_train.PreFitTask</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.PreFit -->
+<g id="node20" class="node">
+<title>moseq_train.PreFit</title>
+<g id="a_node20"><a xlink:title="→ moseq_train.PreFitTask------------------------------model_name=&quot;&quot;        pre_fit_duration=null ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="426.5" cy="-84" rx="13" ry="13"/>
+<text text-anchor="middle" x="426.5" y="-80.9" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">moseq_train.PreFit</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.PreFitTask&#45;&gt;moseq_train.PreFit -->
+<g id="edge7" class="edge">
+<title>moseq_train.PreFitTask-&gt;moseq_train.PreFit</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M425.76,-132.89C425.93,-121.69 426.16,-107.17 426.31,-97.07"/>
+</g>
+<!-- moseq_train.Bodyparts&#45;&gt;moseq_train.PCATask -->
+<g id="edge8" class="edge">
+<title>moseq_train.Bodyparts-&gt;moseq_train.PCATask</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M588.5,-407.8C588.5,-396.95 588.5,-382.87 588.5,-372.05"/>
+</g>
+<!-- moseq_train.LatentDimension -->
+<g id="node10" class="node">
+<title>moseq_train.LatentDimension</title>
+<g id="a_node10"><a xlink:title="→ moseq_train.PCAFit------------------------------variance_percentage  latent_dimension     latent_dim_desc      ">
+<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="625.5" cy="-150.5" rx="110" ry="17.5"/>
+<text text-anchor="middle" x="625.5" y="-147.4" font-family="arial" font-size="12.00" fill="#00007f" fill-opacity="0.627451">moseq_train.LatentDimension</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.LatentDimension&#45;&gt;report.PCAReport -->
+<g id="edge9" class="edge">
+<title>moseq_train.LatentDimension-&gt;report.PCAReport</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M625.5,-132.89C625.5,-121.69 625.5,-107.17 625.5,-97.07"/>
+</g>
+<!-- report.InferenceReport.Trajectory -->
+<g id="node11" class="node">
+<title>report.InferenceReport.Trajectory</title>
+<g id="a_node11"><a xlink:title="→ report.InferenceReportsyllable_id          ------------------------------plot_gif             plot_pdf             grid_movie           ">
+<polygon fill="transparent" stroke="transparent" points="772,-506 611,-506 611,-487 772,-487 772,-506"/>
+<text text-anchor="start" x="619" y="-495" font-family="arial" text-decoration="underline" font-size="10.00">report.InferenceReport.Trajectory</text>
+</a>
+</g>
+</g>
+<!-- report.InferenceReport -->
+<g id="node12" class="node">
+<title>report.InferenceReport</title>
+<g id="a_node12"><a xlink:title="→ moseq_infer.Inference------------------------------syllable_frequencies similarity_dendrogram_png similarity_dendrogram_pdf all_trajectories_gif all_trajectories_pdf ">
+<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="691.5" cy="-567.5" rx="85" ry="17.5"/>
+<text text-anchor="middle" x="691.5" y="-564.4" font-family="arial" font-size="12.00" fill="#00007f" fill-opacity="0.627451">report.InferenceReport</text>
+</a>
+</g>
+</g>
+<!-- report.InferenceReport&#45;&gt;report.InferenceReport.Trajectory -->
+<g id="edge10" class="edge">
+<title>report.InferenceReport-&gt;report.InferenceReport.Trajectory</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M691.5,-549.8C691.5,-536.08 691.5,-517.19 691.5,-506.27"/>
+</g>
+<!-- moseq_train.PCAFit -->
+<g id="node13" class="node">
+<title>moseq_train.PCAFit</title>
+<g id="a_node13"><a xlink:title="→ moseq_train.PreProcessing------------------------------pca_fit_time=null    ">
+<ellipse fill="#ff0000" fill-opacity="0.125490" stroke="#ff0000" stroke-opacity="0.125490" cx="425.5" cy="-221.5" rx="13" ry="13"/>
+<text text-anchor="middle" x="425.5" y="-218.4" font-family="arial" font-size="12.00" fill="#7f0000" fill-opacity="0.627451">moseq_train.PCAFit</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.PCAFit&#45;&gt;moseq_train.FullFitTask -->
+<g id="edge11" class="edge">
+<title>moseq_train.PCAFit-&gt;moseq_train.FullFitTask</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M413.78,-215.54C390.64,-205.74 338.16,-183.53 301.55,-168.03"/>
+</g>
+<!-- moseq_train.PCAFit&#45;&gt;moseq_train.PreFitTask -->
+<g id="edge12" class="edge">
+<title>moseq_train.PCAFit-&gt;moseq_train.PreFitTask</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M425.5,-208.48C425.5,-197.28 425.5,-180.49 425.5,-168.03"/>
+</g>
+<!-- moseq_train.PCAFit&#45;&gt;moseq_train.LatentDimension -->
+<g id="edge13" class="edge">
+<title>moseq_train.PCAFit-&gt;moseq_train.LatentDimension</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M437.71,-216.29C465.7,-206.63 535.62,-182.51 581.79,-166.58"/>
+</g>
+<!-- moseq_train.PreProcessing.Video -->
+<g id="node14" class="node">
+<title>moseq_train.PreProcessing.Video</title>
+<g id="a_node14"><a xlink:title="→ moseq_train.PreProcessingvideo_name           ------------------------------video_duration=0     frame_rate=0         ">
+<polygon fill="transparent" stroke="transparent" points="670.5,-231 506.5,-231 506.5,-212 670.5,-212 670.5,-231"/>
+<text text-anchor="start" x="514.5" y="-220" font-family="arial" text-decoration="underline" font-size="10.00">moseq_train.PreProcessing.Video</text>
+</a>
+</g>
+</g>
+<!-- report.PreFitReport -->
+<g id="node15" class="node">
+<title>report.PreFitReport</title>
+<g id="a_node15"><a xlink:title="→ moseq_train.PreFit------------------------------fitting_progress_pdf ">
+<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="427.5" cy="-17.5" rx="74.25" ry="17.5"/>
+<text text-anchor="middle" x="427.5" y="-14.4" font-family="arial" font-size="12.00" fill="#00007f" fill-opacity="0.627451">report.PreFitReport</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.PoseEstimationMethod -->
+<g id="node16" class="node">
+<title>moseq_train.PoseEstimationMethod</title>
+<g id="a_node16"><a xlink:title="pose_estimation_method ------------------------------pose_estimation_desc ">
+<polygon fill="#000000" fill-opacity="0.125490" stroke="transparent" points="588.5,-585 414.5,-585 414.5,-550 588.5,-550 588.5,-585"/>
+<text text-anchor="start" x="422.5" y="-566" font-family="arial" text-decoration="underline" font-size="10.00">moseq_train.PoseEstimationMethod</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.PoseEstimationMethod&#45;&gt;moseq_train.KeypointSet -->
+<g id="edge14" class="edge">
+<title>moseq_train.PoseEstimationMethod-&gt;moseq_train.KeypointSet</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-dasharray="5,2" stroke-opacity="0.250980" d="M501.5,-549.8C501.5,-538.95 501.5,-524.87 501.5,-514.05"/>
+</g>
+<!-- report.PreProcessingReport -->
+<g id="node17" class="node">
+<title>report.PreProcessingReport</title>
+<g id="a_node17"><a xlink:title="→ moseq_train.PreProcessingvideo_id             ------------------------------recording_name       outlier_plot         ">
+<ellipse fill="#00007f" fill-opacity="0.250980" stroke="#00007f" stroke-opacity="0.250980" cx="791.5" cy="-221.5" rx="103.25" ry="17.5"/>
+<text text-anchor="start" x="717" y="-219.4" font-family="arial" text-decoration="underline" font-size="12.00" fill="#00007f" fill-opacity="0.627451">report.PreProcessingReport</text>
+</a>
+</g>
+</g>
+<!-- moseq_train.PreProcessing&#45;&gt;moseq_train.PCAFit -->
+<g id="edge15" class="edge">
+<title>moseq_train.PreProcessing-&gt;moseq_train.PCAFit</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M576.78,-282.36C546.85,-270.52 467.85,-239.26 437.56,-227.27"/>
+</g>
+<!-- moseq_train.PreProcessing&#45;&gt;moseq_train.PreProcessing.Video -->
+<g id="edge16" class="edge">
+<title>moseq_train.PreProcessing-&gt;moseq_train.PreProcessing.Video</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M588.5,-274.87C588.5,-262.17 588.5,-242.54 588.5,-231.27"/>
+</g>
+<!-- moseq_train.PreProcessing&#45;&gt;report.PreProcessingReport -->
+<g id="edge17" class="edge">
+<title>moseq_train.PreProcessing-&gt;report.PreProcessingReport</title>
+<path fill="none" stroke="#000000" stroke-width="0.75" stroke-opacity="0.250980" d="M600.59,-283.16C628.42,-274.32 698.2,-252.14 745.24,-237.2"/>
+</g>
+<!-- moseq_train.PreFit&#45;&gt;report.PreFitReport -->
+<g id="edge18" class="edge">
+<title>moseq_train.PreFit-&gt;report.PreFitReport</title>
+<path fill="none" stroke="#000000" stroke-width="2" stroke-opacity="0.250980" d="M426.69,-70.87C426.84,-60.8 427.07,-46.37 427.24,-35.2"/>
+</g>
+</g>
+</svg>
