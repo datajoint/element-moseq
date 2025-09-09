@@ -83,7 +83,7 @@ class Model(dj.Manual):
     definition = """
     model_id                : int          # Unique ID for each model
     ---
-    model_name              : varchar(64)  # User-friendly model name
+    model_name              : varchar(1000)  # User-friendly model name
     model_dir               : varchar(1000)# Model directory relative to root data directory
     model_desc=''           : varchar(1000)# Optional. User-defined description of the model
     -> [nullable] moseq_train.SelectedFullFit

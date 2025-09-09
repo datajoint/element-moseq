@@ -722,7 +722,7 @@ class PreFitTask(dj.Manual):
     pre_kappa                    : int                  # Kappa value to use for the model pre-fitting (controls syllable duration).
     pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting (typically 10-50).
     ---
-    model_name=''                : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
+    model_name=''                : varchar(1000)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('load','trigger')# 'load': load computed analysis results, 'trigger': trigger computation
     pre_fit_desc=''              : varchar(1000)        # User-defined description of the pre-fitting task
     """
@@ -740,14 +740,14 @@ class PreFit(dj.Computed):
 
     Attributes:
         PreFitTask (foreign key)                : `PreFitTask` Key.
-        model_name (varchar)                    : Name of the model as "kpms_project_output_dir/model_name".
+        model_name (varchar)                    : Name of the model as "model_name".
         pre_fit_duration (float)                : Time duration (seconds) of the model fitting computation.
     """
 
     definition = """
     -> PreFitTask                               # `PreFitTask` Key
     ---
-    model_name=''                : varchar(100) # Name of the model as "kpms_project_output_dir/model_name"
+    model_name=''                : varchar(1000) # Name of the model as "kpms_project_output_dir/model_name"
     pre_fit_duration=NULL        : float        # Time duration (seconds) of the model fitting computation
     """
 
@@ -898,7 +898,7 @@ class FullFitTask(dj.Manual):
     full_kappa                   : int                  # Kappa value to use for the model full fitting (typically lower than pre-fit kappa).
     full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting (typically 200-500).
     ---
-    model_name=''                : varchar(100)         # Name of the model to be loaded if `task_mode='load'`
+    model_name=''                : varchar(1000)         # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('load','trigger')# Trigger or load the task
     full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task
     """
@@ -923,7 +923,7 @@ class FullFit(dj.Computed):
     definition = """
     -> FullFitTask                               # `FullFitTask` Key
     ---
-    model_name=''                 : varchar(100) # Name of the model as "kpms_project_output_dir/model_name"
+    model_name=''                 : varchar(1000) # Name of the model as "kpms_project_output_dir/model_name"
     full_fit_duration=NULL        : float        # Time duration (seconds) of the full fitting computation
     """
 
@@ -1064,6 +1064,6 @@ class SelectedFullFit(dj.Manual):
     definition = """
     -> FullFit
     ---
-    registered_model_name         : varchar(64)   # User-friendly model name
+    registered_model_name         : varchar(1000)   # User-friendly model name
     registered_model_desc=''      : varchar(1000) # Optional user-defined description
     """
