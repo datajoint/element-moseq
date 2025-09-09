@@ -18,10 +18,21 @@ def _dj_config_path(project_dir: Union[str, os.PathLike]) -> str:
 
 
 def _base_config_path(project_dir: Union[str, os.PathLike]) -> str:
-    return str(Path(project_dir) / BASE_CONFIG)
+    """Return the path to the base config file, checking for both .yml and .yaml extensions."""
+    project_path = Path(project_dir)
+    # Check for config.yml first (preferred)
+    config_yml = project_path / "config.yml"
+    if config_yml.exists():
+        return str(config_yml)
+    # Fall back to config.yaml
+    config_yaml = project_path / "config.yaml"
+    if config_yaml.exists():
+        return str(config_yaml)
+    # If neither exists, return the default (config.yml)
+    return str(config_yml)
 
 
-def _check_config_validity_like_upstream(config: Dict[str, Any]) -> bool:
+def _check_config_validity(config: Dict[str, Any]) -> bool:
     """
     Minimal mirror of keypoint_moseq.io.check_config_validity logic that matters
     for anatomy consistency (anterior/posterior must be subset of use_bodyparts).
@@ -67,7 +78,8 @@ def dj_generate_config(project_dir: str, **kwargs) -> str:
     else:
         if not os.path.exists(base_cfg_path):
             raise FileNotFoundError(
-                f"Missing base config at {base_cfg_path}. Run upstream setup_project first."
+                f"Missing base config at {base_cfg_path}. Run upstream setup_project first. "
+                f"Expected either config.yml or config.yaml in {project_dir}."
             )
         with open(base_cfg_path, "r") as f:
             cfg = yaml.safe_load(f) or {}
@@ -85,7 +97,7 @@ def dj_generate_config(project_dir: str, **kwargs) -> str:
     return dj_cfg_path
 
 
-def dj_load_config(
+def load_kpms_dj_config(
     project_dir: str, check_if_valid: bool = True, build_indexes: bool = True
 ) -> Dict[str, Any]:
     """
@@ -106,7 +118,7 @@ def dj_load_config(
         cfg = yaml.safe_load(f) or {}
 
     if check_if_valid:
-        _check_config_validity_like_upstream(
+        _check_config_validity(
             cfg
         )  # readthedocs source mirrors this logic. :contentReference[oaicite:0]{index=0}
 
@@ -125,7 +137,7 @@ def dj_load_config(
     return cfg
 
 
-def dj_update_config(project_dir: str, **kwargs) -> Dict[str, Any]:
+def update_kpms_dj_config(project_dir: str, **kwargs) -> Dict[str, Any]:
     """
     Update `kpms_dj_config.yml` with provided top-level kwargs (same pattern as
     keypoint_moseq.io.update_config), then rewrite the file and return the dict.
