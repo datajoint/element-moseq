@@ -68,25 +68,23 @@ def activate(
 
 @schema
 class Model(dj.Manual):
-    """Register a model.
+    """Register a trained model.
 
     Attributes:
         model_id (int)                      : Unique ID for each model.
         model_name (varchar)                : User-friendly model name.
-        model_dir (varchar)                 : Model directory relative to root data directory (e.g. `kpms_project_output_dir/2024_03_21-00_51_39`)
-        latent_dim (int)                    : Latent dimension of the model.
-        kappa (float)                       : Kappa value of the model.
-        model_desc (varchar)                : Optional. User-defined description of the model
+        model_dir (varchar)                 : Model directory relative to root data directory.
+        model_desc (varchar)                : Optional. User-defined description of the model.
 
     """
 
     definition = """
-    model_id                : int          # Unique ID for each model
+    model_id                : int             # Unique ID for each model
     ---
-    model_name              : varchar(1000)  # User-friendly model name
-    model_dir               : varchar(1000)# Model directory relative to root data directory
-    model_desc=''           : varchar(1000)# Optional. User-defined description of the model
-    -> [nullable] moseq_train.SelectedFullFit
+    model_name              : varchar(1000)   # User-friendly model name
+    model_dir               : varchar(1000)   # Model directory relative to root data directory
+    model_desc=''           : varchar(1000)   # Optional. User-defined description of the model
+    -> [nullable] moseq_train.SelectedFullFit # Optional. FullFit key.
     """
 
 
@@ -135,6 +133,7 @@ class InferenceTask(dj.Manual):
         inference_output_dir (varchar)       : Optional. Sub-directory where the results will be stored.
         inference_desc (varchar)             : Optional. User-defined description of the inference task.
         num_iterations (int)                 : Optional. Number of iterations to use for the model inference. If null, the default number internally is 50.
+        task_mode (enum)                     : 'load': load computed analysis results, 'trigger': trigger computation
     """
 
     definition = """
@@ -152,10 +151,11 @@ class InferenceTask(dj.Manual):
 
 @schema
 class Inference(dj.Computed):
-    """Infer the model from the checkpoint file and save the results as `results.h5` file.
+    """Infer the model from the checkpoint file and generate the results files.
 
     Attributes:
         InferenceTask (foreign_key)         : `InferenceTask` key.
+        file_h5 (attach)                    : File path of the results.h5 file.
         inference_duration (float)          : Time duration (seconds) of the inference computation.
     """
 
@@ -170,11 +170,13 @@ class Inference(dj.Computed):
         """Store the results of the model inference.
 
         Attributes:
+            InferenceTask (foreign key)         : `InferenceTask` key.
             video_name (varchar)                : Name of the video.
             syllable (longblob)                 : Syllable labels (z). The syllable label assigned to each frame (i.e. the state indexes assigned by the model).
             latent_state (longblob)             : Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model.
             centroid (longblob)                 : Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model.
             heading (longblob)                  : Inferred heading (h). The heading of the animal in each frame, as estimated by the model.
+            file_csv (attach)                   : File path of the results.csv file.
         """
 
         definition = """
@@ -203,46 +205,10 @@ class Inference(dj.Computed):
         instances: longblob     # List of instances shown in each in grid movie (in row-major order), where each instance is specified as a tuple with the video name, start frame and end frame
         """
 
-    def make(self, key):
+    def make_fetch(self, key):
         """
-        This function is used to infer the model results from the checkpoint file and store the results in `MotionSequence` and `GridMoviesSampledInstances` tables.
-
-        Args:
-            key (dict): `InferenceTask` primary key.
-
-        Raises:
-            FileNotFoundError: If no pca model (`pca.p`) found in the parent model directory.
-            FileNotFoundError: If no model (`checkpoint.h5`) found in the model directory.
-            NotImplementedError: If the format method is not `deeplabcut`.
-            FileNotFoundError: If no valid `kpms_dj_config` found in the parent model directory.
-
-        High-level Logic:
-        1. Fetch the `inference_output_dir` where the results will be stored, and if it does not exist, create it.
-        2. Fetch the `model_name` and the `num_iterations` from the `InferenceTask` table.
-        3. Load the most recent model checkpoint and the pca model from files in the `kpms_project_output_dir`.
-        4. Load the keypoint data for inference as `filepath_patterns` and format it.
-        5. Initialize and apply the model with the new keypoint data.
-        6. If the `num_iterations` is set, fit the model with the new keypoint data for `num_iterations` iterations; otherwise, fit the model with the default number of iterations (50).
-        7. Save the results as a CSV file and store the histogram showing the frequency of each syllable.
-        8. Generate and save the plots showing the median trajectory of poses associated with each given syllable.
-        9. Generate and save video clips showing examples of each syllable.
-        10. Generate and save the dendrogram representing distances between each syllable's median trajectory.
-        11. Insert the inference duration in the `Inference` table.
-        12. Insert the results in the `MotionSequence` and `GridMoviesSampledInstances` tables.
+        Fetch data required for model inference.
         """
-        from keypoint_moseq import (
-            apply_model,
-            format_data,
-            generate_grid_movies,
-            generate_trajectory_plots,
-            load_checkpoint,
-            load_keypoints,
-            load_pca,
-            plot_similarity_dendrogram,
-            plot_syllable_frequencies,
-            save_results_as_csv,
-        )
-
         (
             keypointset_dir,
             inference_output_dir,
@@ -257,6 +223,59 @@ class Inference(dj.Computed):
             "model_id",
             "pose_estimation_method",
             "task_mode",
+        )
+
+        return (
+            keypointset_dir,
+            inference_output_dir,
+            num_iterations,
+            model_id,
+            pose_estimation_method,
+            task_mode,
+        )
+
+    def make_compute(
+        self,
+        key,
+        keypointset_dir,
+        inference_output_dir,
+        num_iterations,
+        model_id,
+        pose_estimation_method,
+        task_mode,
+    ):
+        """
+        Compute model inference results.
+
+        Args:
+            key (dict): `InferenceTask` primary key.
+            keypointset_dir (str): Directory containing keypoint data.
+            inference_output_dir (str): Output directory for inference results.
+            num_iterations (int): Number of iterations for model fitting.
+            model_id (int): Model ID.
+            pose_estimation_method (str): Pose estimation method.
+            task_mode (str): Task mode ('trigger' or 'load').
+
+        Raises:
+            FileNotFoundError: If no pca model (`pca.p`) found in the parent model directory.
+            FileNotFoundError: If no model (`checkpoint.h5`) found in the model directory.
+            NotImplementedError: If the format method is not `deeplabcut`.
+            FileNotFoundError: If no valid `kpms_dj_config` found in the parent model directory.
+
+        Returns:
+            tuple: Inference results including duration, results data, and sampled instances.
+        """
+        from keypoint_moseq import (
+            apply_model,
+            format_data,
+            generate_grid_movies,
+            generate_trajectory_plots,
+            load_checkpoint,
+            load_keypoints,
+            load_pca,
+            plot_similarity_dendrogram,
+            plot_syllable_frequencies,
+            save_results_as_csv,
         )
 
         kpms_root = moseq_train.get_kpms_root_data_dir()
@@ -402,6 +421,24 @@ class Inference(dj.Computed):
 
             duration_seconds = None
 
+        return (
+            duration_seconds,
+            results,
+            sampled_instances,
+            inference_output_dir,
+        )
+
+    def make_insert(
+        self,
+        key,
+        duration_seconds,
+        results,
+        sampled_instances,
+        inference_output_dir,
+    ):
+        """
+        Insert inference results into the database.
+        """
         self.insert1(
             {
                 **key,
@@ -410,6 +447,7 @@ class Inference(dj.Computed):
             }
         )
 
+        # Insert motion sequence results
         for result_idx, result in results.items():
             self.MotionSequence.insert1(
                 {
@@ -425,6 +463,7 @@ class Inference(dj.Computed):
                 }
             )
 
+        # Insert grid movie sampled instances
         for syllable, sampled_instance in sampled_instances.items():
             self.GridMoviesSampledInstances.insert1(
                 {**key, "syllable": syllable, "instances": sampled_instance}
