@@ -25,7 +25,7 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + Fix - Remove JAX dependencies from `pyproject.toml`
 + Fix - Update pre-commit hooks for improved linting and consistency
 + Fix - Correct generation of `kpms_dj_config.yml` and refactor `moseq_train` and `moseq_infer` to use the renamed functions
-+ Fix - Refactor `moseq_infer` paths and apply 3-part make function
++ Fix - Refactor `moseq_infer` and `moseq_train`, and implement a three-part make function in the most resource-intensive functions
 + Fix - Update folder naming logic to use string of combined primary attributes instead of datetime in `PreFit` and `FullFit`
 + Fix - Improve path and directory handling using `Path` objects and robust existence checks
 + Fix - Remove redundancy of variables in `PreProcessing` table
