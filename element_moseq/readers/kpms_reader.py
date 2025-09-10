@@ -83,12 +83,8 @@ def dj_generate_config(project_dir: str, **kwargs) -> str:
             )
         with open(base_cfg_path, "r") as f:
             cfg = yaml.safe_load(f) or {}
-
-    # Upstream uses shallow updates for top-level keys in generate_config.
-    # We follow that (simple `dict.update`); nested blocks can be passed explicitly.
     cfg.update(kwargs)
 
-    # Upstream ensures skeleton exists; we do the same.
     if "skeleton" not in cfg or cfg["skeleton"] is None:
         cfg["skeleton"] = []
 
@@ -118,17 +114,13 @@ def load_kpms_dj_config(
         cfg = yaml.safe_load(f) or {}
 
     if check_if_valid:
-        _check_config_validity(
-            cfg
-        )  # readthedocs source mirrors this logic. :contentReference[oaicite:0]{index=0}
+        _check_config_validity(cfg)
 
     if build_indexes:
         anterior = cfg.get("anterior_bodyparts", [])
         posterior = cfg.get("posterior_bodyparts", [])
         use_bps = cfg.get("use_bodyparts", [])
-        cfg["anterior_idxs"] = jnp.array(
-            [use_bps.index(bp) for bp in anterior]
-        )  # same indexing approach as upstream.
+        cfg["anterior_idxs"] = jnp.array([use_bps.index(bp) for bp in anterior])
         cfg["posterior_idxs"] = jnp.array([use_bps.index(bp) for bp in posterior])
 
     if "skeleton" not in cfg or cfg["skeleton"] is None:
