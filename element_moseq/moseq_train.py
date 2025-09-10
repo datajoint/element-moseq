@@ -411,9 +411,8 @@ class PreProcessing(dj.Computed):
             filepath_pattern=kpset_dir, format=pose_estimation_method
         )
 
-        frame_rate_list = []
-        video_duration_list = []
         video_metadata_list = []
+        frame_rates = []
         for fp, video_id in zip(video_paths, video_ids):
             video_path = (find_full_path(get_kpms_root_data_dir(), fp)).as_posix()
             cap = cv2.VideoCapture(video_path)
@@ -424,8 +423,7 @@ class PreProcessing(dj.Computed):
             # Calculate duration in minutes
             duration_minutes = (frame_count / fps) / 60.0
 
-            frame_rate_list.append(fps)
-            video_duration_list.append((video_id, int(duration_minutes)))
+            frame_rates.append(fps)
 
             # Get video name for the Video part table
             video_key = {"kpset_id": key["kpset_id"], "video_id": video_id}
@@ -445,7 +443,7 @@ class PreProcessing(dj.Computed):
             else:
                 logger.warning(f"Video record not found for video_id {video_id}")
 
-        average_frame_rate = float(np.mean(frame_rate_list))
+        average_frame_rate = float(np.mean(frame_rates))
 
         # Generate a copy of config.yml with the generated/updated info after it is known
         kpms_reader.dj_generate_config(
@@ -499,15 +497,15 @@ class PreProcessing(dj.Computed):
                     )
 
                 except Exception as e:
-                    print(f"Could not create outlier plot for {recording_name}: {e}")
+                    logger.warning(
+                        f"Could not create outlier plot for {recording_name}: {e}"
+                    )
 
         return (
             cleaned_coordinates,
             cleaned_confidences,
             formatted_bodyparts,
             average_frame_rate,
-            frame_rate_list,
-            video_duration_list,
             video_metadata_list,
         )
 
@@ -518,8 +516,6 @@ class PreProcessing(dj.Computed):
         cleaned_confidences,
         formatted_bodyparts,
         average_frame_rate,
-        frame_rate_list,
-        video_duration_list,
         video_metadata_list,
     ):
         # Insert the main preprocessing results
