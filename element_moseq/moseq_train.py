@@ -246,26 +246,7 @@ class PreProcessing(dj.Computed):
 
     def make_fetch(self, key):
         """
-        Preprocess keypoint data by cleaning outliers and setting up project configuration.
-
-        Args:
-            key (dict): Primary key from the `PCATask` table.
-
-        Raises:
-            NotImplementedError: Only `deeplabcut` pose estimation method is supported.
-            FileNotFoundError: No DLC config file found in `kpset_dir`.
-
-        High-Level Logic:
-        1. Fetch the bodyparts, format method, and the directories.
-        2. Set variables for each of the full path of the mentioned directories.
-        3. Find the first existing pose estimation config file in the `kpset_dir` directory, if not found, raise an error.
-        4. Check that the pose_estimation_method is `deeplabcut` and set up the project output directory with the default `config.yml`.
-        5. Create the `kpms_project_output_dir` (if it does not exist), and generates the kpms default `config.yml` with the default values from the pose estimation config.
-        6. Create a copy of the kpms `config.yml` named `kpms_dj_config.yml` that will be updated with both the `video_dir` and bodyparts
-        7. Load keypoint data from the keypoint files found in the `kpset_dir` that will serve as the training set.
-        8. Detect and remove outlier keypoints using medoid distance analysis, then interpolate missing values.
-        9. Calculate the average frame rate and the frame rate list of the videoset from which the keypoint set is derived. These two attributes can be used to calculate the kappa value.
-        10. Insert the results of this `make` function into the table.
+        Fetch required data for preprocessing from database tables.
         """
 
         anterior_bodyparts, posterior_bodyparts, use_bodyparts = (
@@ -316,6 +297,38 @@ class PreProcessing(dj.Computed):
         task_mode,
         outlier_scale_factor,
     ):
+        """
+        Compute preprocessing steps including outlier removal and video metadata extraction.
+
+        Args:
+            key (dict): Primary key from the `PCATask` table.
+            anterior_bodyparts (list): List of anterior bodyparts.
+            posterior_bodyparts (list): List of posterior bodyparts.
+            use_bodyparts (list): List of bodyparts to use.
+            pose_estimation_method (str): Pose estimation method (e.g., 'deeplabcut').
+            kpset_dir (str): Keypoint set directory path.
+            video_paths (list): List of video file paths.
+            video_ids (list): List of video IDs.
+            kpms_project_output_dir (str): Project output directory path.
+            task_mode (str): Task mode ('load' or 'trigger').
+            outlier_scale_factor (int): Scale factor for outlier detection.
+
+        Returns:
+            tuple: Processed data including cleaned coordinates, confidences, and video metadata.
+
+        Raises:
+            NotImplementedError: Only `deeplabcut` pose estimation method is supported.
+            FileNotFoundError: No DLC config file found in `kpset_dir`.
+
+        High-Level Logic:
+        1. Find the first existing pose estimation config file in the `kpset_dir` directory, if not found, raise an error.
+        2. Check that the pose_estimation_method is `deeplabcut` and set up the project output directory with the default `config.yml`.
+        3. Create the `kpms_project_output_dir` (if it does not exist), and generates the kpms default `config.yml` with the default values from the pose estimation config.
+        4. Create a copy of the kpms `config.yml` named `kpms_dj_config.yml` that will be updated with both the `video_dir` and bodyparts
+        5. Load keypoint data from the keypoint files found in the `kpset_dir` that will serve as the training set.
+        6. Detect and remove outlier keypoints using medoid distance analysis, then interpolate missing values.
+        7. Calculate the average frame rate and the frame rate list of the videoset from which the keypoint set is derived. These two attributes can be used to calculate the kappa value.
+        """
         from keypoint_moseq import (
             find_medoid_distance_outliers,
             interpolate_keypoints,
@@ -476,6 +489,10 @@ class PreProcessing(dj.Computed):
         average_frame_rate,
         video_metadata_list,
     ):
+        """
+        Insert processed data into the PreProcessing table and Video part table.
+        """
+
         self.insert1(
             dict(
                 **key,
