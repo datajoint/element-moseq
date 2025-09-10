@@ -33,16 +33,14 @@ def activate(
 
     Args:
         train_schema_name (str): A string containing the name of the `moseq_train` schema.
-        create_schema (bool): If True (default), schema  will be created in the database.
+        create_schema (bool): If True (default), schema will be created in the database.
         create_tables (bool): If True (default), tables related to the schema will be created in the database.
         linking_module (str): A string containing the module name or module containing the required dependencies to activate the schema.
-    Dependencies:
     Functions:
-        get_kpms_root_data_dir(): Returns absolute path for root data directory/ies.
-                                 with all behavioral recordings, as (list of) string(s).
+        get_kpms_root_data_dir(): Returns absolute path for root data directory/ies
+                                  with all behavioral recordings, as (list of) string(s).
         get_kpms_processed_data_dir(): Optional. Returns absolute path for processed
-                                      data.
-
+                                       data.
     """
 
     if isinstance(linking_module, str):
@@ -71,13 +69,14 @@ def activate(
 
 
 def get_kpms_root_data_dir() -> list:
-    """Pulls relevant func from parent namespace to specify root data dir(s).
+    """Fetches absolute data path to kpms data directories.
 
-    It is recommended that all paths in DataJoint Elements stored as relative
-    paths, with respect to some user-configured "root" directory/ies. The
-    root(s) may vary between data modalities and user machines. Returns a full path
-    string or list of strings for possible root data directories.
+    The absolute path here is used as a reference for all downstream relative paths used in DataJoint.
+
+    Returns:
+        A list of the absolute path(s) to kpms data directories.
     """
+
     root_directories = _linking_module.get_kpms_root_data_dir()
     if isinstance(root_directories, (str, Path)):
         root_directories = [root_directories]
@@ -92,11 +91,10 @@ def get_kpms_root_data_dir() -> list:
 
 
 def get_kpms_processed_data_dir() -> Optional[str]:
-    """Pulls relevant func from parent namespace. Defaults to KPMS's project /videos/.
+    """Retrieve the root directory for all processed data.
 
-    Method in parent namespace should provide a string to a directory where KPMS output
-    files will be stored. If unspecified, output files will be stored in the
-    session directory 'videos' folder, per Keypoint-MoSeq default.
+    Returns:
+        A string for the full path to the root directory for processed data.
     """
     if hasattr(_linking_module, "get_kpms_processed_data_dir"):
         return _linking_module.get_kpms_processed_data_dir()
@@ -109,7 +107,7 @@ def get_kpms_processed_data_dir() -> Optional[str]:
 
 @schema
 class PoseEstimationMethod(dj.Lookup):
-    """Pose estimation methods supported by the keypoint loader of `keypoint-moseq` package.
+    """Name of the pose estimation method supported by the keypoint loader of `keypoint-moseq` package.
 
     Attributes:
         pose_estimation_method  (str): Supported pose estimation method (deeplabcut, sleap, anipose, sleap-anipose, nwb, facemap)
@@ -141,13 +139,13 @@ class KeypointSet(dj.Manual):
         kpset_id (int)                          : Unique ID for each keypoint set.
         PoseEstimationMethod (foreign key)      : Unique format method used to obtain the keypoints data.
         kpset_dir (str)                         : Path where the keypoint files are located together with the pose estimation `config` file, relative to root data directory.
-        kpset_desc (str)                            : Optional. User-entered description.
+        kpset_desc (str)                        : Optional. User-entered description.
     """
 
     definition = """
     kpset_id                        : int           # Unique ID for each keypoint set
     ---
-    -> PoseEstimationMethod             # Unique format method used to obtain the keypoints data
+    -> PoseEstimationMethod                         # Unique format method used to obtain the keypoints data
     kpset_dir                       : varchar(255)  # Path where the keypoint files are located together with the pose estimation `config` file, relative to root data directory
     kpset_desc=''                   : varchar(1000) # Optional. User-entered description
     """
@@ -163,9 +161,9 @@ class KeypointSet(dj.Manual):
 
         definition = """
         -> master
-        video_id                    : int           # Unique ID for each video corresponding to each keypoint data file, relative to root data directory
+        video_id                      : int           # Unique ID for each video corresponding to each keypoint data file, relative to root data directory
         ---
-        video_path                  : varchar(1000) # Filepath of each video from which the keypoints are derived, relative to root data directory
+        video_path                    : varchar(1000) # Filepath of each video from which the keypoints are derived, relative to root data directory
         """
 
 
@@ -179,7 +177,7 @@ class Bodyparts(dj.Manual):
         anterior_bodyparts (blob)       : List of strings of anterior bodyparts
         posterior_bodyparts (blob)      : List of strings of posterior bodyparts
         use_bodyparts (blob)            : List of strings of bodyparts to be used
-        bodyparts_desc(varchar)         : Optional. User-entered description.
+        bodyparts_desc (varchar)        : Optional. User-entered description.
     """
 
     definition = """
@@ -198,25 +196,19 @@ class PCATask(dj.Manual):
     """
     Define the Principal Component Analysis (PCA) task for dimensionality reduction of keypoint data.
 
-    This table defines the parameters for the PCA preprocessing step, which is a prerequisite for both
-    stages of the Keypoint-MoSeq training pipeline. The PCA step reduces the dimensionality of the
-    keypoint data by projecting it onto the principal components that capture the most variance in
-    the pose dynamics. This dimensionality reduction is essential for efficient model training and
-    helps identify the optimal latent dimension for the subsequent AR-HMM and Keypoint-SLDS model fitting.
-
     Attributes:
         Bodyparts (foreign key)         : Unique ID for each `Bodyparts` key
         outlier_scale_factor (int)      : Scale factor for outlier detection in keypoint data (default: 6)
-        kpms_project_output_dir (str)   : Keypoint-MoSeq project output directory, relative to root data directory
+        kpms_project_output_dir (str)   : Optional. Keypoint-MoSeq project output directory, relative to root data directory
         task_mode (enum)                : 'load' to load existing results, 'trigger' to compute new PCA
     """
 
     definition = """
-    -> Bodyparts                                                # Unique ID for each `Bodyparts` key
+    -> Bodyparts                                            # Unique ID for each `Bodyparts` key
     ---
-    outlier_scale_factor=6          : int                 # Scale factor for outlier detection in keypoint data (default: 6)
-    kpms_project_output_dir=''          : varchar(255)          # Keypoint-MoSeq project output directory, relative to root data directory
-    task_mode='load'                 :enum('load','trigger') # 'load' to load existing results, 'trigger' to compute new PCA
+    outlier_scale_factor=6          : int                   # Scale factor for outlier detection in keypoint data (default: 6)
+    kpms_project_output_dir=''      : varchar(255)          # Optional. Keypoint-MoSeq project output directory, relative to root data directory
+    task_mode='load'                :enum('load','trigger') # 'load' to load existing results, 'trigger' to compute new PCA
 
     """
 
@@ -226,20 +218,12 @@ class PreProcessing(dj.Computed):
     """
     Preprocess keypoint data by cleaning outliers and setting up the Keypoint-MoSeq project configuration.
 
-    This table handles the initial data preprocessing step that prepares keypoint data for the PCA and
-    subsequent model fitting stages. It performs outlier detection and removal using medoid distance
-    analysis, interpolates missing keypoints, and sets up the project configuration with video paths,
-    bodypart specifications, and frame rate information. This preprocessing also calculates and updates
-    video duration metadata in the KeypointSet.VideoFile table. This preprocessing is essential for
-    ensuring data quality and proper model initialization.
-
     Attributes:
         PCATask (foreign key)           : Unique ID for each `PCATask` key.
         coordinates (longblob)          : Dictionary mapping filenames to cleaned keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3]).
         confidences (longblob)          : Dictionary mapping filenames to updated likelihood scores as ndarrays of shape (n_frames, n_bodyparts).
         formatted_bodyparts (longblob)  : List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
         average_frame_rate (float)      : Average frame rate of the videos for model training (used for kappa calculation).
-        frame_rates (longblob)          : List of the frame rates of the videos for model training.
     """
 
     definition = """
@@ -256,31 +240,30 @@ class PreProcessing(dj.Computed):
         -> master
         video_name: varchar(255)
         ---
-        video_duration=0            : int           # Duration of each video in minutes (if not provided, it will be automatically calculated in `PreProcessing`).
-        frame_rate=0                : float         # Frame rate of the video.
+        video_duration              : int           # Duration of each video in minutes
+        frame_rate                  : float         # Frame rate of the video in frames per second (Hz)
         """
 
     def make_fetch(self, key):
         """
-        Make function to:
-        1. Generate and update the `kpms_dj_config.yml` with both the videoset directory and the bodyparts.
-        2. Create the keypoint coordinates and confidences scores to format the data for the PCA fitting.
+        Preprocess keypoint data by cleaning outliers and setting up project configuration.
 
         Args:
             key (dict): Primary key from the `PCATask` table.
 
         Raises:
-            NotImplementedError: `pose_estimation_method` is only supported for `deeplabcut`.
+            NotImplementedError: Only `deeplabcut` pose estimation method is supported.
+            FileNotFoundError: No DLC config file found in `kpset_dir`.
 
         High-Level Logic:
-        1. Fetches the bodyparts, format method, and the directories for the Keypoint-MoSeq project output, the keypoint set, and the video set.
+        1. Fetch the bodyparts, format method, and the directories.
         2. Set variables for each of the full path of the mentioned directories.
         3. Find the first existing pose estimation config file in the `kpset_dir` directory, if not found, raise an error.
         4. Check that the pose_estimation_method is `deeplabcut` and set up the project output directory with the default `config.yml`.
         5. Create the `kpms_project_output_dir` (if it does not exist), and generates the kpms default `config.yml` with the default values from the pose estimation config.
         6. Create a copy of the kpms `config.yml` named `kpms_dj_config.yml` that will be updated with both the `video_dir` and bodyparts
         7. Load keypoint data from the keypoint files found in the `kpset_dir` that will serve as the training set.
-        8. As a result of the keypoint loading, the coordinates and confidences scores are generated and will be used to format the data for modeling.
+        8. Detect and remove outlier keypoints using medoid distance analysis, then interpolate missing values.
         9. Calculate the average frame rate and the frame rate list of the videoset from which the keypoint set is derived. These two attributes can be used to calculate the kappa value.
         10. Insert the results of this `make` function into the table.
         """
@@ -333,27 +316,6 @@ class PreProcessing(dj.Computed):
         task_mode,
         outlier_scale_factor,
     ):
-        """Compute the outlier keypoints, interpolate them, and extract video metadata.
-
-        Args:
-            key (dict): Primary key from the `PCATask` table.
-            anterior_bodyparts (list): List of anterior bodyparts.
-            posterior_bodyparts (list): List of posterior bodyparts.
-
-        Raises:
-            NotImplementedError: `pose_estimation_method` is only supported for `deeplabcut`.
-            FileNotFoundError: No DLC config.(yml|yaml) found in `kpset_dir`.
-            Exception: Could not create outlier plot for `recording_name`.
-
-        Logic:
-            1. Load the project configuration for outlier detection
-            2. Find outliers using medoid distance analysis
-            3. Interpolate keypoints to fix outliers
-            4. Update confidences for outlier points
-            5. Calculate video frame rates and update video durations in KeypointSet.VideoFile table
-            6. Store results
-        """
-
         from keypoint_moseq import (
             find_medoid_distance_outliers,
             interpolate_keypoints,
@@ -419,10 +381,7 @@ class PreProcessing(dj.Computed):
             fps = float(cap.get(cv2.CAP_PROP_FPS))
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             cap.release()
-
-            # Calculate duration in minutes
             duration_minutes = (frame_count / fps) / 60.0
-
             frame_rates.append(fps)
 
             # Get video name for the Video part table
@@ -479,7 +438,6 @@ class PreProcessing(dj.Computed):
             # Update confidences for outlier points
             cleaned_conf = np.where(outliers["mask"], 0, raw_conf)
 
-            # Store results
             cleaned_coordinates[recording_name] = cleaned_coords
             cleaned_confidences[recording_name] = cleaned_conf
 
@@ -518,7 +476,6 @@ class PreProcessing(dj.Computed):
         average_frame_rate,
         video_metadata_list,
     ):
-        # Insert the main preprocessing results
         self.insert1(
             dict(
                 **key,
@@ -529,7 +486,6 @@ class PreProcessing(dj.Computed):
             )
         )
 
-        # Insert video metadata into the Video part table
         for video_metadata in video_metadata_list:
             self.Video.insert1(
                 dict(
@@ -545,12 +501,6 @@ class PreProcessing(dj.Computed):
 class PCAFit(dj.Computed):
     """Fit Principal Component Analysis (PCA) model for dimensionality reduction of keypoint data.
 
-    This table computes the PCA model that reduces the dimensionality of the keypoint data by projecting
-    it onto the principal components that capture the most variance in the pose dynamics. The fitted PCA
-    model is essential for both stages of the Keypoint-MoSeq training pipeline, as it provides the
-    low-dimensional representation of pose trajectories that will be used in the AR-HMM and Keypoint-SLDS
-    model fitting.
-
     Attributes:
         PreProcessing (foreign key)     : `PreProcessing` Key.
         pca_fit_time (datetime)         : datetime of the PCA fitting analysis.
@@ -564,19 +514,16 @@ class PCAFit(dj.Computed):
 
     def make(self, key):
         """
-        Make function to format the keypoint data, fit the PCA model, and store it as a `pca.p` file in the Keypoint-MoSeq project output directory.
+        Format keypoint data and fit PCA model for dimensionality reduction.
 
         Args:
             key (dict): `PreProcessing` Key
 
-        Raises:
-
         High-Level Logic:
-        1. Fetch the `kpms_project_output_dir` from the `PCATask` table and define its full path.
-        2. Load the `kpms_dj_config` file that contains the updated `video_dir` and bodyparts, \
-           and format the keypoint data with the coordinates and confidences scores to be used in the PCA fitting.
-        3. Fit the PCA model and save it as `pca.p` file in the output directory.
-        4.Insert the creation datetime as the `pca_fit_time` into the table.
+        1. Fetch project output directory and load configuration.
+        2. Format keypoint data with coordinates and confidences.
+        3. Fit PCA model and save as `pca.p` file.
+        4. Insert creation datetime into table.
         """
         from keypoint_moseq import fit_pca, format_data, save_pca
 
@@ -610,12 +557,6 @@ class LatentDimension(dj.Imported):
     """
     Determine the optimal latent dimension for model fitting based on variance explained by PCA components.
 
-    This table analyzes the fitted PCA model to determine the number of principal components needed to
-    explain a specified variance threshold (default: 90%). This analysis helps users make informed decisions
-    about the latent dimension parameter for both stages of the Keypoint-MoSeq training pipeline. The
-    recommended approach is to use the number of components that explain 90% of the variance, or a maximum
-    of 10 dimensions, whichever is lower.
-
     Attributes:
         PCAFit (foreign key)               : `PCAFit` Key.
         variance_percentage (float)        : Variance threshold. Fixed value to 90%.
@@ -633,23 +574,19 @@ class LatentDimension(dj.Imported):
 
     def make(self, key):
         """
-        Make function to compute and store the latent dimension that explains a 90% variance threshold.
+        Compute and store the optimal latent dimension based on 90% variance threshold.
 
         Args:
             key (dict): `PCAFit` Key.
 
         Raises:
+            FileNotFoundError: No PCA model found in project directory.
 
         High-Level Logic:
-        1. Fetches the Keypoint-MoSeq project output directory from the PCATask table and define the full path.
-        2. Load the PCA model from file in this directory.
-        2. Set a specified variance threshold to 90% and compute the cumulative sum of the explained variance ratio.
-        3. Determine the number of components required to explain the specified variance.
-            3.1 If the cumulative sum of the explained variance ratio is less than the specified variance threshold, \
-                it sets the `latent_dimension` to the total number of components and `variance_percentage` to the cumulative sum of the explained variance ratio.
-            3.2 If the cumulative sum of the explained variance ratio is greater than the specified variance threshold, \
-                it sets the `latent_dimension` to the number of components that explain the specified variance and `variance_percentage` to the specified variance threshold.
-        4. Insert the results of this `make` function into the table.
+        1. Fetch project output directory and load PCA model.
+        2. Calculate cumulative explained variance ratio.
+        3. Determine number of components needed for 90% variance.
+        4. Insert results into table.
         """
 
         VARIANCE_THRESHOLD = 0.90
@@ -698,41 +635,31 @@ class LatentDimension(dj.Imported):
 class PreFitTask(dj.Manual):
     """Define parameters for Stage 1: Auto-Regressive Hidden Markov Model (AR-HMM) pre-fitting.
 
-    This table defines the parameters for the first stage of the two-stage Keypoint-MoSeq training
-    approach. The pre-fitting stage focuses on learning temporal behavioral dynamics and discrete
-    syllable states without incorporating spatial pose dynamics. This stage is designed for rapid
-    hyperparameter exploration, particularly for finding optimal kappa values that yield desired
-    syllable durations.
-
     Attributes:
         PCAFit (foreign key)                : `PCAFit` task.
         pre_latent_dim (int)                : Latent dimension to use for the model pre-fitting.
         pre_kappa (int)                     : Kappa value to use for the model pre-fitting (controls syllable duration).
         pre_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model pre-fitting (typically 10-50).
+        model_name (varchar)                : Name of the model to be loaded if `task_mode='load'`
+        task_mode (enum)                    : 'load': load computed analysis results, 'trigger': trigger computation
         pre_fit_desc(varchar)               : User-defined description of the pre-fitting task.
     """
 
     definition = """
-    -> PCAFit                                           # `PCAFit` Key
-    pre_latent_dim               : int                  # Latent dimension to use for the model pre-fitting.
-    pre_kappa                    : int                  # Kappa value to use for the model pre-fitting (controls syllable duration).
-    pre_num_iterations           : int                  # Number of Gibbs sampling iterations to run in the model pre-fitting (typically 10-50).
+    -> PCAFit                                            # `PCAFit` Key
+    pre_latent_dim               : int                   # Latent dimension to use for the model pre-fitting.
+    pre_kappa                    : int                   # Kappa value to use for the model pre-fitting (controls syllable duration).
+    pre_num_iterations           : int                   # Number of Gibbs sampling iterations to run in the model pre-fitting (typically 10-50).
     ---
     model_name=''                : varchar(1000)         # Name of the model to be loaded if `task_mode='load'`
-    task_mode='load'             :enum('load','trigger')# 'load': load computed analysis results, 'trigger': trigger computation
-    pre_fit_desc=''              : varchar(1000)        # User-defined description of the pre-fitting task
+    task_mode='load'             :enum('load','trigger') # 'load': load computed analysis results, 'trigger': trigger computation
+    pre_fit_desc=''              : varchar(1000)         # User-defined description of the pre-fitting task
     """
 
 
 @schema
 class PreFit(dj.Computed):
-    """Stage 1: Fit Auto-Regressive Hidden Markov Model (AR-HMM) for initial behavioral syllable discovery.
-
-    This is the first stage of the two-stage Keypoint-MoSeq training approach. The PreFit step focuses
-    exclusively on learning the temporal dynamics and discrete behavioral states (syllables) without
-    incorporating spatial pose dynamics. This stage is computationally efficient and allows for rapid
-    exploration of hyperparameters (particularly kappa for syllable duration) before the expensive
-    full model fitting.
+    """Fit Auto-Regressive Hidden Markov Model (AR-HMM) for initial behavioral syllable discovery.
 
     Attributes:
         PreFitTask (foreign key)                : `PreFitTask` Key.
@@ -741,33 +668,28 @@ class PreFit(dj.Computed):
     """
 
     definition = """
-    -> PreFitTask                               # `PreFitTask` Key
+    -> PreFitTask                                # `PreFitTask` Key
     ---
     model_name=''                : varchar(1000) # Name of the model as "kpms_project_output_dir/model_name"
-    pre_fit_duration=NULL        : float        # Time duration (seconds) of the model fitting computation
+    pre_fit_duration=NULL        : float         # Time duration (seconds) of the model fitting computation
     """
 
     def make(self, key):
         """
-        Make function to fit the AR-HMM model using the latent trajectory defined by `model['states']['x'].
+        Fit AR-HMM model for initial behavioral syllable discovery.
 
         Args:
-            key (dict) : dictionary with the `PreFitTask` Key.
+            key (dict): Dictionary with the `PreFitTask` Key.
 
         Raises:
+            FileNotFoundError: No PCA model found in project directory.
 
-        High-level Logic:
-        1. Fetch the `kpms_project_output_dir` and define the full path.
-        2. Fetch the model parameters from the `PreFitTask` table.
-        3. Update the `dj_config.yml` with the latent dimension and kappa for the AR-HMM fitting.
-        4. Load the pca model from file in the `kpms_project_output_dir`.
-        5. Fetch `coordinates` and `confidences` scores to format the data for the model initialization. \
-            # Data - contains the data for model fitting. \
-            # Metadata - contains the recordings and start/end frames for the data.
-        6. Initialize the model that create a `model` dict containing states, parameters, hyperparameters, noise prior, and random seed.
-        7. Update the model dict with the selected kappa for the AR-HMM fitting.
-        8. Fit the AR-HMM model using the `pre_num_iterations` and create a subdirectory in `kpms_project_output_dir` with the model's latest checkpoint file.
-        9. Calculate the duration of the model fitting computation and insert it in the `PreFit` table.
+        High-Level Logic:
+        1. Fetch project output directory and model parameters.
+        2. Update configuration with latent dimension and kappa values.
+        3. Load PCA model and format keypoint data.
+        4. Initialize and fit AR-HMM model.
+        5. Calculate fitting duration and insert results.
         """
         from keypoint_moseq import (
             fit_model,
@@ -870,21 +792,15 @@ class PreFit(dj.Computed):
 
 @schema
 class FullFitTask(dj.Manual):
-    """Define parameters for Stage 2: Full Keypoint Switching Linear Dynamical System (Keypoint-SLDS) model fitting.
-
-    This table defines the parameters for the second stage of the two-stage Keypoint-MoSeq training approach.
-    The full fitting stage refines the model by incorporating all parameters including spatial pose dynamics,
-    centroid, heading, noise estimates, and continuous latent states. This stage builds upon the initial
-    behavioral structure discovered in the pre-fitting stage to create a complete behavioral model.
-
-    Note: The full model will generally require a lower value of kappa to yield the same target syllable
-    durations compared to the pre-fitting stage, as the additional spatial dynamics provide more information.
+    """Define parameters for FullFit step of model fitting.
 
     Attributes:
         PCAFit (foreign key)                 : `PCAFit` Key.
         full_latent_dim (int)                : Latent dimension to use for the model full fitting.
         full_kappa (int)                     : Kappa value to use for the model full fitting (typically lower than pre-fit kappa).
         full_num_iterations (int)            : Number of Gibbs sampling iterations to run in the model full fitting (typically 200-500).
+        model_name (varchar)                 : Name of the model to be loaded if `task_mode='load'`
+        task_mode (enum)                     : 'load': load computed analysis results, 'trigger': trigger computation
         full_fit_desc(varchar)               : User-defined description of the model full fitting task.
     """
 
@@ -894,7 +810,7 @@ class FullFitTask(dj.Manual):
     full_kappa                   : int                  # Kappa value to use for the model full fitting (typically lower than pre-fit kappa).
     full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting (typically 200-500).
     ---
-    model_name=''                : varchar(1000)         # Name of the model to be loaded if `task_mode='load'`
+    model_name=''                : varchar(1000)        # Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('load','trigger')# Trigger or load the task
     full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task
     """
@@ -902,13 +818,7 @@ class FullFitTask(dj.Manual):
 
 @schema
 class FullFit(dj.Computed):
-    """Stage 2: Fit the complete Keypoint Switching Linear Dynamical System (Keypoint-SLDS) model.
-
-    This is the second stage of the two-stage Keypoint-MoSeq training approach. The FullFit step refines
-    the model by incorporating all parameters including spatial pose dynamics, centroid, heading, noise
-    estimates, and continuous latent states. This stage builds upon the initial behavioral exploration
-    discovered in the pre-fitting stage to create a complete behavioral model with both temporal and
-    spatial dynamics.
+    """Fit the complete Keypoint Switching Linear Dynamical System (Keypoint-SLDS) model.
 
     Attributes:
         FullFitTask (foreign key)            : `FullFitTask` Key.
@@ -917,34 +827,29 @@ class FullFit(dj.Computed):
     """
 
     definition = """
-    -> FullFitTask                               # `FullFitTask` Key
+    -> FullFitTask                                # `FullFitTask` Key
     ---
     model_name=''                 : varchar(1000) # Name of the model as "kpms_project_output_dir/model_name"
-    full_fit_duration=NULL        : float        # Time duration (seconds) of the full fitting computation
+    full_fit_duration=NULL        : float         # Time duration (seconds) of the full fitting computation
     """
 
     def make(self, key):
         """
-            Make function to fit the full (keypoint-SLDS) model
+        Fit the complete Keypoint-SLDS model with spatial and temporal dynamics.
 
         Args:
-            key (dict): dictionary with the `FullFitTask` Key.
+            key (dict): Dictionary with the `FullFitTask` Key.
 
         Raises:
+            FileNotFoundError: No PCA model found in project directory.
 
-        High-level Logic:
-        1. Fetch the `kpms_project_output_dir` and define the full path.
-        2. Fetch the model parameters from the `FullFitTask` table.
-        3. Update the `dj_config.yml` with the selected latent dimension and kappa for the full-fitting.
-        4. Load the pca model from file in the `kpms_project_output_dir`.
-        5. Fetch the `coordinates` and `confidences` scores to format the data for the model initialization.
-        6. Initialize the model that create a `model` dict containing states, parameters, hyperparameters, noise prior, and random seed.
-        7. Update the model dict with the selected kappa for the Keypoint-SLDS fitting.
-        8. Fit the Keypoint-SLDS model using the `full_num_iterations` and create a subdirectory in `kpms_project_output_dir` with the model's latest checkpoint file.
-        9. Reindex syllable labels by their frequency in the most recent model snapshot in the checkpoint file. \
-            This function permutes the states and parameters of a saved checkpoint so that syllables are labeled \
-            in order of frequency (i.e. so that 0 is the most frequent, 1 is the second most, and so on).
-        10. Calculate the duration of the model fitting computation and insert it in the `FullFit` table.
+        High-Level Logic:
+        1. Fetch project output directory and model parameters.
+        2. Update configuration with latent dimension and kappa values.
+        3. Load PCA model and format keypoint data.
+        4. Initialize and fit Keypoint-SLDS model.
+        5. Reindex syllable labels by frequency.
+        6. Calculate fitting duration and insert results.
         """
         from keypoint_moseq import (
             estimate_sigmasq_loc,
@@ -1031,8 +936,6 @@ class FullFit(dj.Computed):
                 model_name=Path(model_name).parts[-1],
             )
 
-            # Save of results will be applied during the Inference
-
         else:
             duration_seconds = None
 
@@ -1052,9 +955,10 @@ class FullFit(dj.Computed):
 class SelectedFullFit(dj.Manual):
     """Register selected FullFit models for use in the inference pipeline.
 
-    This table allows users to select and register specific FullFit models (from Stage 2 of the training
-    pipeline) for use in downstream inference tasks. Users can provide descriptive names and descriptions
-    for their trained models to facilitate model management and selection for behavioral analysis on new data.
+    Attributes:
+        FullFit (foreign key)          : `FullFit` Key.
+        registered_model_name (varchar): User-friendly model name
+        registered_model_desc (varchar): Optional user-defined description
     """
 
     definition = """
