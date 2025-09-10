@@ -128,7 +128,7 @@ def load_kpms_dj_config(
         use_bps = cfg.get("use_bodyparts", [])
         cfg["anterior_idxs"] = jnp.array(
             [use_bps.index(bp) for bp in anterior]
-        )  # same indexing approach as upstream. :contentReference[oaicite:1]{index=1}
+        )  # same indexing approach as upstream.
         cfg["posterior_idxs"] = jnp.array([use_bps.index(bp) for bp in posterior])
 
     if "skeleton" not in cfg or cfg["skeleton"] is None:
