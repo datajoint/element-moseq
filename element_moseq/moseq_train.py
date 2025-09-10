@@ -264,11 +264,9 @@ class PreProcessing(dj.Computed):
             "video_path", "video_id"
         )
 
-        kpms_project_output_dir, task_mode = (PCATask & key).fetch1(
-            "kpms_project_output_dir", "task_mode"
-        )
-
-        outlier_scale_factor = (PCATask & key).fetch1("outlier_scale_factor")
+        kpms_project_output_dir, task_mode, outlier_scale_factor = (
+            PCATask & key
+        ).fetch1("kpms_project_output_dir", "task_mode", "outlier_scale_factor")
 
         return (
             anterior_bodyparts,
