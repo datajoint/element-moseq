@@ -4,7 +4,7 @@ from collections import abc
 from element_lab import lab
 from element_animal import subject
 from element_session import session_with_datetime as session
-from element_moseq import moseq_train, moseq_infer, report
+from element_moseq import moseq_train, moseq_infer, moseq_report
 
 from element_animal.subject import Subject
 from element_lab.lab import Source, Lab, Protocol, User, Project
@@ -38,7 +38,7 @@ def get_kpms_processed_data_dir() -> str:
         return None
 
 
-__all__ = ["lab", "subject", "session", "moseq_train", "moseq_infer", "Device"]
+__all__ = ["lab", "subject", "session", "moseq_train", "moseq_infer", "moseq_report", "Device"]
 
 # Activate schemas  -------------
 
@@ -80,4 +80,4 @@ class Device(dj.Lookup):
 
 moseq_train.activate(db_prefix + "moseq_train", linking_module=__name__)
 moseq_infer.activate(db_prefix + "moseq_infer", linking_module=__name__)
-report.activate(db_prefix + "report", linking_module=__name__)
+moseq_report.activate(db_prefix + "moseq_report", linking_module=__name__)
