@@ -356,11 +356,11 @@ class PreProcessing(dj.Computed):
                 from .readers.kpms_reader import _base_config_path
 
                 cfg_path = _base_config_path(kpset_dir)
-                if not cfg_path.exists():
+                cfg = Path(cfg_path)
+                if not cfg.exists():
                     raise FileNotFoundError(
                         f"No DLC config.(yml|yaml) found in {kpset_dir}"
                     )
-                cfg = Path(cfg_path)
                 setup_project(
                     project_dir=kpms_project_output_dir.as_posix(),
                     deeplabcut_config=cfg.as_posix(),
