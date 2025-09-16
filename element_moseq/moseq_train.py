@@ -356,7 +356,7 @@ class PreProcessing(dj.Computed):
                 from .readers.kpms_reader import _base_config_path
 
                 cfg_path = _base_config_path(kpset_dir)
-                if not os.path.exists(cfg_path):
+                if not cfg_path.exists():
                     raise FileNotFoundError(
                         f"No DLC config.(yml|yaml) found in {kpset_dir}"
                     )

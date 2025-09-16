@@ -205,12 +205,12 @@ class PreFitReport(dj.Imported):
         prefit_model_dir = find_full_path(
             moseq_train.get_kpms_processed_data_dir(), prefit_model_name
         )
-        prefit_output_dir = Path(prefit_model_dir) / "fitting_progress.pdf"
-        if os.path.exists(prefit_output_dir):
-            self.insert1({**key, "fitting_progress_pdf": prefit_output_dir})
+        prefit_output_file = Path(prefit_model_dir) / "fitting_progress.pdf"
+        if prefit_model_dir.exists():
+            self.insert1({**key, "fitting_progress_pdf": prefit_output_file})
         else:
             raise FileNotFoundError(
-                f"PreFit fitting_progress.pdf not found at {prefit_output_dir}"
+                f"PreFit fitting_progress.pdf not found at {prefit_output_file}"
             )
 
 
@@ -227,12 +227,12 @@ class FullFitReport(dj.Imported):
         fullfit_model_dir = find_full_path(
             moseq_train.get_kpms_processed_data_dir(), fullfit_model_name
         )
-        fullfit_output_dir = Path(fullfit_model_dir) / "fitting_progress.pdf"
-        if os.path.exists(fullfit_output_dir):
-            self.insert1({**key, "fitting_progress_pdf": fullfit_output_dir})
+        fullfit_output_file = Path(fullfit_model_dir) / "fitting_progress.pdf"
+        if fullfit_model_dir.exists():
+            self.insert1({**key, "fitting_progress_pdf": fullfit_output_file})
         else:
             raise FileNotFoundError(
-                f"FullFit fitting_progress.pdf not found at {fullfit_output_dir}"
+                f"FullFit fitting_progress.pdf not found at {fullfit_output_file}"
             )
 
 
