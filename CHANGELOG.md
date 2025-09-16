@@ -14,9 +14,9 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 + **BREAKING**: Add feature to remove outlier keypoints in `PreProcessing` table with new `outlier_scale_factor` attribute in `PCATask`, only available in latest version of kpms
 + **BREAKING**: Add `sigmasq_loc` feature in `PreFit` and `FullFit` to automatically estimate sigmasq_loc (prior controlling the centroid movement across frames), only available in latest version of kpms
 
-### New Features
+### New Features and Fixes
 + Feat - Add support to load from both DLC `config.yml` and `config.yaml` file extensions
-+ Feat - Add new `report` schema with comprehensive reporting capabilities
++ Feat - Add new `mosesq_report` schema with comprehensive reporting capabilities
 + Feat - Refactor `PreProcessing` table to use 3-part make function, add a new `Video` part table, and add new attributes `video_duration`, `frame_rate` and `average_frame_rate` to store these new computations
 + Feat - Move and refactor `viz_utils` into new `plotting` module
 + Feat - Update `model_name` varchar and folder naming
