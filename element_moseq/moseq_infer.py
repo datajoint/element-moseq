@@ -347,6 +347,7 @@ class Inference(dj.Computed):
                 results_path=(inference_output_dir / "results.h5").as_posix(),
                 return_model=False,
                 num_iters=num_iterations or DEFAULT_NUM_ITERS,
+                overwrite=True,
                 **kpms_dj_config,
             )
             end_time = datetime.now(timezone.utc)
