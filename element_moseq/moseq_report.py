@@ -206,7 +206,7 @@ class PreFitReport(dj.Imported):
             moseq_train.get_kpms_processed_data_dir(), prefit_model_name
         )
         prefit_output_dir = Path(prefit_model_dir) / "fitting_progress.pdf"
-        if prefit_model_dir.exists():
+        if prefit_output_dir.exists():
             self.insert1({**key, "fitting_progress_pdf": prefit_output_dir})
         else:
             raise FileNotFoundError(
