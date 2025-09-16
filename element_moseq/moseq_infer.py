@@ -176,7 +176,7 @@ class Inference(dj.Computed):
             latent_state (longblob)             : Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model.
             centroid (longblob)                 : Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model.
             heading (longblob)                  : Inferred heading (h). The heading of the animal in each frame, as estimated by the model.
-            motion_sequence_file (attach)       : File path of the motion sequence data (CSV format).
+            motion_sequence_file (attach)       : File path of the temporal sequence of motion data (CSV format).
         """
 
         definition = """
@@ -187,7 +187,7 @@ class Inference(dj.Computed):
         latent_state    : longblob        # Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model
         centroid        : longblob        # Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model
         heading         : longblob        # Inferred heading (h). The heading of the animal in each frame, as estimated by the model
-        motion_sequence_file: attach      # File path of the temporal sequence of motion sequence data (CSV format)
+        motion_sequence_file: attach      # File path of the temporal sequence of motion data (CSV format)
         """
 
     class GridMoviesSampledInstances(dj.Part):
