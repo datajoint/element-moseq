@@ -151,19 +151,19 @@ class InferenceTask(dj.Manual):
 
 @schema
 class Inference(dj.Computed):
-    """Infer the model from the checkpoint file and generate the results files.
+    """Infer the model from the checkpoint file and generate the results of segmenting continuous behavior into discrete syllables.
 
     Attributes:
-        InferenceTask (foreign_key)         : `InferenceTask` key.
-        file_h5 (attach)                    : File path of the results.h5 file.
-        inference_duration (float)          : Time duration (seconds) of the inference computation.
+        InferenceTask (foreign_key)          : `InferenceTask` key.
+        syllable_segmentation_file (attach)  : File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings.
+        inference_duration (float)           : Time duration (seconds) of the inference computation.
     """
 
     definition = """
-    -> InferenceTask                        # `InferenceTask` key
+    -> InferenceTask                         # `InferenceTask` key
     ---
-    file_h5                        : attach # File path of the results.h5 file
-    inference_duration=NULL        : float  # Time duration (seconds) of the inference computation
+    syllable_segmentation_file      : attach # File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings
+    inference_duration=NULL        : float   # Time duration (seconds) of the inference computation
     """
 
     class MotionSequence(dj.Part):
@@ -176,7 +176,7 @@ class Inference(dj.Computed):
             latent_state (longblob)             : Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model.
             centroid (longblob)                 : Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model.
             heading (longblob)                  : Inferred heading (h). The heading of the animal in each frame, as estimated by the model.
-            file_csv (attach)                   : File path of the results.csv file.
+            motion_sequence_file (attach)       : File path of the motion sequence data (CSV format).
         """
 
         definition = """
@@ -187,7 +187,7 @@ class Inference(dj.Computed):
         latent_state    : longblob        # Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model
         centroid        : longblob        # Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model
         heading         : longblob        # Inferred heading (h). The heading of the animal in each frame, as estimated by the model
-        file_csv        : attach          # File path of the results.csv file
+        motion_sequence_file: attach      # File path of the temporal sequence of motion sequence data (CSV format)
         """
 
     class GridMoviesSampledInstances(dj.Part):
@@ -430,7 +430,7 @@ class Inference(dj.Computed):
                     "latent_state": result["latent_state"],
                     "centroid": result["centroid"],
                     "heading": result["heading"],
-                    "file_csv": (
+                    "motion_sequence_file": (
                         inference_output_dir / "results_as_csv" / f"{result_idx}.csv"
                     ).as_posix(),
                 }
@@ -465,7 +465,9 @@ class Inference(dj.Computed):
             {
                 **key,
                 "inference_duration": duration_seconds,
-                "file_h5": (inference_output_dir / "results.h5").as_posix(),
+                "syllable_segmentation_file": (
+                    inference_output_dir / "results.h5"
+                ).as_posix(),
             }
         )
 
