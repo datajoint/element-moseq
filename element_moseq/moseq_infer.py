@@ -469,8 +469,8 @@ class Inference(dj.Computed):
             }
         )
 
-        # Add key to each motion sequence record and insert
-        self.MotionSequence.insert(motion_sequence_data)
+        for motion_record in motion_sequence_data:
+            self.MotionSequence.insert1(motion_record)
 
-        # Add key to each grid movie record and insert
-        self.GridMoviesSampledInstances.insert(grid_movie_data)
+        for grid_record in grid_movie_data:
+            self.GridMoviesSampledInstances.insert1(grid_record)
