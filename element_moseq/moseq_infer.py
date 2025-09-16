@@ -5,7 +5,6 @@ DataJoint Schema for Keypoint-MoSeq inference pipeline
 
 import importlib
 import inspect
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -14,7 +13,7 @@ from element_interface.utils import find_full_path
 from matplotlib import pyplot as plt
 
 from . import moseq_train
-from .readers.kpms_reader import load_kpms_dj_config
+from .readers import kpms_reader
 
 schema = dj.schema()
 _linking_module = None
@@ -69,25 +68,23 @@ def activate(
 
 @schema
 class Model(dj.Manual):
-    """Register a model.
+    """Register a trained model.
 
     Attributes:
         model_id (int)                      : Unique ID for each model.
         model_name (varchar)                : User-friendly model name.
-        model_dir (varchar)                 : Model directory relative to root data directory (e.g. `kpms_project_output_dir/2024_03_21-00_51_39`)
-        latent_dim (int)                    : Latent dimension of the model.
-        kappa (float)                       : Kappa value of the model.
-        model_desc (varchar)                : Optional. User-defined description of the model
+        model_dir (varchar)                 : Model directory relative to root data directory.
+        model_desc (varchar)                : Optional. User-defined description of the model.
 
     """
 
     definition = """
-    model_id                : int          # Unique ID for each model
+    model_id                : int             # Unique ID for each model
     ---
-    model_name              : varchar(64)  # User-friendly model name
-    model_dir               : varchar(1000)# Model directory relative to root data directory
-    model_desc=''           : varchar(1000)# Optional. User-defined description of the model
-    -> [nullable] moseq_train.SelectedFullFit
+    model_name              : varchar(1000)   # User-friendly model name
+    model_dir               : varchar(1000)   # Model directory relative to root data directory
+    model_desc=''           : varchar(1000)   # Optional. User-defined description of the model
+    -> [nullable] moseq_train.SelectedFullFit # Optional. FullFit key.
     """
 
 
@@ -136,6 +133,7 @@ class InferenceTask(dj.Manual):
         inference_output_dir (varchar)       : Optional. Sub-directory where the results will be stored.
         inference_desc (varchar)             : Optional. User-defined description of the inference task.
         num_iterations (int)                 : Optional. Number of iterations to use for the model inference. If null, the default number internally is 50.
+        task_mode (enum)                     : 'load': load computed analysis results, 'trigger': trigger computation
     """
 
     definition = """
@@ -153,28 +151,32 @@ class InferenceTask(dj.Manual):
 
 @schema
 class Inference(dj.Computed):
-    """Infer the model from the checkpoint file and save the results as `results.h5` file.
+    """Infer the model from the checkpoint file and generate the results of segmenting continuous behavior into discrete syllables.
 
     Attributes:
-        InferenceTask (foreign_key)         : `InferenceTask` key.
-        inference_duration (float)          : Time duration (seconds) of the inference computation.
+        InferenceTask (foreign_key)          : `InferenceTask` key.
+        syllable_segmentation_file (attach)  : File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings.
+        inference_duration (float)           : Time duration (seconds) of the inference computation.
     """
 
     definition = """
-    -> InferenceTask                        # `InferenceTask` key
+    -> InferenceTask                         # `InferenceTask` key
     ---
-    inference_duration=NULL        : float  # Time duration (seconds) of the inference computation
+    syllable_segmentation_file      : attach # File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings
+    inference_duration=NULL        : float   # Time duration (seconds) of the inference computation
     """
 
     class MotionSequence(dj.Part):
         """Store the results of the model inference.
 
         Attributes:
+            InferenceTask (foreign key)         : `InferenceTask` key.
             video_name (varchar)                : Name of the video.
             syllable (longblob)                 : Syllable labels (z). The syllable label assigned to each frame (i.e. the state indexes assigned by the model).
             latent_state (longblob)             : Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model.
             centroid (longblob)                 : Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model.
             heading (longblob)                  : Inferred heading (h). The heading of the animal in each frame, as estimated by the model.
+            motion_sequence_file (attach)       : File path of the temporal sequence of motion data (CSV format).
         """
 
         definition = """
@@ -185,6 +187,7 @@ class Inference(dj.Computed):
         latent_state    : longblob        # Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model
         centroid        : longblob        # Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model
         heading         : longblob        # Inferred heading (h). The heading of the animal in each frame, as estimated by the model
+        motion_sequence_file: attach      # File path of the temporal sequence of motion data (CSV format)
         """
 
     class GridMoviesSampledInstances(dj.Part):
@@ -202,46 +205,10 @@ class Inference(dj.Computed):
         instances: longblob     # List of instances shown in each in grid movie (in row-major order), where each instance is specified as a tuple with the video name, start frame and end frame
         """
 
-    def make(self, key):
+    def make_fetch(self, key):
         """
-        This function is used to infer the model results from the checkpoint file and store the results in `MotionSequence` and `GridMoviesSampledInstances` tables.
-
-        Args:
-            key (dict): `InferenceTask` primary key.
-
-        Raises:
-            FileNotFoundError: If no pca model (`pca.p`) found in the parent model directory.
-            FileNotFoundError: If no model (`checkpoint.h5`) found in the model directory.
-            NotImplementedError: If the format method is not `deeplabcut`.
-            FileNotFoundError: If no valid `kpms_dj_config` found in the parent model directory.
-
-        High-level Logic:
-        1. Fetch the `inference_output_dir` where the results will be stored, and if it does not exist, create it.
-        2. Fetch the `model_name` and the `num_iterations` from the `InferenceTask` table.
-        3. Load the most recent model checkpoint and the pca model from files in the `kpms_project_output_dir`.
-        4. Load the keypoint data for inference as `filepath_patterns` and format it.
-        5. Initialize and apply the model with the new keypoint data.
-        6. If the `num_iterations` is set, fit the model with the new keypoint data for `num_iterations` iterations; otherwise, fit the model with the default number of iterations (50).
-        7. Save the results as a CSV file and store the histogram showing the frequency of each syllable.
-        8. Generate and save the plots showing the median trajectory of poses associated with each given syllable.
-        9. Generate and save video clips showing examples of each syllable.
-        10. Generate and save the dendrogram representing distances between each syllable's median trajectory.
-        11. Insert the inference duration in the `Inference` table.
-        12. Insert the results in the `MotionSequence` and `GridMoviesSampledInstances` tables.
+        Fetch data required for model inference.
         """
-        from keypoint_moseq import (
-            apply_model,
-            format_data,
-            generate_grid_movies,
-            generate_trajectory_plots,
-            load_checkpoint,
-            load_keypoints,
-            load_pca,
-            plot_similarity_dendrogram,
-            plot_syllable_frequencies,
-            save_results_as_csv,
-        )
-
         (
             keypointset_dir,
             inference_output_dir,
@@ -258,6 +225,70 @@ class Inference(dj.Computed):
             "task_mode",
         )
 
+        return (
+            keypointset_dir,
+            inference_output_dir,
+            num_iterations,
+            model_id,
+            pose_estimation_method,
+            task_mode,
+        )
+
+    def make_compute(
+        self,
+        key,
+        keypointset_dir,
+        inference_output_dir,
+        num_iterations,
+        model_id,
+        pose_estimation_method,
+        task_mode,
+    ):
+        """
+        Compute model inference results.
+
+        Args:
+            key (dict): `InferenceTask` primary key.
+            keypointset_dir (str): Directory containing keypoint data.
+            inference_output_dir (str): Output directory for inference results.
+            num_iterations (int): Number of iterations for model fitting.
+            model_id (int): Model ID.
+            pose_estimation_method (str): Pose estimation method.
+            task_mode (str): Task mode ('trigger' or 'load').
+
+        Raises:
+            FileNotFoundError: If no pca model (`pca.p`) found in the parent model directory.
+            FileNotFoundError: If no model (`checkpoint.h5`) found in the model directory.
+            NotImplementedError: If the format method is not `deeplabcut`.
+            FileNotFoundError: If no valid `kpms_dj_config` found in the parent model directory.
+
+        Returns:
+            tuple: Inference results including duration, results data, and sampled instances.
+        """
+        from keypoint_moseq import (
+            apply_model,
+            filter_centroids_headings,
+            format_data,
+            generate_grid_movies,
+            generate_trajectory_plots,
+            get_syllable_instances,
+            load_checkpoint,
+            load_keypoints,
+            load_pca,
+            load_results,
+            plot_similarity_dendrogram,
+            plot_syllable_frequencies,
+            sample_instances,
+            save_results_as_csv,
+        )
+
+        # Constants used by default as in kpms
+        DEFAULT_NUM_ITERS = 50
+        FILTER_SIZE = 9
+        MIN_DURATION = 3
+        MIN_FREQUENCY = 0.005
+        GRID_SAMPLES = 4 * 6  # minimum rows * cols
+
         kpms_root = moseq_train.get_kpms_root_data_dir()
         kpms_processed = moseq_train.get_kpms_processed_data_dir()
 
@@ -267,10 +298,10 @@ class Inference(dj.Computed):
         )
         keypointset_dir = find_full_path(kpms_root, keypointset_dir)
 
-        inference_output_dir = os.path.join(model_dir, inference_output_dir)
+        inference_output_dir = Path(model_dir) / inference_output_dir
 
-        if not os.path.exists(inference_output_dir):
-            os.makedirs(model_dir / inference_output_dir)
+        if not inference_output_dir.exists():
+            inference_output_dir.mkdir(parents=True, exist_ok=True)
 
         pca_path = model_dir.parent / "pca.p"
         if pca_path:
@@ -294,15 +325,8 @@ class Inference(dj.Computed):
             coordinates, confidences, _ = load_keypoints(
                 filepath_pattern=keypointset_dir, format=pose_estimation_method
             )
-        else:
-            raise NotImplementedError(
-                "The currently supported format method is `deeplabcut`. If you require \
-        support for another format method, please reach out to us at `support@datajoint.com`."
-            )
 
-        kpms_dj_config = load_kpms_dj_config(
-            model_dir.parent.as_posix(), check_if_valid=True, build_indexes=True
-        )
+        kpms_dj_config = kpms_reader.load_kpms_dj_config(model_dir.parent)
 
         if kpms_dj_config:
             data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
@@ -322,8 +346,8 @@ class Inference(dj.Computed):
                 model_name=Path(model_dir).name,
                 results_path=(inference_output_dir / "results.h5").as_posix(),
                 return_model=False,
-                num_iters=num_iterations
-                or 50,  # default internal value in the keypoint-moseq function
+                num_iters=num_iterations or DEFAULT_NUM_ITERS,
+                overwrite=True,
                 **kpms_dj_config,
             )
             end_time = datetime.now(timezone.utc)
@@ -363,50 +387,43 @@ class Inference(dj.Computed):
             )
 
         else:
-            from keypoint_moseq import (
-                filter_centroids_headings,
-                get_syllable_instances,
-                load_results,
-                sample_instances,
-            )
 
             # load results
             results = load_results(
-                project_dir=Path(inference_output_dir).parent,
-                model_name=Path(inference_output_dir).parts[-1],
+                project_dir=inference_output_dir.parent,
+                model_name=inference_output_dir.parts[-1],
             )
 
-            # extract syllables from results
-            syllables = {k: v["syllable"] for k, v in results.items()}
+        # extract syllables from results
+        syllables = {k: v["syllable"] for k, v in results.items()}
 
-            # extract and smooth centroids and headings
-            centroids = {k: v["centroid"] for k, v in results.items()}
-            headings = {k: v["heading"] for k, v in results.items()}
+        # extract and smooth centroids and headings
+        centroids = {k: v["centroid"] for k, v in results.items()}
+        headings = {k: v["heading"] for k, v in results.items()}
 
-            filter_size = 9  # default value
-            centroids, headings = filter_centroids_headings(
-                centroids, headings, filter_size=filter_size
-            )
+        centroids, headings = filter_centroids_headings(
+            centroids, headings, filter_size=FILTER_SIZE
+        )
 
-            # extract sample instances for each syllable
-            syllable_instances = get_syllable_instances(
-                syllables, min_duration=3, min_frequency=0.005
-            )
-            # Map each syllable to a list of its sampled events.
-            sampled_instances = sample_instances(
-                syllable_instances=syllable_instances,
-                num_samples=4 * 6,  # minimum rows * cols
-                coordinates=coordinates,
-                centroids=centroids,
-                headings=headings,
-            )
+        # extract sample instances for each syllable
+        syllable_instances = get_syllable_instances(
+            syllables, min_duration=MIN_DURATION, min_frequency=MIN_FREQUENCY
+        )
+        # Map each syllable to a list of its sampled events.
+        sampled_instances = sample_instances(
+            syllable_instances=syllable_instances,
+            num_samples=GRID_SAMPLES,
+            coordinates=coordinates,
+            centroids=centroids,
+            headings=headings,
+        )
 
-            duration_seconds = None
+        duration_seconds = None
 
-        self.insert1({**key, "inference_duration": duration_seconds})
-
+        # Prepare motion sequence data
+        motion_sequence_data = []
         for result_idx, result in results.items():
-            self.MotionSequence.insert1(
+            motion_sequence_data.append(
                 {
                     **key,
                     "video_name": result_idx,
@@ -414,10 +431,49 @@ class Inference(dj.Computed):
                     "latent_state": result["latent_state"],
                     "centroid": result["centroid"],
                     "heading": result["heading"],
+                    "motion_sequence_file": (
+                        inference_output_dir / "results_as_csv" / f"{result_idx}.csv"
+                    ).as_posix(),
                 }
             )
 
+        # Prepare grid movie data
+        grid_movie_data = []
         for syllable, sampled_instance in sampled_instances.items():
-            self.GridMoviesSampledInstances.insert1(
+            grid_movie_data.append(
                 {**key, "syllable": syllable, "instances": sampled_instance}
             )
+
+        return (
+            duration_seconds,
+            motion_sequence_data,
+            grid_movie_data,
+            inference_output_dir,
+        )
+
+    def make_insert(
+        self,
+        key,
+        duration_seconds,
+        motion_sequence_data,
+        grid_movie_data,
+        inference_output_dir,
+    ):
+        """
+        Insert inference results into the database.
+        """
+        self.insert1(
+            {
+                **key,
+                "inference_duration": duration_seconds,
+                "syllable_segmentation_file": (
+                    inference_output_dir / "results.h5"
+                ).as_posix(),
+            }
+        )
+
+        for motion_record in motion_sequence_data:
+            self.MotionSequence.insert1(motion_record)
+
+        for grid_record in grid_movie_data:
+            self.GridMoviesSampledInstances.insert1(grid_record)
