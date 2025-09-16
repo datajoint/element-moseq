@@ -228,7 +228,7 @@ class FullFitReport(dj.Imported):
             moseq_train.get_kpms_processed_data_dir(), fullfit_model_name
         )
         fullfit_output_file = Path(fullfit_model_dir) / "fitting_progress.pdf"
-        if fullfit_model_dir.exists():
+        if fullfit_output_file.exists():
             self.insert1({**key, "fitting_progress_pdf": fullfit_output_file})
         else:
             raise FileNotFoundError(
