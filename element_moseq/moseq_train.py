@@ -230,7 +230,7 @@ class PreProcessing(dj.Computed):
     -> PCATask                          # Unique ID for each `PCATask` key
     ---
     coordinates             : longblob  # Dictionary mapping filenames to keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3])
-    confidences             : longblob  # Dictionary mapping filenames to `likelihood` scores as ndarrays of shape (n_frames, n_bodyparts)
+    confidences             : longblob  # Dictionary mapping filenames to likelihood scores as ndarrays of shape (n_frames, n_bodyparts)
     formatted_bodyparts     : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
     average_frame_rate      : float     # Average frame rate of the videos for model training (used for kappa calculation).
     """
