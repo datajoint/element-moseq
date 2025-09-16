@@ -267,16 +267,27 @@ class Inference(dj.Computed):
         """
         from keypoint_moseq import (
             apply_model,
+            filter_centroids_headings,
             format_data,
             generate_grid_movies,
             generate_trajectory_plots,
+            get_syllable_instances,
             load_checkpoint,
             load_keypoints,
             load_pca,
+            load_results,
             plot_similarity_dendrogram,
             plot_syllable_frequencies,
+            sample_instances,
             save_results_as_csv,
         )
+
+        # Constants used by default as in kpms
+        DEFAULT_NUM_ITERS = 50
+        FILTER_SIZE = 9
+        MIN_DURATION = 3
+        MIN_FREQUENCY = 0.005
+        GRID_SAMPLES = 4 * 6  # minimum rows * cols
 
         kpms_root = moseq_train.get_kpms_root_data_dir()
         kpms_processed = moseq_train.get_kpms_processed_data_dir()
@@ -314,11 +325,6 @@ class Inference(dj.Computed):
             coordinates, confidences, _ = load_keypoints(
                 filepath_pattern=keypointset_dir, format=pose_estimation_method
             )
-        else:
-            raise NotImplementedError(
-                "The currently supported format method is `deeplabcut`. If you require \
-        support for another format method, please reach out to us at `support@datajoint.com`."
-            )
 
         kpms_dj_config = kpms_reader.load_kpms_dj_config(model_dir.parent)
 
@@ -340,8 +346,7 @@ class Inference(dj.Computed):
                 model_name=Path(model_dir).name,
                 results_path=(inference_output_dir / "results.h5").as_posix(),
                 return_model=False,
-                num_iters=num_iterations
-                or 50,  # default internal value in the keypoint-moseq function
+                num_iters=num_iterations or DEFAULT_NUM_ITERS,
                 **kpms_dj_config,
             )
             end_time = datetime.now(timezone.utc)
@@ -381,12 +386,6 @@ class Inference(dj.Computed):
             )
 
         else:
-            from keypoint_moseq import (
-                filter_centroids_headings,
-                get_syllable_instances,
-                load_results,
-                sample_instances,
-            )
 
             # load results
             results = load_results(
@@ -394,62 +393,36 @@ class Inference(dj.Computed):
                 model_name=inference_output_dir.parts[-1],
             )
 
-            # extract syllables from results
-            syllables = {k: v["syllable"] for k, v in results.items()}
+        # extract syllables from results
+        syllables = {k: v["syllable"] for k, v in results.items()}
 
-            # extract and smooth centroids and headings
-            centroids = {k: v["centroid"] for k, v in results.items()}
-            headings = {k: v["heading"] for k, v in results.items()}
+        # extract and smooth centroids and headings
+        centroids = {k: v["centroid"] for k, v in results.items()}
+        headings = {k: v["heading"] for k, v in results.items()}
 
-            filter_size = 9  # default value
-            centroids, headings = filter_centroids_headings(
-                centroids, headings, filter_size=filter_size
-            )
-
-            # extract sample instances for each syllable
-            syllable_instances = get_syllable_instances(
-                syllables, min_duration=3, min_frequency=0.005
-            )
-            # Map each syllable to a list of its sampled events.
-            sampled_instances = sample_instances(
-                syllable_instances=syllable_instances,
-                num_samples=4 * 6,  # minimum rows * cols
-                coordinates=coordinates,
-                centroids=centroids,
-                headings=headings,
-            )
-
-            duration_seconds = None
-
-        return (
-            duration_seconds,
-            results,
-            sampled_instances,
-            inference_output_dir,
+        centroids, headings = filter_centroids_headings(
+            centroids, headings, filter_size=FILTER_SIZE
         )
 
-    def make_insert(
-        self,
-        key,
-        duration_seconds,
-        results,
-        sampled_instances,
-        inference_output_dir,
-    ):
-        """
-        Insert inference results into the database.
-        """
-        self.insert1(
-            {
-                **key,
-                "inference_duration": duration_seconds,
-                "file_h5": (inference_output_dir / "results.h5").as_posix(),
-            }
+        # extract sample instances for each syllable
+        syllable_instances = get_syllable_instances(
+            syllables, min_duration=MIN_DURATION, min_frequency=MIN_FREQUENCY
+        )
+        # Map each syllable to a list of its sampled events.
+        sampled_instances = sample_instances(
+            syllable_instances=syllable_instances,
+            num_samples=GRID_SAMPLES,
+            coordinates=coordinates,
+            centroids=centroids,
+            headings=headings,
         )
 
-        # Insert motion sequence results
+        duration_seconds = None
+
+        # Prepare motion sequence data
+        motion_sequence_data = []
         for result_idx, result in results.items():
-            self.MotionSequence.insert1(
+            motion_sequence_data.append(
                 {
                     **key,
                     "video_name": result_idx,
@@ -463,8 +436,41 @@ class Inference(dj.Computed):
                 }
             )
 
-        # Insert grid movie sampled instances
+        # Prepare grid movie data
+        grid_movie_data = []
         for syllable, sampled_instance in sampled_instances.items():
-            self.GridMoviesSampledInstances.insert1(
+            grid_movie_data.append(
                 {**key, "syllable": syllable, "instances": sampled_instance}
             )
+
+        return (
+            duration_seconds,
+            motion_sequence_data,
+            grid_movie_data,
+            inference_output_dir,
+        )
+
+    def make_insert(
+        self,
+        key,
+        duration_seconds,
+        motion_sequence_data,
+        grid_movie_data,
+        inference_output_dir,
+    ):
+        """
+        Insert inference results into the database.
+        """
+        self.insert1(
+            {
+                **key,
+                "inference_duration": duration_seconds,
+                "file_h5": (inference_output_dir / "results.h5").as_posix(),
+            }
+        )
+
+        # Add key to each motion sequence record and insert
+        self.MotionSequence.insert(motion_sequence_data)
+
+        # Add key to each grid movie record and insert
+        self.GridMoviesSampledInstances.insert(grid_movie_data)
