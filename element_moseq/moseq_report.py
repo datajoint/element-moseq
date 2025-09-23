@@ -198,6 +198,7 @@ class PreFitReport(dj.Imported):
     -> moseq_train.PreFit
     ---
     fitting_progress_pdf: attach # fitting_progress.pdf
+    fitting_progress_png: attach # fitting_progress.png
     """
 
     def make(self, key):
@@ -205,13 +206,24 @@ class PreFitReport(dj.Imported):
         prefit_model_dir = find_full_path(
             moseq_train.get_kpms_processed_data_dir(), prefit_model_name
         )
-        prefit_output_dir = Path(prefit_model_dir) / "fitting_progress.pdf"
-        if prefit_output_dir.exists():
-            self.insert1({**key, "fitting_progress_pdf": prefit_output_dir})
-        else:
+
+        pdf_path = prefit_model_dir / "fitting_progress.pdf"
+        png_path = prefit_model_dir / "fitting_progress.png"
+
+        if not pdf_path.exists():
             raise FileNotFoundError(
-                f"PreFit fitting_progress.pdf not found at {prefit_output_dir}"
+                f"PreFit PDF progress plot not found at {pdf_path}. "
             )
+
+        if not png_path.exists():
+            raise FileNotFoundError(
+                f"PreFit PNG progress plot not found at {png_path}. "
+            )
+
+        # Both files exist, insert them
+        self.insert1(
+            {**key, "fitting_progress_pdf": pdf_path, "fitting_progress_png": png_path}
+        )
 
 
 @schema
@@ -220,6 +232,7 @@ class FullFitReport(dj.Imported):
     -> moseq_train.FullFit
     ---
     fitting_progress_pdf: attach # fitting_progress.pdf
+    fitting_progress_png: attach # fitting_progress.png
     """
 
     def make(self, key):
@@ -227,13 +240,24 @@ class FullFitReport(dj.Imported):
         fullfit_model_dir = find_full_path(
             moseq_train.get_kpms_processed_data_dir(), fullfit_model_name
         )
-        fullfit_output_file = Path(fullfit_model_dir) / "fitting_progress.pdf"
-        if fullfit_output_file.exists():
-            self.insert1({**key, "fitting_progress_pdf": fullfit_output_file})
-        else:
+
+        pdf_path = fullfit_model_dir / "fitting_progress.pdf"
+        png_path = fullfit_model_dir / "fitting_progress.png"
+
+        if not pdf_path.exists():
             raise FileNotFoundError(
-                f"FullFit fitting_progress.pdf not found at {fullfit_output_file}"
+                f"FullFit PDF progress plot not found at {pdf_path}. "
             )
+
+        if not png_path.exists():
+            raise FileNotFoundError(
+                f"FullFit PNG progress plot not found at {png_path}. "
+            )
+
+        # Both files exist, insert them
+        self.insert1(
+            {**key, "fitting_progress_pdf": pdf_path, "fitting_progress_png": png_path}
+        )
 
 
 @schema

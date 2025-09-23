@@ -7,11 +7,14 @@ from pathlib import Path
 from textwrap import fill
 from typing import Dict, List, Optional, Tuple
 
+import datajoint as dj
 import matplotlib.pyplot as plt
 import numpy as np
 from jax_moseq.models.keypoint_slds import center_embedding
 from keypoint_moseq.util import get_distance_to_medoid, get_edges, plot_keypoint_traces
 from keypoint_moseq.viz import plot_pcs_3D
+
+logger = dj.logger
 
 _DLC_SUFFIX_RE = re.compile(
     r"(?:DLC_[A-Za-z0-9]+[A-Za-z]+(?:\d+)?(?:[A-Za-z]+)?"  # scorer-ish token
@@ -328,3 +331,52 @@ def plot_pcs(
             line_width * 2,
         )
     return fig
+
+
+def copy_pdf_to_png(project_dir, model_name):
+    """
+    Convert PDF progress plot to PNG format using pdf2image.
+    The fit_model function generates a single fitting_progress.pdf file.
+    This function should always succeed if the PDF exists.
+
+    Args:
+        project_dir (Path): Project directory path
+        model_name (str): Model name directory
+
+    Returns:
+        bool: True if conversion was successful, False otherwise
+    """
+
+    try:
+        from pdf2image import convert_from_path
+
+        # Check both possible locations for the PDF file
+        model_dir = Path(project_dir) / model_name
+
+        # First try the plots subdirectory
+        pdf_path = model_dir / "fitting_progress.pdf"
+        if not pdf_path.exists():
+            # If not found in plots/, try directly in the model directory
+            pdf_path = model_dir / "fitting_progress.pdf"
+            if not pdf_path.exists():
+                raise FileNotFoundError(
+                    f"PDF progress plot not found at {model_dir / 'fitting_progress.pdf'} or {pdf_path}"
+                )
+
+        # Create plots directory if it doesn't exist (for PNG output)
+        model_dir.mkdir(parents=True, exist_ok=True)
+        png_path = model_dir / "fitting_progress.png"
+
+        logger.info(f"Converting progress plot: {pdf_path}")
+
+        # Convert PDF to PNG
+        images = convert_from_path(pdf_path, dpi=300)
+        if not images:
+            raise ValueError(f"No pages found in PDF at {pdf_path}")
+
+        images[0].save(png_path, "PNG")
+        logger.info(f"Generated PNG progress plot at {png_path}")
+        return True
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to convert PDF to PNG: {e}")
