@@ -352,26 +352,22 @@ def copy_pdf_to_png(project_dir, model_name):
         FileNotFoundError: If the PDF file doesn't exist
         RuntimeError: If conversion fails
     """
-    try:
-        from pdf2image import convert_from_path
+    from pdf2image import convert_from_path
 
-        # Construct paths for PDF and PNG files
-        model_dir = Path(project_dir) / model_name
-        pdf_path = model_dir / "fitting_progress.pdf"
-        png_path = model_dir / "fitting_progress.png"
+    # Construct paths for PDF and PNG files
+    model_dir = Path(project_dir) / model_name
+    pdf_path = model_dir / "fitting_progress.pdf"
+    png_path = model_dir / "fitting_progress.png"
 
-        # Check if PDF exists
-        if not pdf_path.exists():
-            raise FileNotFoundError(f"PDF progress plot not found at {pdf_path}")
+    # Check if PDF exists
+    if not pdf_path.exists():
+        raise FileNotFoundError(f"PDF progress plot not found at {pdf_path}")
 
-        # Convert PDF to PNG
-        images = convert_from_path(pdf_path, dpi=300)
-        if not images:
-            raise ValueError(f"No PDF file found at {pdf_path}")
+    # Convert PDF to PNG
+    images = convert_from_path(pdf_path, dpi=300)
+    if not images:
+        raise ValueError(f"No PDF file found at {pdf_path}")
 
-        images[0].save(png_path, "PNG")
-        logger.info(f"Generated PNG progress plot at {png_path}")
-        return True
-
-    except Exception as e:
-        raise RuntimeError(f"Failed to convert PDF to PNG: {e}")
+    images[0].save(png_path, "PNG")
+    logger.info(f"Generated PNG progress plot at {png_path}")
+    return True
