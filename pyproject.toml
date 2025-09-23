@@ -25,6 +25,7 @@ dependencies = [
     "ipywidgets",
     "opencv-python",
     "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq/",
+    "pdf2image",
 ]
 
 [project.optional-dependencies]
