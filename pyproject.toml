@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "element-moseq"
-version = "1.0.0"
+version = "1.0.1"
 description = "Keypoint-MoSeq DataJoint Element"
 readme = "README.md"
 license = {text = "MIT"}
