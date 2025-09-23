@@ -161,7 +161,9 @@ def plot_medoid_distance_outliers(
     fig.savefig(plot_path, dpi=300)
 
     plt.close()
-    print(f"Saved keypoint distance outlier plot for {recording_name} to {plot_path}.")
+    logger.info(
+        f"Saved keypoint distance outlier plot for {recording_name} to {plot_path}."
+    )
     return fig
 
 
@@ -345,34 +347,27 @@ def copy_pdf_to_png(project_dir, model_name):
 
     Returns:
         bool: True if conversion was successful, False otherwise
-    """
 
+    Raises:
+        FileNotFoundError: If the PDF file doesn't exist
+        RuntimeError: If conversion fails
+    """
     try:
         from pdf2image import convert_from_path
 
-        # Check both possible locations for the PDF file
+        # Construct paths for PDF and PNG files
         model_dir = Path(project_dir) / model_name
-
-        # First try the plots subdirectory
         pdf_path = model_dir / "fitting_progress.pdf"
-        if not pdf_path.exists():
-            # If not found in plots/, try directly in the model directory
-            pdf_path = model_dir / "fitting_progress.pdf"
-            if not pdf_path.exists():
-                raise FileNotFoundError(
-                    f"PDF progress plot not found at {model_dir / 'fitting_progress.pdf'} or {pdf_path}"
-                )
-
-        # Create plots directory if it doesn't exist (for PNG output)
-        model_dir.mkdir(parents=True, exist_ok=True)
         png_path = model_dir / "fitting_progress.png"
 
-        logger.info(f"Converting progress plot: {pdf_path}")
+        # Check if PDF exists
+        if not pdf_path.exists():
+            raise FileNotFoundError(f"PDF progress plot not found at {pdf_path}")
 
         # Convert PDF to PNG
         images = convert_from_path(pdf_path, dpi=300)
         if not images:
-            raise ValueError(f"No pages found in PDF at {pdf_path}")
+            raise ValueError(f"No PDF file found at {pdf_path}")
 
         images[0].save(png_path, "PNG")
         logger.info(f"Generated PNG progress plot at {png_path}")
