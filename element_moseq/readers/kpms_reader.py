@@ -1,13 +1,12 @@
-import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, Union
 
+import datajoint as dj
 import jax.numpy as jnp
 import yaml
 
-logger = logging.getLogger("datajoint")
-
+logger = dj.logger
 
 DJ_CONFIG = "kpms_dj_config.yml"
 BASE_CONFIG = "config.yml"
@@ -72,11 +71,11 @@ def dj_generate_config(project_dir: str, **kwargs) -> str:
     base_cfg_path = _base_config_path(project_dir)
     dj_cfg_path = _dj_config_path(project_dir)
 
-    if os.path.exists(dj_cfg_path):
+    if Path(dj_cfg_path).exists():
         with open(dj_cfg_path, "r") as f:
             cfg = yaml.safe_load(f) or {}
     else:
-        if not os.path.exists(base_cfg_path):
+        if not Path(base_cfg_path).exists():
             raise FileNotFoundError(
                 f"Missing base config at {base_cfg_path}. Run upstream setup_project first. "
                 f"Expected either config.yml or config.yaml in {project_dir}."
@@ -105,7 +104,7 @@ def load_kpms_dj_config(
         indexing into 'use_bodyparts' by order.
     """
     dj_cfg_path = _dj_config_path(project_dir)
-    if not os.path.exists(dj_cfg_path):
+    if not Path(dj_cfg_path).exists():
         raise FileNotFoundError(
             f"Missing DJ config at {dj_cfg_path}. Create it with dj_generate_config()."
         )
@@ -135,7 +134,7 @@ def update_kpms_dj_config(project_dir: str, **kwargs) -> Dict[str, Any]:
     keypoint_moseq.io.update_config), then rewrite the file and return the dict.
     """
     dj_cfg_path = _dj_config_path(project_dir)
-    if not os.path.exists(dj_cfg_path):
+    if not Path(dj_cfg_path).exists():
         raise FileNotFoundError(
             f"Missing DJ config at {dj_cfg_path}. Create it with dj_generate_config()."
         )

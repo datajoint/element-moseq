@@ -5,7 +5,6 @@ DataJoint Schema for Keypoint-MoSeq training pipeline
 
 import importlib
 import inspect
-import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -15,6 +14,7 @@ import datajoint as dj
 import numpy as np
 from element_interface.utils import find_full_path
 
+from .plotting import viz_utils
 from .readers import kpms_reader
 
 schema = dj.schema()
@@ -790,6 +790,8 @@ class PreFit(dj.Computed):
             end_time = datetime.now(timezone.utc)
 
             duration_seconds = (end_time - start_time).total_seconds()
+            viz_utils.copy_pdf_to_png(kpms_project_output_dir, model_name)
+
         else:
             duration_seconds = None
 
@@ -942,6 +944,8 @@ class FullFit(dj.Computed):
                 project_dir=kpms_project_output_dir.as_posix(),
                 ar_only=False,
                 num_iters=full_num_iterations,
+                generate_progress_plots=True,  # saved to {project_dir}/{model_name}/plots/
+                save_every_n_iters=25,
             )
             end_time = datetime.now(timezone.utc)
             duration_seconds = (end_time - start_time).total_seconds()
@@ -950,6 +954,7 @@ class FullFit(dj.Computed):
                 project_dir=kpms_project_output_dir.as_posix(),
                 model_name=Path(model_name).parts[-1],
             )
+            viz_utils.copy_pdf_to_png(kpms_project_output_dir, model_name)
 
         else:
             duration_seconds = None

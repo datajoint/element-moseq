@@ -7,11 +7,14 @@ from pathlib import Path
 from textwrap import fill
 from typing import Dict, List, Optional, Tuple
 
+import datajoint as dj
 import matplotlib.pyplot as plt
 import numpy as np
 from jax_moseq.models.keypoint_slds import center_embedding
 from keypoint_moseq.util import get_distance_to_medoid, get_edges, plot_keypoint_traces
 from keypoint_moseq.viz import plot_pcs_3D
+
+logger = dj.logger
 
 _DLC_SUFFIX_RE = re.compile(
     r"(?:DLC_[A-Za-z0-9]+[A-Za-z]+(?:\d+)?(?:[A-Za-z]+)?"  # scorer-ish token
@@ -158,7 +161,9 @@ def plot_medoid_distance_outliers(
     fig.savefig(plot_path, dpi=300)
 
     plt.close()
-    print(f"Saved keypoint distance outlier plot for {recording_name} to {plot_path}.")
+    logger.info(
+        f"Saved keypoint distance outlier plot for {recording_name} to {plot_path}."
+    )
     return fig
 
 
@@ -328,3 +333,41 @@ def plot_pcs(
             line_width * 2,
         )
     return fig
+
+
+def copy_pdf_to_png(project_dir, model_name):
+    """
+    Convert PDF progress plot to PNG format using pdf2image.
+    The fit_model function generates a single fitting_progress.pdf file.
+    This function should always succeed if the PDF exists.
+
+    Args:
+        project_dir (Path): Project directory path
+        model_name (str): Model name directory
+
+    Returns:
+        bool: True if conversion was successful, False otherwise
+
+    Raises:
+        FileNotFoundError: If the PDF file doesn't exist
+        RuntimeError: If conversion fails
+    """
+    from pdf2image import convert_from_path
+
+    # Construct paths for PDF and PNG files
+    model_dir = Path(project_dir) / model_name
+    pdf_path = model_dir / "fitting_progress.pdf"
+    png_path = model_dir / "fitting_progress.png"
+
+    # Check if PDF exists
+    if not pdf_path.exists():
+        raise FileNotFoundError(f"PDF progress plot not found at {pdf_path}")
+
+    # Convert PDF to PNG
+    images = convert_from_path(pdf_path, dpi=300)
+    if not images:
+        raise ValueError(f"No PDF file found at {pdf_path}")
+
+    images[0].save(png_path, "PNG")
+    logger.info(f"Generated PNG progress plot at {png_path}")
+    return True

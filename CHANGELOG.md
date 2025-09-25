@@ -3,6 +3,10 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
+## [1.0.1] - 2025-09-23
++ Feat - Add support to generate PNG version of fitting progress plots in `PreFit`, `FullFit`, and `moseq_report` schema
++ Fix - Update path handling to use `Path` objects and `dj.logger`
+
 ## [1.0.0] - 2025-09-10
 
 > **BREAKING CHANGES** - This version contains breaking changes due to keypoint-moseq upgrade and API refactoring. Please review the changes below and update your code accordingly.
