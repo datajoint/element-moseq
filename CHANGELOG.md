@@ -3,6 +3,9 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
+## [1.0.2] - 2025-10-07
++ Update - Move `element-deeplabcut` as optional dependency to avoid circular dependencies
+
 ## [1.0.1] - 2025-09-23
 + Feat - Add support to generate PNG version of fitting progress plots in `PreFit`, `FullFit`, and `moseq_report` schema
 + Fix - Update path handling to use `Path` objects and `dj.logger`
