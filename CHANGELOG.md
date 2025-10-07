@@ -4,7 +4,7 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
 ## [1.0.2] - 2025-10-07
-+ Update - `keypoint-moseq` as extra dependency
++ Update - `kpms` as extra dependency (includes `keypoint-moseq`)
 + Fix - Version pin `jax<0.7.0`
 
 ## [1.0.1] - 2025-09-23
