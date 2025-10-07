@@ -25,7 +25,7 @@ DataJoint Elements collectively standardize and automate data collection and ana
 + Install with `pip`:
 
   ```bash
-  pip install -e .
+  pip install -e .[keypoint-moseq]
   ```
 
 + [Interactive tutorial on GitHub Codespaces](https://github.com/datajoint/element-moseq#interactive-tutorial)

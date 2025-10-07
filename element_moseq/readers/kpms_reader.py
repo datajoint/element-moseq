@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any, Dict, Union
 
 import datajoint as dj
-import jax.numpy as jnp
 import yaml
 
 logger = dj.logger
@@ -103,6 +102,8 @@ def load_kpms_dj_config(
       - build_indexes -> adds jax arrays 'anterior_idxs' and 'posterior_idxs'
         indexing into 'use_bodyparts' by order.
     """
+    import jax.numpy as jnp
+
     dj_cfg_path = _dj_config_path(project_dir)
     if not Path(dj_cfg_path).exists():
         raise FileNotFoundError(
