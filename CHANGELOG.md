@@ -3,6 +3,10 @@
 Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
+## [1.0.2] - 2025-10-07
++ Update - `keypoint-moseq` as extra dependency
++ Fix - Version pin `jax<0.7.0`
+
 ## [1.0.1] - 2025-09-23
 + Feat - Add support to generate PNG version of fitting progress plots in `PreFit`, `FullFit`, and `moseq_report` schema
 + Fix - Update path handling to use `Path` objects and `dj.logger`
