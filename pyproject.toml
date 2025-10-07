@@ -41,14 +41,14 @@ elements = [
     "element-animal @ git+https://github.com/datajoint/element-animal.git",
 ]
 
-all = [
-    "element-moseq[moseq,deeplabcut,elements]",
-]
-
 tests = [
     "pytest",
     "pytest-cov",
     "shutils",
+]
+
+all = [
+    "element-moseq[deeplabcut,elements,tests]",
 ]
 
 [project.urls]
