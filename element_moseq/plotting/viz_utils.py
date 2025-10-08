@@ -10,9 +10,6 @@ from typing import Dict, List, Optional, Tuple
 import datajoint as dj
 import matplotlib.pyplot as plt
 import numpy as np
-from jax_moseq.models.keypoint_slds import center_embedding
-from keypoint_moseq.util import get_distance_to_medoid, get_edges, plot_keypoint_traces
-from keypoint_moseq.viz import plot_pcs_3D
 
 logger = dj.logger
 
@@ -132,6 +129,7 @@ def plot_medoid_distance_outliers(
     None
         The plot is saved to 'QA/plots/keypoint_distance_outliers/{recording_name}.png'.
     """
+    from keypoint_moseq.util import get_distance_to_medoid, plot_keypoint_traces
 
     plot_path = os.path.join(
         project_dir,
@@ -241,6 +239,10 @@ def plot_pcs(
     interactive : bool, default=True
         For 3D data, whether to generate an interactive 3D plot.
     """
+    from jax_moseq.models.keypoint_slds import center_embedding
+    from keypoint_moseq.util import get_edges
+    from keypoint_moseq.viz import plot_pcs_3D
+
     k = len(use_bodyparts)
     d = len(pca.mean_) // (k - 1)
 
