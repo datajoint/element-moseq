@@ -28,11 +28,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-
-deeplabcut = [
-    "element-deeplabcut @ git+https://github.com/datajoint/element-deeplabcut.git",
-]
-
 elements = [
     "element-lab @ git+https://github.com/datajoint/element-lab.git",
     "element-session @ git+https://github.com/datajoint/element-session.git",
@@ -46,10 +41,6 @@ tests = [
     "pytest",
     "pytest-cov",
     "shutils",
-]
-
-all = [
-    "element-moseq[deeplabcut,elements,tests]",
 ]
 
 [project.urls]
