@@ -22,10 +22,18 @@ DataJoint Elements collectively standardize and automate data collection and ana
   git clone https://github.com/<enter_github_username>/element-moseq.git
   ```
 
++ Install [Conda](https://docs.conda.io/en/latest/miniconda.html).
+
++ Create and activate a Conda environment:
+  ```bash
+   conda env create -f conda_env.yml
+   conda activate element_moseq
+   ```
+
 + Install with `pip`:
 
   ```bash
-  pip install -e .[keypoint-moseq]
+  pip install -e .[kpms_cpu]  # MacOS: pip install -e ".[kpms_cpu]"
   ```
 
 + [Interactive tutorial on GitHub Codespaces](https://github.com/datajoint/element-moseq#interactive-tutorial)
