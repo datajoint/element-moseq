@@ -34,7 +34,9 @@ elements = [
     "element-interface @ git+https://github.com/datajoint/element-interface.git",
     "element-animal @ git+https://github.com/datajoint/element-animal.git",
 ]
-kpms = ["jax<0.7.0", "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq.git"]
+kpms_cpu = ["jax<0.7.0", "keypoint-moseq @ git+https://github.com/dattalab/keypoint-moseq.git"]
+kpms_gpu = ["jax<0.7.0", "keypoint-moseq[cuda] @ git+https://github.com/dattalab/keypoint-moseq.git"]
+
 tests = [
     "pytest",
     "pytest-cov",
