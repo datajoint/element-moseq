@@ -4,9 +4,15 @@ Observes [Semantic Versioning](https://semver.org/spec/v2.0.0.html) standard and
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) convention.
 
 ## [1.0.3] - 2025-10-15
-+ Fix - Add new `pose_estimation_path` attribute in `KeypointSet.VideoFile`
-+ Fix - Update `moseq_report` and `moseq_train` to use new `QA` and `quality_assurance` directory names
-+ Fix - Update `moseq_train` to add new attribute `pose_estimation_path` attribute in `KeypointSet.VideoFile`
+
+> **BREAKING CHANGES** - This version contains breaking changes due to keypoint-moseq upgrade and API refactoring. Please review the changes below and update your code accordingly.
+
+### Breaking Changes
++ **BREAKING**: Remove `recording_name` attribute from `moseq_report` since it will be added in `VideoFile` in `moseq_train`
++ **BREAKING**: Add new `pose_estimation_path` attribute in `KeypointSet.VideoFile`
+
+### New Features and Fixes
++ Fix - Update `moseq_report` and `moseq_train` to use new `QA` dir name instead of `quality_assurance`
 + Fix - Update logic in `PreProcessing` to check for outlier plots
 + Fix - add `poppler` as system dependency in `conda_env.yml`
 + Update - code cleanup related to `copy_pdf_to_png` function
