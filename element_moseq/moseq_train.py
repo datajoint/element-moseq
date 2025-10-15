@@ -455,22 +455,43 @@ class PreProcessing(dj.Computed):
 
             # Plot outliers
             if formatted_bodyparts is not None:
-                try:
-                    plot_medoid_distance_outliers(
-                        project_dir=kpms_project_output_dir.as_posix(),
-                        recording_name=recording_name,
-                        original_coordinates=raw_coords,
-                        interpolated_coordinates=cleaned_coords,
-                        outlier_mask=outliers["mask"],
-                        outlier_thresholds=outliers["thresholds"],
-                        **kpms_config,
-                    )
+                plot_medoid_distance_outliers(
+                    project_dir=kpms_project_output_dir.as_posix(),
+                    recording_name=recording_name,
+                    original_coordinates=raw_coords,
+                    interpolated_coordinates=cleaned_coords,
+                    outlier_mask=outliers["mask"],
+                    outlier_thresholds=outliers["thresholds"],
+                    **kpms_config,
+                )
 
-                except Exception as e:
-                    logger.warning(
-                        f"Could not create outlier plot for {recording_name}: {e}"
-                    )
+                qa_dirs = ["QA", "quality_assurance"]
+                plot_path = None
 
+                for qa_dir in qa_dirs:
+                    potential_path = (
+                        kpms_project_output_dir
+                        / qa_dir
+                        / "plots"
+                        / "keypoint_distance_outliers"
+                        / f"{recording_name}.png"
+                    )
+                    if potential_path.exists():
+                        plot_path = potential_path
+                        break
+
+                if plot_path is None:
+                    checked_paths = [
+                        kpms_project_output_dir
+                        / qa_dir
+                        / "plots"
+                        / "keypoint_distance_outliers"
+                        / f"{recording_name}.png"
+                        for qa_dir in qa_dirs
+                    ]
+                    raise FileNotFoundError(
+                        f"Could not create outlier plot for {recording_name}. Checked paths: {[str(p) for p in checked_paths]}"
+                    )
         return (
             cleaned_coordinates,
             cleaned_confidences,
