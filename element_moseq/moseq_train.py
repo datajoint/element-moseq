@@ -14,7 +14,7 @@ import datajoint as dj
 import numpy as np
 from element_interface.utils import find_full_path
 
-from .plotting import viz_utils
+from .plotting.viz_utils import copy_pdf_to_png
 from .readers import kpms_reader
 
 schema = dj.schema()
@@ -790,7 +790,7 @@ class PreFit(dj.Computed):
             end_time = datetime.now(timezone.utc)
 
             duration_seconds = (end_time - start_time).total_seconds()
-            viz_utils.copy_pdf_to_png(kpms_project_output_dir, model_name)
+            copy_pdf_to_png(kpms_project_output_dir, model_name)
 
         else:
             duration_seconds = None
@@ -954,7 +954,7 @@ class FullFit(dj.Computed):
                 project_dir=kpms_project_output_dir.as_posix(),
                 model_name=Path(model_name).parts[-1],
             )
-            viz_utils.copy_pdf_to_png(kpms_project_output_dir, model_name)
+            copy_pdf_to_png(kpms_project_output_dir, model_name)
 
         else:
             duration_seconds = None

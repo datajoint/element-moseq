@@ -341,18 +341,14 @@ def copy_pdf_to_png(project_dir, model_name):
     """
     Convert PDF progress plot to PNG format using pdf2image.
     The fit_model function generates a single fitting_progress.pdf file.
-    This function should always succeed if the PDF exists.
+    This function will gracefully handle missing poppler dependency.
 
     Args:
         project_dir (Path): Project directory path
         model_name (str): Model name directory
 
     Returns:
-        bool: True if conversion was successful, False otherwise
-
-    Raises:
-        FileNotFoundError: If the PDF file doesn't exist
-        RuntimeError: If conversion fails
+        bool: True if conversion was successful, False if poppler is not available or conversion fails
     """
     from pdf2image import convert_from_path
 
@@ -361,15 +357,18 @@ def copy_pdf_to_png(project_dir, model_name):
     pdf_path = model_dir / "fitting_progress.pdf"
     png_path = model_dir / "fitting_progress.png"
 
-    # Check if PDF exists
     if not pdf_path.exists():
-        raise FileNotFoundError(f"PDF progress plot not found at {pdf_path}")
+        logger.error(f"PDF progress plot not found at {pdf_path}")
+        return False
 
-    # Convert PDF to PNG
-    images = convert_from_path(pdf_path, dpi=300)
-    if not images:
-        raise ValueError(f"No PDF file found at {pdf_path}")
-
-    images[0].save(png_path, "PNG")
-    logger.info(f"Generated PNG progress plot at {png_path}")
-    return True
+    try:
+        images = convert_from_path(str(pdf_path), dpi=300)
+        if not images:
+            logger.error(f"Could not convert PDF at {pdf_path} (no images returned).")
+            return False
+        images[0].save(png_path, "PNG")
+        logger.info(f"Generated PNG progress plot at {png_path}")
+        return True
+    except Exception as ex:
+        logger.error(f"Failed to convert PDF to PNG: {ex}")
+        return False
