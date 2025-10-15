@@ -103,32 +103,17 @@ class PreProcessingReport(dj.Imported):
         for rec in recording_names:
             vid = posefile2vid[rec]
 
-            qa_dirs = ["QA", "quality_assurance"]
-            plot_path = None
-
-            for qa_dir in qa_dirs:
-                potential_path = (
-                    kpms_project_output_dir
-                    / qa_dir
-                    / "plots"
-                    / "keypoint_distance_outliers"
-                    / f"{rec}.png"
-                )
-                if potential_path.exists():
-                    plot_path = potential_path
-                    break
-
-            if plot_path is None:
-                checked_paths = [
-                    kpms_project_output_dir
-                    / qa_dir
-                    / "plots"
-                    / "keypoint_distance_outliers"
-                    / f"{rec}.png"
-                    for qa_dir in qa_dirs
-                ]
+            # Look for outlier plot in QA directory
+            plot_path = (
+                kpms_project_output_dir
+                / "QA"
+                / "plots"
+                / "keypoint_distance_outliers"
+                / f"{rec}.png"
+            )
+            if not plot_path.exists():
                 raise FileNotFoundError(
-                    f"Outlier plot not found for {rec}. Checked paths: {[str(p) for p in checked_paths]}"
+                    f"Outlier plot not found for {rec} at {plot_path}"
                 )
 
             self.insert1(

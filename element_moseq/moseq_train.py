@@ -464,32 +464,17 @@ class PreProcessing(dj.Computed):
                     **kpms_config,
                 )
 
-                qa_dirs = ["QA", "quality_assurance"]
-                plot_path = None
-
-                for qa_dir in qa_dirs:
-                    potential_path = (
-                        kpms_project_output_dir
-                        / qa_dir
-                        / "plots"
-                        / "keypoint_distance_outliers"
-                        / f"{recording_name}.png"
-                    )
-                    if potential_path.exists():
-                        plot_path = potential_path
-                        break
-
-                if plot_path is None:
-                    checked_paths = [
-                        kpms_project_output_dir
-                        / qa_dir
-                        / "plots"
-                        / "keypoint_distance_outliers"
-                        / f"{recording_name}.png"
-                        for qa_dir in qa_dirs
-                    ]
+                # Check if outlier plot was created in QA directory
+                plot_path = (
+                    kpms_project_output_dir
+                    / "QA"
+                    / "plots"
+                    / "keypoint_distance_outliers"
+                    / f"{recording_name}.png"
+                )
+                if not plot_path.exists():
                     raise FileNotFoundError(
-                        f"Could not create outlier plot for {recording_name}. Checked paths: {[str(p) for p in checked_paths]}"
+                        f"Could not create outlier plot for {recording_name} at {plot_path}"
                     )
         return (
             cleaned_coordinates,

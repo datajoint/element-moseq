@@ -65,26 +65,16 @@ def plot_medoid_distance_outliers(
     """
     from keypoint_moseq.util import get_distance_to_medoid, plot_keypoint_traces
 
-    qa_dirs = ["QA", "quality_assurance"]
-    plot_path = None
-
-    for qa_dir in qa_dirs:
-        potential_path = os.path.join(
-            project_dir,
-            qa_dir,
-            "plots",
-            "keypoint_distance_outliers",
-            f"{recording_name}.png",
-        )
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(potential_path), exist_ok=True)
-        plot_path = potential_path
-        break  # Use first available directory
-
-    if plot_path is None:
-        raise FileNotFoundError(
-            f"Could not determine plot directory for {recording_name}"
-        )
+    # Use QA directory for outlier plots
+    plot_path = os.path.join(
+        project_dir,
+        "QA",
+        "plots",
+        "keypoint_distance_outliers",
+        f"{recording_name}.png",
+    )
+    # Create directory if it doesn't exist
+    os.makedirs(os.path.dirname(plot_path), exist_ok=True)
 
     original_distances = get_distance_to_medoid(
         original_coordinates
@@ -291,8 +281,6 @@ def copy_pdf_to_png(project_dir, model_name):
         project_dir (Path): Project directory path
         model_name (str): Model name directory
 
-    Returns:
-        None: The function raises errors instead of returning boolean values
     """
     from pdf2image import convert_from_path
 
