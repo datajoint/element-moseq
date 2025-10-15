@@ -84,11 +84,11 @@ class PreProcessingReport(dj.Imported):
         valid_entries = [
             (vid, p)
             for vid, p in zip(video_ids, pose_estimation_paths)
-            if p is not None
+            if p and p.strip()  # Check for non-empty strings
         ]
         if not valid_entries:
             raise ValueError(
-                "No valid pose_estimation_paths found - all entries are NULL"
+                "No valid pose_estimation_paths found - all entries are empty"
             )
 
         posefile2vid = {Path(p).stem: vid for vid, p in valid_entries}
