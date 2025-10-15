@@ -161,9 +161,10 @@ class KeypointSet(dj.Manual):
 
         definition = """
         -> master
-        video_id                      : int           # Unique ID for each video corresponding to each keypoint data file, relative to root data directory
+        video_id                            : int           # Unique ID for each video corresponding to each keypoint data file, relative to root data directory
         ---
-        video_path                    : varchar(1000) # Filepath of each video from which the keypoints are derived, relative to root data directory
+        video_path                          : varchar(1000) # Filepath of each video (e.g., `.mp4`) from which the keypoints are derived, relative to root data directory
+        pose_estimation_path=null           : varchar(1000) # Filepath of each pose estimation file (e.g., `.h5`) that contains the keypoints, relative to root data directory
         """
 
 
