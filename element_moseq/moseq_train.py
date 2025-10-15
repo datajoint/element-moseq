@@ -342,7 +342,6 @@ class PreProcessing(dj.Computed):
                 kpms_project_output_dir = find_full_path(
                     get_kpms_processed_data_dir(), kpms_project_output_dir
                 )
-
             except FileNotFoundError:
                 kpms_project_output_dir = (
                     Path(get_kpms_processed_data_dir()) / kpms_project_output_dir

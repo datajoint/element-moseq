@@ -65,14 +65,26 @@ def plot_medoid_distance_outliers(
     """
     from keypoint_moseq.util import get_distance_to_medoid, plot_keypoint_traces
 
-    plot_path = os.path.join(
-        project_dir,
-        "quality_assurance",
-        "plots",
-        "keypoint_distance_outliers",
-        f"{recording_name}.png",
-    )
-    os.makedirs(os.path.dirname(plot_path), exist_ok=True)
+    qa_dirs = ["QA", "quality_assurance"]
+    plot_path = None
+
+    for qa_dir in qa_dirs:
+        potential_path = os.path.join(
+            project_dir,
+            qa_dir,
+            "plots",
+            "keypoint_distance_outliers",
+            f"{recording_name}.png",
+        )
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(potential_path), exist_ok=True)
+        plot_path = potential_path
+        break  # Use first available directory
+
+    if plot_path is None:
+        raise FileNotFoundError(
+            f"Could not determine plot directory for {recording_name}"
+        )
 
     original_distances = get_distance_to_medoid(
         original_coordinates
@@ -252,9 +264,8 @@ def plot_pcs(
         plt.tight_layout()
 
         if savefig:
-            assert project_dir is not None, fill(
-                "The `savefig` option requires a `project_dir`"
-            )
+            if project_dir is None:
+                raise ValueError(fill("The `savefig` option requires a `project_dir`"))
             plt.savefig(os.path.join(project_dir, f"pcs-{name}.pdf"))
         plt.show()
 
@@ -275,14 +286,13 @@ def copy_pdf_to_png(project_dir, model_name):
     """
     Convert PDF progress plot to PNG format using pdf2image.
     The fit_model function generates a single fitting_progress.pdf file.
-    This function will gracefully handle missing poppler dependency.
 
     Args:
         project_dir (Path): Project directory path
         model_name (str): Model name directory
 
     Returns:
-        bool: True if conversion was successful, False if poppler is not available or conversion fails
+        None: The function raises errors instead of returning boolean values
     """
     from pdf2image import convert_from_path
 
@@ -292,17 +302,11 @@ def copy_pdf_to_png(project_dir, model_name):
     png_path = model_dir / "fitting_progress.png"
 
     if not pdf_path.exists():
-        logger.error(f"PDF progress plot not found at {pdf_path}")
-        return False
+        raise FileNotFoundError(f"PDF progress plot not found at {pdf_path}")
 
-    try:
-        images = convert_from_path(str(pdf_path), dpi=300)
-        if not images:
-            logger.error(f"Could not convert PDF at {pdf_path} (no images returned).")
-            return False
-        images[0].save(png_path, "PNG")
-        logger.info(f"Generated PNG progress plot at {png_path}")
-        return True
-    except Exception as ex:
-        logger.error(f"Failed to convert PDF to PNG: {ex}")
-        return False
+    images = convert_from_path(str(pdf_path), dpi=300)
+    if not images:
+        raise ValueError(f"Could not convert PDF at {pdf_path} (no images returned)")
+
+    images[0].save(png_path, "PNG")
+    logger.info(f"Generated PNG progress plot at {png_path}")
