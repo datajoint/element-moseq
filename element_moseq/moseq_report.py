@@ -69,61 +69,57 @@ class PreProcessingReport(dj.Imported):
     -> moseq_train.PreProcessing
     video_id: int                 # ID of the matching video file
     ---
-    recording_name: varchar(255)  # Name of the recording
     outlier_plot: attach          # A plot of the outlier keypoints
     """
 
     def make(self, key):
-        # Resolve project dir
         project_rel = (moseq_train.PCATask & key).fetch1("kpms_project_output_dir")
         kpms_project_output_dir = (
             Path(moseq_train.get_kpms_processed_data_dir()) / project_rel
         )
+        video_ids, pose_estimation_paths = (
+            moseq_train.KeypointSet.VideoFile & key
+        ).fetch("video_id", "pose_estimation_path")
+        # Map pose estimation filename (without .h5 extension) to video id
+        valid_entries = [
+            (vid, p)
+            for vid, p in zip(video_ids, pose_estimation_paths)
+            if p and p.strip()  # Check for non-empty strings
+        ]
+        if not valid_entries:
+            raise ValueError(
+                "No valid pose_estimation_paths found - all entries are empty"
+            )
 
-        # Fetch video table info
-        video_paths, video_ids = (moseq_train.KeypointSet.VideoFile & key).fetch(
-            "video_path", "video_id"
-        )
+        posefile2vid = {Path(p).stem: vid for vid, p in valid_entries}
+        recording_names = list(posefile2vid.keys())
 
-        # Get recording names from PreProcessing dict keys
-        coords = (moseq_train.PreProcessing & key).fetch1("coordinates")
-        recording_names = list(coords.keys())
+        if not recording_names:
+            raise ValueError(
+                "No recording names found after processing pose estimation paths"
+            )
 
-        # Build mapping recording_name -> video_id
-        rec2vid = viz_utils.build_recording_to_video_id(
-            recording_names=recording_names,
-            video_paths=list(video_paths),
-            video_ids=list(video_ids),
-        )
-
-        # Insert one row per recording that matched a video_id
+        # Insert one row per recording
         for rec in recording_names:
-            vid = rec2vid.get(rec)
-            if vid is None:
-                dj.logger.warning(
-                    f"[PreProcessingReport] No video_id match for recording '{rec}'. Skipping."
-                )
-                continue
+            vid = posefile2vid[rec]
 
+            # Look for outlier plot in QA directory
             plot_path = (
                 kpms_project_output_dir
-                / "quality_assurance"
+                / "QA"
                 / "plots"
                 / "keypoint_distance_outliers"
                 / f"{rec}.png"
             )
-
             if not plot_path.exists():
-                dj.logger.warning(
-                    f"[PreProcessingReport] Outlier plot not found at {plot_path}. Skipping."
+                raise FileNotFoundError(
+                    f"Outlier plot not found for {rec} at {plot_path}"
                 )
-                continue
 
             self.insert1(
                 {
                     **key,
                     "video_id": int(vid),
-                    "recording_name": rec,
                     "outlier_plot": plot_path.as_posix(),
                 }
             )

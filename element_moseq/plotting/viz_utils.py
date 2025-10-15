@@ -13,72 +13,6 @@ import numpy as np
 
 logger = dj.logger
 
-_DLC_SUFFIX_RE = re.compile(
-    r"(?:DLC_[A-Za-z0-9]+[A-Za-z]+(?:\d+)?(?:[A-Za-z]+)?"  # scorer-ish token
-    r"(?:\w+)*)"  # optional extra blobs
-    r"(?:shuffle\d+)?"  # shuffleN
-    r"(?:_\d+)?$"  # _iter
-)
-
-
-def _normalize_name(name: str) -> str:
-    """
-    Normalize a recording/video string for matching:
-    - lowercase, strip whitespace
-    - drop extension if present
-    - remove common DLC suffix blob (e.g., '...DLC_resnet50_...shuffle1_500000')
-    - collapse separators to single spaces
-    """
-    s = name.lower().strip()
-    s = Path(s).stem
-    s = _DLC_SUFFIX_RE.sub("", s)  # strip DLC tail if present
-    s = re.sub(r"[\s._-]+", " ", s).strip()
-    return s
-
-
-def build_recording_to_video_id(
-    recording_names: List[str],
-    video_paths: List[str],
-    video_ids: List[int],
-    fuzzy_threshold: float = 0.80,
-) -> Dict[str, Optional[int]]:
-    """
-    Returns: {recording_name -> video_id or None if no good match}
-    Strategy: exact normalized stem match; if none, substring; then fuzzy.
-    """
-    # candidate stems from videos
-    stems: List[Tuple[str, int]] = [
-        (_normalize_name(Path(p).name), vid) for p, vid in zip(video_paths, video_ids)
-    ]
-
-    mapping: Dict[str, Optional[int]] = {}
-
-    for rec in recording_names:
-        nrec = _normalize_name(rec)
-
-        # 1) exact normalized match
-        exact = [vid for stem, vid in stems if stem == nrec]
-        if exact:
-            mapping[rec] = exact[0]
-            continue
-
-        # 2) substring either way (choose longest stem to disambiguate)
-        subs = [(stem, vid) for stem, vid in stems if nrec in stem or stem in nrec]
-        if subs:
-            subs.sort(key=lambda x: len(x[0]), reverse=True)
-            mapping[rec] = subs[0][1]
-            continue
-
-        # 3) fuzzy best match
-        best_vid, best_ratio = None, 0.0
-        for stem, vid in stems:
-            r = SequenceMatcher(None, nrec, stem).ratio()
-            if r > best_ratio:
-                best_ratio, best_vid = r, vid
-        mapping[rec] = best_vid if best_ratio >= fuzzy_threshold else None
-
-    return mapping
-
 
 def plot_medoid_distance_outliers(
     project_dir: str,
@@ -131,13 +65,15 @@ def plot_medoid_distance_outliers(
     """
     from keypoint_moseq.util import get_distance_to_medoid, plot_keypoint_traces
 
+    # Use QA directory for outlier plots
     plot_path = os.path.join(
         project_dir,
-        "quality_assurance",
+        "QA",
         "plots",
         "keypoint_distance_outliers",
         f"{recording_name}.png",
     )
+    # Create directory if it doesn't exist
     os.makedirs(os.path.dirname(plot_path), exist_ok=True)
 
     original_distances = get_distance_to_medoid(
@@ -318,9 +254,8 @@ def plot_pcs(
         plt.tight_layout()
 
         if savefig:
-            assert project_dir is not None, fill(
-                "The `savefig` option requires a `project_dir`"
-            )
+            if project_dir is None:
+                raise ValueError(fill("The `savefig` option requires a `project_dir`"))
             plt.savefig(os.path.join(project_dir, f"pcs-{name}.pdf"))
         plt.show()
 
@@ -341,18 +276,11 @@ def copy_pdf_to_png(project_dir, model_name):
     """
     Convert PDF progress plot to PNG format using pdf2image.
     The fit_model function generates a single fitting_progress.pdf file.
-    This function should always succeed if the PDF exists.
 
     Args:
         project_dir (Path): Project directory path
         model_name (str): Model name directory
 
-    Returns:
-        bool: True if conversion was successful, False otherwise
-
-    Raises:
-        FileNotFoundError: If the PDF file doesn't exist
-        RuntimeError: If conversion fails
     """
     from pdf2image import convert_from_path
 
@@ -361,15 +289,12 @@ def copy_pdf_to_png(project_dir, model_name):
     pdf_path = model_dir / "fitting_progress.pdf"
     png_path = model_dir / "fitting_progress.png"
 
-    # Check if PDF exists
     if not pdf_path.exists():
         raise FileNotFoundError(f"PDF progress plot not found at {pdf_path}")
 
-    # Convert PDF to PNG
-    images = convert_from_path(pdf_path, dpi=300)
+    images = convert_from_path(str(pdf_path), dpi=300)
     if not images:
-        raise ValueError(f"No PDF file found at {pdf_path}")
+        raise ValueError(f"Could not convert PDF at {pdf_path} (no images returned)")
 
     images[0].save(png_path, "PNG")
     logger.info(f"Generated PNG progress plot at {png_path}")
-    return True

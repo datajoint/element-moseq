@@ -4,5 +4,6 @@ channels:
 dependencies:
   - pip
   - python<3.11
+  - poppler
 
 name: element_moseq

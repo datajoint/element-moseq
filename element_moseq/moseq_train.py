@@ -14,7 +14,7 @@ import datajoint as dj
 import numpy as np
 from element_interface.utils import find_full_path
 
-from .plotting import viz_utils
+from .plotting.viz_utils import copy_pdf_to_png
 from .readers import kpms_reader
 
 schema = dj.schema()
@@ -161,9 +161,10 @@ class KeypointSet(dj.Manual):
 
         definition = """
         -> master
-        video_id                      : int           # Unique ID for each video corresponding to each keypoint data file, relative to root data directory
+        video_id                            : int           # Unique ID for each video corresponding to each keypoint data file, relative to root data directory
         ---
-        video_path                    : varchar(1000) # Filepath of each video from which the keypoints are derived, relative to root data directory
+        video_path                          : varchar(1000) # Filepath of each video (e.g., `.mp4`) from which the keypoints are derived, relative to root data directory
+        pose_estimation_path=''             : varchar(1000) # Filepath of each pose estimation file (e.g., `.h5`) that contains the keypoints, relative to root data directory
         """
 
 
@@ -341,7 +342,6 @@ class PreProcessing(dj.Computed):
                 kpms_project_output_dir = find_full_path(
                     get_kpms_processed_data_dir(), kpms_project_output_dir
                 )
-
             except FileNotFoundError:
                 kpms_project_output_dir = (
                     Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
@@ -454,22 +454,28 @@ class PreProcessing(dj.Computed):
 
             # Plot outliers
             if formatted_bodyparts is not None:
-                try:
-                    plot_medoid_distance_outliers(
-                        project_dir=kpms_project_output_dir.as_posix(),
-                        recording_name=recording_name,
-                        original_coordinates=raw_coords,
-                        interpolated_coordinates=cleaned_coords,
-                        outlier_mask=outliers["mask"],
-                        outlier_thresholds=outliers["thresholds"],
-                        **kpms_config,
-                    )
+                plot_medoid_distance_outliers(
+                    project_dir=kpms_project_output_dir.as_posix(),
+                    recording_name=recording_name,
+                    original_coordinates=raw_coords,
+                    interpolated_coordinates=cleaned_coords,
+                    outlier_mask=outliers["mask"],
+                    outlier_thresholds=outliers["thresholds"],
+                    **kpms_config,
+                )
 
-                except Exception as e:
-                    logger.warning(
-                        f"Could not create outlier plot for {recording_name}: {e}"
+                # Check if outlier plot was created in QA directory
+                plot_path = (
+                    kpms_project_output_dir
+                    / "QA"
+                    / "plots"
+                    / "keypoint_distance_outliers"
+                    / f"{recording_name}.png"
+                )
+                if not plot_path.exists():
+                    raise FileNotFoundError(
+                        f"Could not create outlier plot for {recording_name} at {plot_path}"
                     )
-
         return (
             cleaned_coordinates,
             cleaned_confidences,
@@ -790,7 +796,7 @@ class PreFit(dj.Computed):
             end_time = datetime.now(timezone.utc)
 
             duration_seconds = (end_time - start_time).total_seconds()
-            viz_utils.copy_pdf_to_png(kpms_project_output_dir, model_name)
+            copy_pdf_to_png(kpms_project_output_dir, model_name)
 
         else:
             duration_seconds = None
@@ -954,7 +960,7 @@ class FullFit(dj.Computed):
                 project_dir=kpms_project_output_dir.as_posix(),
                 model_name=Path(model_name).parts[-1],
             )
-            viz_utils.copy_pdf_to_png(kpms_project_output_dir, model_name)
+            copy_pdf_to_png(kpms_project_output_dir, model_name)
 
         else:
             duration_seconds = None
