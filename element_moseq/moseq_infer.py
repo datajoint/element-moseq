@@ -162,7 +162,7 @@ class Inference(dj.Computed):
     definition = """
     -> InferenceTask                         # `InferenceTask` key
     ---
-    syllable_segmentation_file      : attach # File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings
+    syllable_segmentation_file     : attach # File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings
     inference_duration=NULL        : float   # Time duration (seconds) of the inference computation
     """
 
@@ -203,6 +203,42 @@ class Inference(dj.Computed):
         syllable: int           # Syllable label
         ---
         instances: longblob     # List of instances shown in each in grid movie (in row-major order), where each instance is specified as a tuple with the video name, start frame and end frame
+        """
+
+    class InferencePlots(dj.Part):
+        """Store the main inference plots.
+
+        Attributes:
+            InferenceTask (foreign key)         : `InferenceTask` key.
+            plot_name (varchar)                : Name of the plot.
+            plot_file (attach)                 : File path of the plot.
+        """
+
+        definition = """
+        -> master
+        plot_name: varchar(150) # Name of the plot (e.g. syllable_frequencies, similarity_dendrogram_png, similarity_dendrogram_pdf, all_trajectories_gif, all_trajectories_pdf)
+        ---
+        plot_file: attach # File path of the plot
+        """
+
+    class TrajectoryPlots(dj.Part):
+        """Store the per-syllable trajectory plots.
+
+        Attributes:
+            InferenceTask (foreign key)         : `InferenceTask` key.
+            syllable_id (int)                  : Syllable ID.
+            plot_gif (attach)                  : GIF plot file.
+            plot_pdf (attach)                  : PDF plot file.
+            grid_movie (attach)                : Grid movie file.
+        """
+
+        definition = """
+        -> master
+        syllable_id: int # Syllable ID
+        ---
+        plot_gif: attach # GIF plot file
+        plot_pdf: attach # PDF plot file
+        grid_movie: attach # Grid movie file
         """
 
     def make_fetch(self, key):
@@ -387,7 +423,7 @@ class Inference(dj.Computed):
             )
 
         else:
-
+            # For load mode
             # load results
             results = load_results(
                 project_dir=inference_output_dir.parent,
@@ -444,10 +480,107 @@ class Inference(dj.Computed):
                 {**key, "syllable": syllable, "instances": sampled_instance}
             )
 
+        # Prepare inference plots data
+        inference_plots_data = []
+        if task_mode == "trigger":
+            # Main plots generated during trigger mode
+            inference_plots_data = [
+                {
+                    **key,
+                    "plot_name": "syllable_frequencies",
+                    "plot_file": inference_output_dir / "syllable_frequencies.png",
+                },
+                {
+                    **key,
+                    "plot_name": "similarity_dendrogram_png",
+                    "plot_file": inference_output_dir / "similarity_dendrogram.png",
+                },
+                {
+                    **key,
+                    "plot_name": "similarity_dendrogram_pdf",
+                    "plot_file": inference_output_dir / "similarity_dendrogram.pdf",
+                },
+                {
+                    **key,
+                    "plot_name": "all_trajectories_gif",
+                    "plot_file": inference_output_dir
+                    / "trajectory_plots"
+                    / "all_trajectories.gif",
+                },
+                {
+                    **key,
+                    "plot_name": "all_trajectories_pdf",
+                    "plot_file": inference_output_dir
+                    / "trajectory_plots"
+                    / "all_trajectories.pdf",
+                },
+            ]
+        else:
+            # For load mode, check if files exist
+            main_plots = [
+                ("syllable_frequencies", "syllable_frequencies.png"),
+                ("similarity_dendrogram_png", "similarity_dendrogram.png"),
+                ("similarity_dendrogram_pdf", "similarity_dendrogram.pdf"),
+                ("all_trajectories_gif", "trajectory_plots/all_trajectories.gif"),
+                ("all_trajectories_pdf", "trajectory_plots/all_trajectories.pdf"),
+            ]
+
+            for plot_name, file_path in main_plots:
+                full_path = inference_output_dir / file_path
+                if full_path.exists():
+                    inference_plots_data.append(
+                        {
+                            **key,
+                            "plot_name": plot_name,
+                            "plot_file": full_path,
+                        }
+                    )
+
+        # Prepare trajectory plots data
+        trajectory_plots_data = []
+        for syllable in sampled_instances.keys():
+            syllable_gif = (
+                inference_output_dir / "trajectory_plots" / f"syllable{syllable}.gif"
+            )
+            syllable_pdf = (
+                inference_output_dir / "trajectory_plots" / f"syllable{syllable}.pdf"
+            )
+            grid_movie_mp4 = (
+                inference_output_dir / "grid_movies" / f"syllable{syllable}.mp4"
+            )
+            grid_movie_gif = (
+                inference_output_dir
+                / "grid_movies"
+                / f"syllable{syllable}_grid_movie.gif"
+            )
+
+            # Convert MP4 to GIF if needed (from InferenceReport logic)
+            if grid_movie_mp4.exists() and not grid_movie_gif.exists():
+                import imageio
+
+                reader = imageio.get_reader(grid_movie_mp4)
+                fps = reader.get_meta_data()["fps"]
+                writer = imageio.get_writer(grid_movie_gif, fps=fps, loop=0)
+                for frame in reader:
+                    writer.append_data(frame)
+                writer.close()
+
+            trajectory_plots_data.append(
+                {
+                    **key,
+                    "syllable_id": syllable,
+                    "plot_gif": syllable_gif if syllable_gif.exists() else None,
+                    "plot_pdf": syllable_pdf if syllable_pdf.exists() else None,
+                    "grid_movie": grid_movie_gif if grid_movie_gif.exists() else None,
+                }
+            )
+
         return (
             duration_seconds,
             motion_sequence_data,
             grid_movie_data,
+            inference_plots_data,
+            trajectory_plots_data,
             inference_output_dir,
         )
 
@@ -457,6 +590,8 @@ class Inference(dj.Computed):
         duration_seconds,
         motion_sequence_data,
         grid_movie_data,
+        inference_plots_data,
+        trajectory_plots_data,
         inference_output_dir,
     ):
         """
@@ -477,3 +612,13 @@ class Inference(dj.Computed):
 
         for grid_record in grid_movie_data:
             self.GridMoviesSampledInstances.insert1(grid_record)
+
+        for plot_record in inference_plots_data:
+            self.InferencePlots.insert1(plot_record)
+
+        for trajectory_record in trajectory_plots_data:
+            if any(
+                trajectory_record.get(field)
+                for field in ["plot_gif", "plot_pdf", "grid_movie"]
+            ):
+                self.TrajectoryPlots.insert1(trajectory_record)
