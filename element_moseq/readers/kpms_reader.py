@@ -88,7 +88,7 @@ def dj_generate_config(project_dir: str, **kwargs) -> str:
 
     with open(dj_cfg_path, "w") as f:
         yaml.safe_dump(cfg, f, sort_keys=False)
-    return dj_cfg_path
+    return dj_cfg_path, base_cfg_path
 
 
 def load_kpms_dj_config(
@@ -141,10 +141,10 @@ def update_kpms_dj_config(project_dir: str, **kwargs) -> Dict[str, Any]:
         )
 
     with open(dj_cfg_path, "r") as f:
-        cfg = yaml.safe_load(f) or {}
+        updated_cfg_path = yaml.safe_load(f) or {}
 
-    cfg.update(kwargs)
+    updated_cfg_path.update(kwargs)
 
     with open(dj_cfg_path, "w") as f:
-        yaml.safe_dump(cfg, f, sort_keys=False)
-    return cfg
+        yaml.safe_dump(updated_cfg_path, f, sort_keys=False)
+    return updated_cfg_path
