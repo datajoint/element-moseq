@@ -11,10 +11,11 @@ from typing import Optional
 
 import cv2
 import datajoint as dj
+import matplotlib.pyplot as plt
 import numpy as np
 from element_interface.utils import find_full_path
 
-from .plotting.viz_utils import copy_pdf_to_png
+from .plotting import viz_utils
 from .readers import kpms_reader
 
 schema = dj.schema()
@@ -169,7 +170,7 @@ class KeypointSet(dj.Manual):
 
 
 @schema
-class Bodyparts(dj.Manual):
+class BodyParts(dj.Manual):
     """Store the body parts to use in the analysis.
 
     Attributes:
@@ -198,19 +199,18 @@ class PCATask(dj.Manual):
     Define the Principal Component Analysis (PCA) task for dimensionality reduction of keypoint data.
 
     Attributes:
-        Bodyparts (foreign key)         : Unique ID for each `Bodyparts` key
-        outlier_scale_factor (int)      : Scale factor for outlier detection in keypoint data (default: 6)
+        BodyParts (foreign key)         : Unique ID for each `BodyParts` key
+        outlier_scale_factor (float)    : Scale factor for outlier detection in keypoint data (default: 6)
         kpms_project_output_dir (str)   : Optional. Keypoint-MoSeq project output directory, relative to root data directory
         task_mode (enum)                : 'load' to load existing results, 'trigger' to compute new PCA
     """
 
     definition = """
-    -> Bodyparts                                            # Unique ID for each `Bodyparts` key
+    -> BodyParts                                            # Unique ID for each `BodyParts` key
     ---
-    outlier_scale_factor=6          : int                   # Scale factor for outlier detection in keypoint data (default: 6)
+    outlier_scale_factor=6          : float                 # Scale factor for outlier detection in keypoint data (default: 6)
     kpms_project_output_dir=''      : varchar(255)          # Optional. Keypoint-MoSeq project output directory, relative to root data directory
     task_mode='load'                :enum('load','trigger') # 'load' to load existing results, 'trigger' to compute new PCA
-
     """
 
 
@@ -234,6 +234,8 @@ class PreProcessing(dj.Computed):
     confidences             : longblob  # Dictionary mapping filenames to likelihood scores as ndarrays of shape (n_frames, n_bodyparts)
     formatted_bodyparts     : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
     average_frame_rate      : float     # Average frame rate of the videos for model training (used for kappa calculation).
+    pre_processing_time      : datetime  # datetime of the preprocessing execution.
+    pre_processing_duration  : int       # Execution time of the preprocessing in seconds.
     """
 
     class Video(dj.Part):
@@ -243,28 +245,36 @@ class PreProcessing(dj.Computed):
         ---
         video_duration              : int           # Duration of each video in minutes
         frame_rate                  : float         # Frame rate of the video in frames per second (Hz)
+        outlier_plot=NULL           : attach        # Plot of the outlier keypoints
+        """
+
+    class ConfigFile(dj.Part):
+        """
+        Store the configuration files (first creation of the config file and the updates after processing).
+        """
+
+        definition = """
+        -> master
+        ---
+        base_config_file: attach  # the first creation of the config file
+        updated_config_file: attach  # the updated config file after processing
         """
 
     def make_fetch(self, key):
         """
         Fetch required data for preprocessing from database tables.
         """
-
         anterior_bodyparts, posterior_bodyparts, use_bodyparts = (
-            Bodyparts & key
+            BodyParts & key
         ).fetch1(
             "anterior_bodyparts",
             "posterior_bodyparts",
             "use_bodyparts",
         )
-
         pose_estimation_method, kpset_dir = (KeypointSet & key).fetch1(
             "pose_estimation_method", "kpset_dir"
         )
-        video_paths, video_ids = (KeypointSet.VideoFile & key).fetch(
-            "video_path", "video_id"
-        )
-
+        keypoint_videofile_metadata = (KeypointSet.VideoFile & key).fetch(as_dict=True)
         kpms_project_output_dir, task_mode, outlier_scale_factor = (
             PCATask & key
         ).fetch1("kpms_project_output_dir", "task_mode", "outlier_scale_factor")
@@ -275,8 +285,7 @@ class PreProcessing(dj.Computed):
             use_bodyparts,
             pose_estimation_method,
             kpset_dir,
-            video_paths,
-            video_ids,
+            keypoint_videofile_metadata,
             kpms_project_output_dir,
             task_mode,
             outlier_scale_factor,
@@ -290,8 +299,7 @@ class PreProcessing(dj.Computed):
         use_bodyparts,
         pose_estimation_method,
         kpset_dir,
-        video_paths,
-        video_ids,
+        keypoint_videofile_metadata,
         kpms_project_output_dir,
         task_mode,
         outlier_scale_factor,
@@ -335,6 +343,7 @@ class PreProcessing(dj.Computed):
             plot_medoid_distance_outliers,
         )
 
+        execution_time = datetime.now(timezone.utc)
         if task_mode == "trigger":
             from keypoint_moseq import setup_project
 
@@ -349,74 +358,79 @@ class PreProcessing(dj.Computed):
 
             kpset_dir = find_full_path(get_kpms_root_data_dir(), kpset_dir)
             videos_dir = find_full_path(
-                get_kpms_root_data_dir(), Path(video_paths[0]).parent
+                get_kpms_root_data_dir(),
+                Path(keypoint_videofile_metadata[0]["video_path"]).parent,
             )
-
             if pose_estimation_method == "deeplabcut":
                 from .readers.kpms_reader import _base_config_path
 
-                cfg_path = _base_config_path(kpset_dir)
-                cfg = Path(cfg_path)
-                if not cfg.exists():
-                    raise FileNotFoundError(
-                        f"No DLC config.(yml|yaml) found in {kpset_dir}"
-                    )
+                # Find pose estimation config file
+                base_config_file = _base_config_path(kpset_dir)
+                base_config_file = Path(base_config_file)
+                if not base_config_file.exists():
+                    raise FileNotFoundError(f"No DLC config file found in {kpset_dir}")
+                # Create the kpms output diectory and config files
                 setup_project(
                     project_dir=kpms_project_output_dir.as_posix(),
-                    deeplabcut_config=cfg.as_posix(),
+                    deeplabcut_config=base_config_file.as_posix(),
                 )
-
             else:
                 raise NotImplementedError(
                     "Currently, `deeplabcut` is the only pose estimation method supported by this Element. Please reach out at `support@datajoint.com` if you use another method."
                 )
-
         else:
             kpms_project_output_dir = find_full_path(
                 get_kpms_processed_data_dir(), kpms_project_output_dir
             )
             kpset_dir = find_full_path(get_kpms_root_data_dir(), kpset_dir)
             videos_dir = find_full_path(
-                get_kpms_root_data_dir(), Path(video_paths[0]).parent
+                get_kpms_root_data_dir(),
+                Path(keypoint_videofile_metadata[0]["video_path"]).parent,
             )
 
+        # Format keypoint data
         raw_coordinates, raw_confidences, formatted_bodyparts = load_keypoints(
             filepath_pattern=kpset_dir, format=pose_estimation_method
         )
 
-        video_metadata_list = []
+        # Extract frame rate from keypoint video files
+        video_metadata_dict = dict()
         frame_rates = []
-        for fp, video_id in zip(video_paths, video_ids):
-            video_path = (find_full_path(get_kpms_root_data_dir(), fp)).as_posix()
+        for row in keypoint_videofile_metadata:
+            video_id = int(row["video_id"])
+            video_path = find_full_path(
+                get_kpms_root_data_dir(), row["video_path"]
+            ).as_posix()
             cap = cv2.VideoCapture(video_path)
             fps = float(cap.get(cv2.CAP_PROP_FPS))
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             cap.release()
-            duration_minutes = (frame_count / fps) / 60.0
-            frame_rates.append(fps)
-
-            # Get video name for the Video part table
-            video_key = {"kpset_id": key["kpset_id"], "video_id": video_id}
-            if KeypointSet.VideoFile & video_key:
-                video_record = (KeypointSet.VideoFile & video_key).fetch1()
-                video_name = Path(
-                    video_record["video_path"]
-                ).stem  # Get filename without extension
-                video_metadata_list.append(
-                    {
-                        "video_id": video_id,
-                        "video_name": video_name,
-                        "video_duration": int(duration_minutes),
-                        "frame_rate": fps,
-                    }
+            if fps <= 0:
+                raise ValueError(
+                    f"Invalid FPS ({fps}) for video_id {video_id} at {video_path}"
                 )
-            else:
-                logger.warning(f"Video record not found for video_id {video_id}")
-
+            duration_minutes = int((frame_count / fps) / 60.0)
+            frame_rates.append(fps)
+            video_metadata_dict[video_id] = {
+                "video_name": Path(row["video_path"]).stem,
+                "video_duration": duration_minutes,
+                "frame_rate": fps,
+                "outlier_plot": None,
+            }
         average_frame_rate = float(np.mean(frame_rates))
 
-        # Generate a copy of config.yml with the generated/updated info after it is known
-        kpms_reader.dj_generate_config(
+        # Generate a copy of pose estimation config file
+        videos_dir = find_full_path(
+            get_kpms_root_data_dir(),
+            Path(keypoint_videofile_metadata[0]["video_path"]).parent,
+        )
+
+        # Confirm that `use_bodyparts` are a subset of `formatted_bodyparts`
+        if not set(use_bodyparts).issubset(set(formatted_bodyparts)):
+            raise ValueError(
+                f"use_bodyparts ({use_bodyparts}) is not a subset of formatter bodyparts ({formatted_bodyparts})"
+            )
+        base_config, _ = kpms_reader.dj_generate_config(
             project_dir=kpms_project_output_dir,
             video_dir=str(videos_dir),
             use_bodyparts=list(use_bodyparts),
@@ -424,64 +438,78 @@ class PreProcessing(dj.Computed):
             posterior_bodyparts=list(posterior_bodyparts),
             outlier_scale_factor=float(outlier_scale_factor),
         )
+        # Update the config file content
         kpms_reader.update_kpms_dj_config(
-            kpms_project_output_dir,
-            fps=average_frame_rate,
+            kpms_project_output_dir, fps=average_frame_rate
         )
 
-        # Remove outlier keypoints
-        kpms_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
+        # load the udpated config file
+        kpms_dj_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
+
+        # Clean outlier keypoints and generate plots
         cleaned_coordinates = {}
         cleaned_confidences = {}
 
-        for recording_name in raw_coordinates:
-            raw_coords = raw_coordinates[recording_name].copy()
-            raw_conf = raw_confidences[recording_name].copy()
+        for row in keypoint_videofile_metadata:
+            video_id = int(row["video_id"])
+            pose_estimation_path = row["pose_estimation_path"]
+            pose_estimation_name = Path(pose_estimation_path).stem
 
-            # Find outliers using medoid distance analysis
+            raw_coords = raw_coordinates[pose_estimation_name].copy()
+            raw_conf = raw_confidences[pose_estimation_name].copy()
+
             outliers = find_medoid_distance_outliers(
                 raw_coords, outlier_scale_factor=outlier_scale_factor
             )
-
-            # Interpolate keypoints to fix outliers
             cleaned_coords = interpolate_keypoints(raw_coords, outliers["mask"])
-
-            # Update confidences for outlier points
             cleaned_conf = np.where(outliers["mask"], 0, raw_conf)
 
-            cleaned_coordinates[recording_name] = cleaned_coords
-            cleaned_confidences[recording_name] = cleaned_conf
+            # Keep keys as pose file names for downstream format_data
+            cleaned_coordinates[pose_estimation_name] = cleaned_coords
+            cleaned_confidences[pose_estimation_name] = cleaned_conf
 
-            # Plot outliers
-            if formatted_bodyparts is not None:
-                plot_medoid_distance_outliers(
-                    project_dir=kpms_project_output_dir.as_posix(),
-                    recording_name=recording_name,
-                    original_coordinates=raw_coords,
-                    interpolated_coordinates=cleaned_coords,
-                    outlier_mask=outliers["mask"],
-                    outlier_thresholds=outliers["thresholds"],
-                    **kpms_config,
+            plot_medoid_distance_outliers(
+                project_dir=kpms_project_output_dir.as_posix(),
+                recording_name=pose_estimation_name,
+                original_coordinates=raw_coords,
+                interpolated_coordinates=cleaned_coords,
+                outlier_mask=outliers["mask"],
+                outlier_thresholds=outliers["thresholds"],
+                **kpms_dj_config,
+            )
+            plot_file_path = (
+                kpms_project_output_dir
+                / "QA"
+                / "plots"
+                / "keypoint_distance_outliers"
+                / f"{pose_estimation_name}.png"
+            )
+            if not plot_file_path.exists():
+                raise FileNotFoundError(
+                    f"Outlier plot file not found at {plot_file_path}"
                 )
+            video_metadata_dict[video_id]["outlier_plot"] = plot_file_path.as_posix()
 
-                # Check if outlier plot was created in QA directory
-                plot_path = (
-                    kpms_project_output_dir
-                    / "QA"
-                    / "plots"
-                    / "keypoint_distance_outliers"
-                    / f"{recording_name}.png"
-                )
-                if not plot_path.exists():
-                    raise FileNotFoundError(
-                        f"Could not create outlier plot for {recording_name} at {plot_path}"
-                    )
+        # path to the config files
+        base_config_filepath = kpms_reader._base_config_path(kpms_project_output_dir)
+        updated_config_filepath = kpms_reader._dj_config_path(kpms_project_output_dir)
+
+        completion_time = datetime.now(timezone.utc)
+        if task_mode == "trigger":
+            duration_seconds = (completion_time - execution_time).total_seconds()
+        else:
+            duration_seconds = None
+
         return (
             cleaned_coordinates,
             cleaned_confidences,
             formatted_bodyparts,
             average_frame_rate,
-            video_metadata_list,
+            video_metadata_dict,
+            updated_config_filepath,
+            base_config_filepath,
+            execution_time,
+            duration_seconds,
         )
 
     def make_insert(
@@ -491,31 +519,52 @@ class PreProcessing(dj.Computed):
         cleaned_confidences,
         formatted_bodyparts,
         average_frame_rate,
-        video_metadata_list,
+        video_metadata_dict,
+        updated_config_filepath,
+        base_config_filepath,
+        execution_time,
+        duration_seconds,
     ):
         """
-        Insert processed data into the PreProcessing table and Video part table.
+        Insert processed data into the PreProcessing table and part tables.
         """
 
+        # Insert in the main table
         self.insert1(
-            dict(
+            {
                 **key,
-                coordinates=cleaned_coordinates,
-                confidences=cleaned_confidences,
-                formatted_bodyparts=formatted_bodyparts,
-                average_frame_rate=average_frame_rate,
-            )
+                "coordinates": cleaned_coordinates,
+                "confidences": cleaned_confidences,
+                "formatted_bodyparts": formatted_bodyparts,
+                "average_frame_rate": average_frame_rate,
+                "pre_processing_time": execution_time,
+                "pre_processing_duration": duration_seconds,
+            }
         )
 
-        for video_metadata in video_metadata_list:
-            self.Video.insert1(
-                dict(
-                    **key,
-                    video_name=video_metadata["video_name"],
-                    video_duration=video_metadata["video_duration"],
-                    frame_rate=video_metadata["frame_rate"],
-                )
+        # Insert video metadata in Video table
+        if video_metadata_dict:
+            self.Video.insert(
+                [
+                    {
+                        **key,
+                        "video_name": meta["video_name"],
+                        "video_duration": meta["video_duration"],
+                        "frame_rate": meta["frame_rate"],
+                        "outlier_plot": meta["outlier_plot"],
+                    }
+                    for vid, meta in video_metadata_dict.items()
+                ]
             )
+
+        # Insert configuration files
+        self.ConfigFile.insert1(
+            {
+                **key,
+                "base_config_file": base_config_filepath,
+                "updated_config_file": updated_config_filepath,
+            }
+        )
 
 
 @schema
@@ -525,13 +574,27 @@ class PCAFit(dj.Computed):
     Attributes:
         PreProcessing (foreign key)     : `PreProcessing` Key.
         pca_fit_time (datetime)         : datetime of the PCA fitting analysis.
+        pca_fit_duration (int)          : Execution time of the PCA fitting analysis in seconds.
     """
 
     definition = """
     -> PreProcessing                      # `PreProcessing` Key
     ---
     pca_fit_time=NULL        : datetime  # datetime of the PCA fitting analysis
+    pca_fit_duration=NULL    : int       # Execution time of the PCA fitting analysis in seconds.
     """
+
+    class File(dj.Part):
+        """
+        Store the PCA files (pca.p file).
+        """
+
+        definition = """
+        -> master
+        ---
+        file_name    : varchar(1000)    # name of the pca file (e.g. 'pca.p').
+        file_path    : filepath@moseq-train-processed   # path to the pca file (relative to the project output directory).
+        """
 
     def make(self, key):
         """
@@ -546,6 +609,8 @@ class PCAFit(dj.Computed):
         3. Fit PCA model and save as `pca.p` file.
         4. Insert creation datetime into table.
         """
+        import tempfile
+
         from keypoint_moseq import fit_pca, format_data, save_pca
 
         kpms_project_output_dir, task_mode = (PCATask & key).fetch1(
@@ -554,27 +619,63 @@ class PCAFit(dj.Computed):
         kpms_project_output_dir = (
             Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
         )
-
-        kpms_default_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
         coordinates, confidences = (PreProcessing & key).fetch1(
             "coordinates", "confidences"
         )
+
+        # Load the configuration from the file
+        kpms_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
+
+        execution_time = datetime.now(timezone.utc)
+
+        # Format keypoint data
         data, _ = format_data(
-            **kpms_default_config, coordinates=coordinates, confidences=confidences
+            **kpms_config, coordinates=coordinates, confidences=confidences
         )
 
+        # Fit PCA model and save as `pca.p` file
         if task_mode == "trigger":
-            pca = fit_pca(**data, **kpms_default_config)
+            pca = fit_pca(**data, **kpms_config)
             save_pca(pca, kpms_project_output_dir.as_posix())
-            creation_datetime = datetime.now(timezone.utc)
-        else:
-            creation_datetime = None
 
-        self.insert1(dict(**key, pca_fit_time=creation_datetime))
+        # Check for pca.p file
+        pca_p_file = kpms_project_output_dir / "pca.p"
+
+        if not pca_p_file.exists():
+            raise FileNotFoundError(
+                f"No pca file (`pca.p`) found in the project directory {kpms_project_output_dir}"
+            )
+
+        completion_time = datetime.now(timezone.utc)
+
+        if task_mode == "trigger":
+            duration_seconds = (completion_time - execution_time).total_seconds()
+        else:
+            duration_seconds = None
+
+        # Insert in the main table
+        self.insert1(
+            {
+                **key,
+                "pca_fit_time": execution_time,
+                "pca_fit_duration": duration_seconds,
+            }
+        )
+
+        # Insert in File table
+        self.File.insert(
+            [
+                {
+                    **key,
+                    "file_name": pca_p_file.name,
+                    "file_path": pca_p_file,
+                }
+            ]
+        )
 
 
 @schema
-class LatentDimension(dj.Imported):
+class LatentDimension(dj.Computed):
     """
     Determine the optimal latent dimension for model fitting based on variance explained by PCA components.
 
@@ -592,6 +693,19 @@ class LatentDimension(dj.Imported):
     latent_dimension         : int              # Number of principal components required to explain the specified variance.
     latent_dim_desc          : varchar(1000)    # Automated description of the computation result.
     """
+
+    class Plots(dj.Part):
+        """
+        Store the PCA visualization plots.
+        """
+
+        definition = """
+        -> master
+        ---
+        scree_plot: attach # A cumulative scree plot showing explained variance
+        pcs_plot: attach   # A visualization of each Principal Component (PC)
+        pcs_xy_plot: attach # A visualization of the Principal Components (PCs) in the XY plane
+        """
 
     def make(self, key):
         """
@@ -619,14 +733,9 @@ class LatentDimension(dj.Imported):
             Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
         )
 
-        pca_path = kpms_project_output_dir / "pca.p"
-        if pca_path.exists():
-            pca = load_pca(kpms_project_output_dir.as_posix())
-        else:
-            raise FileNotFoundError(
-                f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
-            )
-
+        # Fetch PCA file path from upstream PCAFit.File table
+        pca_path = (PCAFit.File & key & 'file_name="pca.p"').fetch1("file_path")
+        pca = load_pca(Path(pca_path).parent.as_posix())
         cs = np.cumsum(
             pca.explained_variance_ratio_
         )  # explained_variance_ratio_ndarray of shape (n_components,)
@@ -642,6 +751,48 @@ class LatentDimension(dj.Imported):
             variance_percentage = VARIANCE_THRESHOLD * 100
             latent_dim_desc = f">={VARIANCE_THRESHOLD*100}% of variance explained by {(cs>VARIANCE_THRESHOLD).nonzero()[0].min()+1} components."
 
+        # Load the configuration from the file
+        kpms_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
+
+        # Generate scree plot
+        scree_fig = plt.figure()
+        num_pcs = len(pca.components_)
+        plt.plot(np.arange(num_pcs) + 1, np.cumsum(pca.explained_variance_ratio_))
+        plt.xlabel("PCs")
+        plt.ylabel("Explained variance")
+        plt.gcf().set_size_inches((2.5, 2))
+        plt.grid()
+        plt.tight_layout()
+
+        # Generate PCs plot
+        pcs_fig = viz_utils.plot_pcs(
+            pca,
+            **kpms_config,
+            interactive=False,
+            project_dir=kpms_project_output_dir,
+        )
+
+        # Load the pcs-xy.pdf file
+        pcs_xy_file = kpms_project_output_dir / "pcs-xy.pdf"
+
+        if not pcs_xy_file.exists():
+            raise FileNotFoundError(
+                f"No pcs xy file (`pcs-xy.pdf`) found in the project directory {kpms_project_output_dir}"
+            )
+
+        # Save plots to temporary directory
+        import tempfile
+
+        tmpdir = tempfile.TemporaryDirectory()
+        fname = f"{key['kpset_id']}_{key['bodyparts_id']}"
+
+        scree_path = Path(tmpdir.name) / f"{fname}_scree_plot.png"
+        scree_fig.savefig(scree_path)
+
+        pcs_path = Path(tmpdir.name) / f"{fname}_pcs_plot.png"
+        pcs_fig.savefig(pcs_path)
+
+        # Insert main results
         self.insert1(
             dict(
                 **key,
@@ -650,6 +801,18 @@ class LatentDimension(dj.Imported):
                 latent_dim_desc=latent_dim_desc,
             )
         )
+
+        # Insert plots
+        self.Plots.insert1(
+            {
+                **key,
+                "scree_plot": scree_path,
+                "pcs_plot": pcs_path,
+                "pcs_xy_plot": pcs_xy_file,
+            }
+        )
+
+        tmpdir.cleanup()
 
 
 @schema
@@ -692,8 +855,46 @@ class PreFit(dj.Computed):
     -> PreFitTask                                # `PreFitTask` Key
     ---
     model_name=''                : varchar(1000) # Name of the model as "kpms_project_output_dir/model_name"
+    pre_fit_time=NULL            : datetime      # datetime of the model fitting computation.
     pre_fit_duration=NULL        : float         # Time duration (seconds) of the model fitting computation
     """
+
+    class ConfigFile(dj.Part):
+        """
+        Store the updated configuration file after PreFit computation.
+        """
+
+        definition = """
+        -> master
+        ---
+        updated_config_file: attach  # Updated config file after PreFit computation
+        """
+
+    class CheckpointFile(dj.Part):
+        """
+        Store the checkpoint file used for resuming the fitting process.
+        """
+
+        definition = """
+        -> master
+        ---
+        checkpoint_file_name: varchar(1000) # Name of the checkpoint file (e.g. 'checkpoint.p').
+        checkpoint_file: filepath@moseq-train-processed # path to the checkpoint file.
+        """
+
+    class Plots(dj.Part):
+        """
+        Store the fitting progress of the PreFit computation:
+        - Plots in PDF and PNG formats used for visualization.
+        - Checkpoint file used for resuming the fitting process (~500MB).
+        """
+
+        definition = """
+        -> master
+        ---
+        fitting_progress_plot_png: attach
+        fitting_progress_plot_pdf: attach
+        """
 
     def make(self, key):
         """
@@ -747,6 +948,7 @@ class PreFit(dj.Computed):
             # Load the updated config for use in model fitting
             kpms_dj_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
 
+            # Load the PCA model from the project directory
             pca_path = kpms_project_output_dir / "pca.p"
             if pca_path.exists():
                 pca = load_pca(kpms_project_output_dir.as_posix())
@@ -755,6 +957,7 @@ class PreFit(dj.Computed):
                     f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
                 )
 
+            # Format the data for model fitting
             coordinates, confidences = (PreProcessing & key).fetch1(
                 "coordinates", "confidences"
             )
@@ -762,6 +965,7 @@ class PreFit(dj.Computed):
                 coordinates=coordinates, confidences=confidences, **kpms_dj_config
             )
 
+            # Update the kpms_dj_config.yml with the new sigmasq_loc
             kpms_reader.update_kpms_dj_config(
                 kpms_project_output_dir,
                 sigmasq_loc=estimate_sigmasq_loc(
@@ -769,22 +973,30 @@ class PreFit(dj.Computed):
                 ),
             )
 
+            # Load the updated config for use in model fitting
             kpms_dj_config = kpms_reader.load_kpms_dj_config(
                 project_dir=kpms_project_output_dir
             )
 
+            # Initialize the model
             model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
 
+            # Update the model hyperparameters
             model = update_hypparams(
                 model, kappa=float(pre_kappa), latent_dim=int(pre_latent_dim)
             )
 
-            model_name_str = f"latent_dim_{int(pre_latent_dim)}_kappa_{float(pre_kappa)}_iters_{int(pre_num_iterations)}"
+            # Determine model directory name for outputs
+            if model_name is None or not str(model_name).strip():
+                model_dir_name = f"latent_dim_{float(pre_latent_dim)}_kappa_{float(pre_kappa)}_iters_{float(pre_num_iterations)}"
+            else:
+                model_dir_name = str(model_name)
 
-            start_time = datetime.now(timezone.utc)
+            execution_time = datetime.now(timezone.utc)
+            # Fit the model
             model, model_name = fit_model(
                 model=model,
-                model_name=model_name_str,
+                model_name=model_dir_name,
                 data=data,
                 metadata=metadata,
                 project_dir=kpms_project_output_dir.as_posix(),
@@ -793,11 +1005,44 @@ class PreFit(dj.Computed):
                 generate_progress_plots=True,  # saved to {project_dir}/{model_name}/plots/
                 save_every_n_iters=25,
             )
-            end_time = datetime.now(timezone.utc)
 
-            duration_seconds = (end_time - start_time).total_seconds()
-            copy_pdf_to_png(kpms_project_output_dir, model_name)
+            # Normalize to folder name returned by fit_model
+            model_dir_name = Path(model_name).name
 
+            # Copy the PDF progress plot to PNG
+            viz_utils.copy_pdf_to_png(kpms_project_output_dir, model_dir_name)
+
+        else:
+            # Load mode must specify a model_name
+            if model_name is None or not str(model_name).strip():
+                raise ValueError("model_name is required when task_mode='load'")
+            model_dir_name = Path(model_name).name
+
+        # Get the path to the updated config file
+        updated_cfg_path = (kpms_project_output_dir / "kpms_dj_config.yml").as_posix()
+
+        # Check for fitting progress files
+        prefit_model_dir = kpms_project_output_dir / model_dir_name
+        pdf_path = prefit_model_dir / "fitting_progress.pdf"
+        png_path = prefit_model_dir / "fitting_progress.png"
+        if not pdf_path.exists():
+            raise FileNotFoundError(f"PreFit PDF progress plot not found at {pdf_path}")
+        if not png_path.exists():
+            raise FileNotFoundError(f"PreFit PNG progress plot not found at {png_path}")
+
+        # Find checkpoint file
+        checkpoint_files = []
+        for pattern in ("checkpoint*", "*.h5"):
+            checkpoint_files.extend(prefit_model_dir.glob(pattern))
+        if checkpoint_files:
+            checkpoint_file = max(checkpoint_files, key=lambda f: f.stat().st_size)
+        else:
+            raise FileNotFoundError(f"No checkpoint files found in {prefit_model_dir}")
+
+        completion_time = datetime.now(timezone.utc)
+
+        if task_mode == "trigger":
+            duration_seconds = (completion_time - execution_time).total_seconds()
         else:
             duration_seconds = None
 
@@ -806,9 +1051,32 @@ class PreFit(dj.Computed):
                 **key,
                 "model_name": (
                     kpms_project_output_dir.relative_to(get_kpms_processed_data_dir())
-                    / model_name
+                    / model_dir_name
                 ).as_posix(),
                 "pre_fit_duration": duration_seconds,
+            }
+        )
+
+        self.ConfigFile.insert1(
+            dict(
+                **key,
+                updated_config_file=updated_cfg_path,
+            )
+        )
+
+        self.Plots.insert1(
+            {
+                **key,
+                "fitting_progress_plot_png": png_path,
+                "fitting_progress_plot_pdf": pdf_path,
+            }
+        )
+
+        self.CheckpointFile.insert1(
+            {
+                **key,
+                "checkpoint_file_name": checkpoint_file.name,
+                "checkpoint_file": checkpoint_file,
             }
         )
 
@@ -853,8 +1121,45 @@ class FullFit(dj.Computed):
     -> FullFitTask                                # `FullFitTask` Key
     ---
     model_name=''                 : varchar(1000) # Name of the model as "kpms_project_output_dir/model_name"
+    full_fit_time=NULL            : datetime      # datetime of the full fitting computation.
     full_fit_duration=NULL        : float         # Time duration (seconds) of the full fitting computation
     """
+
+    class ConfigFile(dj.Part):
+        """
+        Store the updated configuration file after FullFit computation.
+        """
+
+        definition = """
+        -> master
+        ---
+        updated_config_file: attach  # the updated config file after FullFit computation
+        """
+
+    class CheckpointFile(dj.Part):
+        """
+        Store the checkpoint file used for resuming the fitting process.
+        """
+
+        definition = """
+        -> master
+        ---
+        checkpoint_file_name: varchar(1000) # Name of the checkpoint file (e.g. 'checkpoint.p').
+        checkpoint_file: filepath@moseq-train-processed # path to the checkpoint file.
+        """
+
+    class Plots(dj.Part):
+        """
+        Store the fitting progress of the FullFit computation:
+        - Plots in PDF and PNG formats used for visualization.
+        """
+
+        definition = """
+        -> master
+        ---
+        fitting_progress_plot_png: attach
+        fitting_progress_plot_pdf: attach
+        """
 
     def make(self, key):
         """
@@ -888,7 +1193,6 @@ class FullFit(dj.Computed):
             get_kpms_processed_data_dir(),
             (PCATask & key).fetch1("kpms_project_output_dir"),
         )
-
         full_latent_dim, full_kappa, full_num_iterations, task_mode, model_name = (
             FullFitTask & key
         ).fetch1(
@@ -898,17 +1202,22 @@ class FullFit(dj.Computed):
             "task_mode",
             "model_name",
         )
+
         if task_mode == "trigger":
+
+            # Update the kpms_dj_config.yml with latent dimension and kappa values
             kpms_reader.update_kpms_dj_config(
                 project_dir=kpms_project_output_dir,
                 latent_dim=int(full_latent_dim),
                 kappa=float(full_kappa),
             )
 
+            # Load the updated config for data formatting
             kpms_dj_config = kpms_reader.load_kpms_dj_config(
                 project_dir=kpms_project_output_dir
             )
 
+            # Load the PCA model
             pca_path = kpms_project_output_dir / "pca.p"
             if pca_path.exists():
                 pca = load_pca(kpms_project_output_dir.as_posix())
@@ -917,12 +1226,15 @@ class FullFit(dj.Computed):
                     f"No pca model (`pca.p`) found in the project directory {kpms_project_output_dir}"
                 )
 
+            # Format the data for model fitting
             coordinates, confidences = (PreProcessing & key).fetch1(
                 "coordinates", "confidences"
             )
             data, metadata = format_data(
                 coordinates=coordinates, confidences=confidences, **kpms_dj_config
             )
+
+            # Update the kpms_dj_config.yml with the new sigmasq_loc
             kpms_reader.update_kpms_dj_config(
                 project_dir=kpms_project_output_dir,
                 sigmasq_loc=estimate_sigmasq_loc(
@@ -930,21 +1242,29 @@ class FullFit(dj.Computed):
                 ),
             )
 
+            # Load the updated config for use in model fitting
             kpms_dj_config = kpms_reader.load_kpms_dj_config(
                 project_dir=kpms_project_output_dir
             )
 
+            # Initialize the model
             model = init_model(data=data, metadata=metadata, pca=pca, **kpms_dj_config)
+            # Update the model hyperparameters
             model = update_hypparams(
                 model, kappa=float(full_kappa), latent_dim=int(full_latent_dim)
             )
+            # Generate the model directory name
+            if model_name is None or not str(model_name).strip():
+                model_dir_name = f"latent_dim_{float(full_latent_dim)}_kappa_{float(full_kappa)}_iters_{float(full_num_iterations)}"
+            else:
+                model_dir_name = str(model_name)
 
-            model_name_str = f"latent_dim_{int(full_latent_dim)}_kappa_{float(full_kappa)}_iters_{int(full_num_iterations)}"
+            execution_time = datetime.now(timezone.utc)
 
-            start_time = datetime.now(timezone.utc)
+            # Fit the model
             model, model_name = fit_model(
                 model=model,
-                model_name=model_name_str,
+                model_name=model_dir_name,
                 data=data,
                 metadata=metadata,
                 project_dir=kpms_project_output_dir.as_posix(),
@@ -953,15 +1273,47 @@ class FullFit(dj.Computed):
                 generate_progress_plots=True,  # saved to {project_dir}/{model_name}/plots/
                 save_every_n_iters=25,
             )
-            end_time = datetime.now(timezone.utc)
-            duration_seconds = (end_time - start_time).total_seconds()
 
+            # Reindex the syllables in the checkpoint file
             reindex_syllables_in_checkpoint(
                 project_dir=kpms_project_output_dir.as_posix(),
-                model_name=Path(model_name).parts[-1],
+                model_name=Path(model_name).name,
             )
-            copy_pdf_to_png(kpms_project_output_dir, model_name)
 
+        # Copy the PDF progress plot to PNG
+        viz_utils.copy_pdf_to_png(kpms_project_output_dir, Path(model_name).name)
+
+        # Get the path to the updated config file
+        updated_cfg_path = kpms_reader._dj_config_path(kpms_project_output_dir)
+
+        # Get the path to the full fit model directory
+        fullfit_model_dir = kpms_project_output_dir / Path(model_name).name
+
+        # Check for progress plot files
+        pdf_path = fullfit_model_dir / "fitting_progress.pdf"
+        png_path = fullfit_model_dir / "fitting_progress.png"
+        if not pdf_path.exists():
+            raise FileNotFoundError(
+                f"FullFit PDF progress plot not found at {pdf_path}"
+            )
+        if not png_path.exists():
+            raise FileNotFoundError(
+                f"FullFit PNG progress plot not found at {png_path}"
+            )
+
+        # Find checkpoint file
+        checkpoint_files = []
+        for pattern in ("checkpoint*", "*.h5"):
+            checkpoint_files.extend(fullfit_model_dir.glob(pattern))
+        if checkpoint_files:
+            checkpoint_file = max(checkpoint_files, key=lambda f: f.stat().st_size)
+        else:
+            raise FileNotFoundError(f"No checkpoint files found in {fullfit_model_dir}")
+
+        completion_time = datetime.now(timezone.utc)
+
+        if task_mode == "trigger":
+            duration_seconds = (completion_time - execution_time).total_seconds()
         else:
             duration_seconds = None
 
@@ -970,9 +1322,36 @@ class FullFit(dj.Computed):
                 **key,
                 "model_name": (
                     kpms_project_output_dir.relative_to(get_kpms_processed_data_dir())
-                    / model_name
+                    / Path(model_name).name
                 ).as_posix(),
+                "full_fit_time": completion_time,
                 "full_fit_duration": duration_seconds,
+            }
+        )
+
+        # Insert config file
+        self.ConfigFile.insert1(
+            {
+                **key,
+                "updated_config_file": updated_cfg_path,
+            }
+        )
+
+        # Insert plots
+        self.Plots.insert1(
+            {
+                **key,
+                "fitting_progress_plot_png": png_path,
+                "fitting_progress_plot_pdf": pdf_path,
+            }
+        )
+
+        # Insert checkpoint file
+        self.CheckpointFile.insert1(
+            {
+                **key,
+                "checkpoint_file_name": checkpoint_file.name,
+                "checkpoint_file": checkpoint_file,
             }
         )
 
