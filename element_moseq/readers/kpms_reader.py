@@ -141,10 +141,10 @@ def update_kpms_dj_config(project_dir: str, **kwargs) -> Dict[str, Any]:
         )
 
     with open(dj_cfg_path, "r") as f:
-        updated_cfg_path = yaml.safe_load(f) or {}
+        cfg_dict = yaml.safe_load(f) or {}
 
-    updated_cfg_path.update(kwargs)
+    cfg_dict.update(kwargs)
 
     with open(dj_cfg_path, "w") as f:
-        yaml.safe_dump(updated_cfg_path, f, sort_keys=False)
-    return updated_cfg_path
+        yaml.safe_dump(cfg_dict, f, sort_keys=False)
+    return cfg_dict
