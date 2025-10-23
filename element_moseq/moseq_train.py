@@ -463,8 +463,6 @@ class PreProcessing(dj.Computed):
             )
             cleaned_coords = interpolate_keypoints(raw_coords, outliers["mask"])
             cleaned_conf = np.where(outliers["mask"], 0, raw_conf)
-
-            # Keep keys as pose file names for downstream format_data
             cleaned_coordinates[pose_estimation_name] = cleaned_coords
             cleaned_confidences[pose_estimation_name] = cleaned_conf
 
