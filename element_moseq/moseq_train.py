@@ -221,18 +221,20 @@ class PreProcessing(dj.Computed):
 
     Attributes:
         PCATask (foreign key)           : Unique ID for each `PCATask` key.
-        coordinates (longblob)          : Dictionary mapping filenames to cleaned keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3]).
-        confidences (longblob)          : Dictionary mapping filenames to updated likelihood scores as ndarrays of shape (n_frames, n_bodyparts).
         formatted_bodyparts (longblob)  : List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
+        coordinates (longblob)          : Cleaned coordinates dictionary {recording_name: array} after outlier removal.
+        confidences (longblob)          : Cleaned confidences dictionary {recording_name: array} after outlier removal.
         average_frame_rate (float)      : Average frame rate of the videos for model training (used for kappa calculation).
+        pre_processing_time (datetime)  : datetime of the preprocessing execution.
+        pre_processing_duration (int)   : Execution time of the preprocessing in seconds.
     """
 
     definition = """
     -> PCATask                          # Unique ID for each `PCATask` key
     ---
-    coordinates             : longblob  # Dictionary mapping filenames to keypoint coordinates as ndarrays of shape (n_frames, n_bodyparts, 2[or 3])
-    confidences             : longblob  # Dictionary mapping filenames to likelihood scores as ndarrays of shape (n_frames, n_bodyparts)
     formatted_bodyparts     : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
+    coordinates             : longblob  # Cleaned coordinates dictionary (recording_name: array) after outlier removal
+    confidences             : longblob  # Cleaned confidences dictionary (recording_name: array) after outlier removal
     average_frame_rate      : float     # Average frame rate of the videos for model training (used for kappa calculation).
     pre_processing_time      : datetime  # datetime of the preprocessing execution.
     pre_processing_duration  : int       # Execution time of the preprocessing in seconds.
@@ -245,7 +247,17 @@ class PreProcessing(dj.Computed):
         ---
         video_duration              : int           # Duration of each video in minutes
         frame_rate                  : float         # Frame rate of the video in frames per second (Hz)
-        outlier_plot=NULL           : attach        # Plot of the outlier keypoints
+        file_size                   : float         # File size of the video in megabytes (MB)
+        """
+
+    class OutlierRemoval(dj.Part):
+        """Store outlier detection QA plots per video."""
+
+        definition = """
+        -> master
+        video_name: varchar(255)
+        ---
+        outlier_plot: attach  # QA visualization showing detected outliers and interpolation
         """
 
     class ConfigFile(dj.Part):
@@ -256,8 +268,8 @@ class PreProcessing(dj.Computed):
         definition = """
         -> master
         ---
-        base_config_file: attach  # the first creation of the config file
-        config_file: attach  # the updated config file after processing
+        base_config_file: attach  # the first version of the KPMS config file after setting up the project
+        config_file: attach  # the updated KPMS DJ config file after processing
         """
 
     def make_fetch(self, key):
@@ -340,68 +352,72 @@ class PreProcessing(dj.Computed):
             find_medoid_distance_outliers,
             interpolate_keypoints,
             load_keypoints,
-            plot_medoid_distance_outliers,
         )
+
+        from .plotting.viz_utils import plot_medoid_distance_outliers
 
         execution_time = datetime.now(timezone.utc)
         if task_mode == "trigger":
             from keypoint_moseq import setup_project
 
+            # check if the project output directory exists
             try:
                 kpms_project_output_dir = find_full_path(
                     get_kpms_processed_data_dir(), kpms_project_output_dir
                 )
+            # if the project output directory does not exist, create it
             except FileNotFoundError:
                 kpms_project_output_dir = (
                     Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
                 )
-
             kpset_dir = find_full_path(get_kpms_root_data_dir(), kpset_dir)
-            videos_dir = find_full_path(
-                get_kpms_root_data_dir(),
-                Path(keypoint_videofile_metadata[0]["video_path"]).parent,
-            )
-            if pose_estimation_method == "deeplabcut":
-                from .readers.kpms_reader import _base_config_path
+            # Setup of the project creates KPMS base `config.yml` file copying the pose estimation config file
+            from .readers.kpms_reader import _pose_estimation_config_path
 
-                # Find pose estimation config file
-                base_config_file = _base_config_path(kpset_dir)
-                base_config_file = Path(base_config_file)
-                if not base_config_file.exists():
-                    raise FileNotFoundError(f"No DLC config file found in {kpset_dir}")
-                # Create the kpms output diectory and config files
+            pose_estimation_config_file = Path(_pose_estimation_config_path(kpset_dir))
+            if not pose_estimation_config_file.exists():
+                raise FileNotFoundError(
+                    f"No `config.yml` or `config.yaml` file found in {kpset_dir}"
+                )
+            if pose_estimation_method == "deeplabcut":
                 setup_project(
                     project_dir=kpms_project_output_dir.as_posix(),
-                    deeplabcut_config=base_config_file.as_posix(),
+                    deeplabcut_config=pose_estimation_config_file.as_posix(),
                 )
             else:
                 raise NotImplementedError(
                     "Currently, `deeplabcut` is the only pose estimation method supported by this Element. Please reach out at `support@datajoint.com` if you use another method."
                 )
+        # task mode is load
         else:
             kpms_project_output_dir = find_full_path(
                 get_kpms_processed_data_dir(), kpms_project_output_dir
             )
             kpset_dir = find_full_path(get_kpms_root_data_dir(), kpset_dir)
-            videos_dir = find_full_path(
-                get_kpms_root_data_dir(),
-                Path(keypoint_videofile_metadata[0]["video_path"]).parent,
-            )
 
         # Format keypoint data
         raw_coordinates, raw_confidences, formatted_bodyparts = load_keypoints(
             filepath_pattern=kpset_dir, format=pose_estimation_method
         )
 
-        # Extract frame rate from keypoint video files
+        # Confirm that `use_bodyparts` are a subset of `formatted_bodyparts`
+        if not set(use_bodyparts).issubset(set(formatted_bodyparts)):
+            raise ValueError(
+                f"use_bodyparts ({use_bodyparts}) is not a subset of formatted bodyparts ({formatted_bodyparts})"
+            )
+
+        # Extract frame rate and file size from keypoint video files
         video_metadata_dict = dict()
         frame_rates = []
         for row in keypoint_videofile_metadata:
             video_id = int(row["video_id"])
-            video_path = find_full_path(
-                get_kpms_root_data_dir(), row["video_path"]
-            ).as_posix()
-            cap = cv2.VideoCapture(video_path)
+            video_path = find_full_path(get_kpms_root_data_dir(), row["video_path"])
+
+            # Get file size in MB (rounded to 2 decimal places)
+            file_size_mb = round(video_path.stat().st_size / (1024 * 1024), 2)
+
+            # Get video properties
+            cap = cv2.VideoCapture(video_path.as_posix())
             fps = float(cap.get(cv2.CAP_PROP_FPS))
             frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             cap.release()
@@ -415,36 +431,45 @@ class PreProcessing(dj.Computed):
                 "video_name": Path(row["video_path"]).stem,
                 "video_duration": duration_minutes,
                 "frame_rate": fps,
+                "file_size": file_size_mb,
                 "outlier_plot": None,
             }
         average_frame_rate = float(np.mean(frame_rates))
 
-        # Generate a copy of pose estimation config file
+        # Get all unique parent directories for all video files
+        parent_dirs = {
+            Path(video["video_path"]).parent for video in keypoint_videofile_metadata
+        }
+        # Check if there is only one unique parent
+        if len(parent_dirs) > 1:
+            raise ValueError(
+                f"Videos are located in multiple directories: {parent_dirs}. All videos must be in the same directory."
+            )
         videos_dir = find_full_path(
             get_kpms_root_data_dir(),
             Path(keypoint_videofile_metadata[0]["video_path"]).parent,
         )
 
-        # Confirm that `use_bodyparts` are a subset of `formatted_bodyparts`
-        if not set(use_bodyparts).issubset(set(formatted_bodyparts)):
-            raise ValueError(
-                f"use_bodyparts ({use_bodyparts}) is not a subset of formatter bodyparts ({formatted_bodyparts})"
-            )
-        base_config, _ = kpms_reader.dj_generate_config(
-            project_dir=kpms_project_output_dir,
+        # Generate a new KPMS DJ config file copying the KPMS base config file in the same kpms project output directory
+        (
+            kpms_dj_config_path,
+            kpms_dj_config_dict,
+            kpms_base_config_path,
+            kpms_base_config_dict,
+        ) = kpms_reader.dj_generate_config(
+            kpms_project_dir=kpms_project_output_dir,
             video_dir=str(videos_dir),
             use_bodyparts=list(use_bodyparts),
             anterior_bodyparts=list(anterior_bodyparts),
             posterior_bodyparts=list(posterior_bodyparts),
             outlier_scale_factor=float(outlier_scale_factor),
         )
-        # Update the config file content
-        kpms_reader.update_kpms_dj_config(
-            kpms_project_output_dir, fps=average_frame_rate
-        )
 
-        # load the udpated config file
-        kpms_dj_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
+        # Update the KPMS DJ config file content with the average frame rate
+        kpms_dj_config_dict = kpms_reader.update_kpms_dj_config(
+            config_dict=kpms_dj_config_dict, fps=average_frame_rate
+        )
+        kpms_dj_config_path = kpms_reader._kpms_dj_config_path(kpms_project_output_dir)
 
         # Clean outlier keypoints and generate plots
         cleaned_coordinates = {}
@@ -454,10 +479,8 @@ class PreProcessing(dj.Computed):
             video_id = int(row["video_id"])
             pose_estimation_path = row["pose_estimation_path"]
             pose_estimation_name = Path(pose_estimation_path).stem
-
             raw_coords = raw_coordinates[pose_estimation_name].copy()
             raw_conf = raw_confidences[pose_estimation_name].copy()
-
             outliers = find_medoid_distance_outliers(
                 raw_coords, outlier_scale_factor=outlier_scale_factor
             )
@@ -465,32 +488,19 @@ class PreProcessing(dj.Computed):
             cleaned_conf = np.where(outliers["mask"], 0, raw_conf)
             cleaned_coordinates[pose_estimation_name] = cleaned_coords
             cleaned_confidences[pose_estimation_name] = cleaned_conf
-
-            plot_medoid_distance_outliers(
+            outlier_plot, outlier_plot_path = plot_medoid_distance_outliers(
                 project_dir=kpms_project_output_dir.as_posix(),
                 recording_name=pose_estimation_name,
                 original_coordinates=raw_coords,
                 interpolated_coordinates=cleaned_coords,
                 outlier_mask=outliers["mask"],
                 outlier_thresholds=outliers["thresholds"],
-                **kpms_dj_config,
-            )
-            plot_file_path = (
-                kpms_project_output_dir
-                / "QA"
-                / "plots"
-                / "keypoint_distance_outliers"
-                / f"{pose_estimation_name}.png"
-            )
-            if not plot_file_path.exists():
-                raise FileNotFoundError(
-                    f"Outlier plot file not found at {plot_file_path}"
-                )
-            video_metadata_dict[video_id]["outlier_plot"] = plot_file_path.as_posix()
-
-        # path to the config files
-        base_config_filepath = kpms_reader._base_config_path(kpms_project_output_dir)
-        updated_config_filepath = kpms_reader._dj_config_path(kpms_project_output_dir)
+                **kpms_dj_config_dict,
+            )  # outlier plot stored at kpms_project_output_dir/QA/plots/keypoint_distance_outliers/f"{pose_estimation_name}.png
+            video_metadata_dict[video_id] = {
+                **video_metadata_dict[video_id],
+                "outlier_plot_path": outlier_plot_path,
+            }
 
         completion_time = datetime.now(timezone.utc)
         if task_mode == "trigger":
@@ -504,8 +514,8 @@ class PreProcessing(dj.Computed):
             formatted_bodyparts,
             average_frame_rate,
             video_metadata_dict,
-            updated_config_filepath,
-            base_config_filepath,
+            kpms_dj_config_path,
+            kpms_base_config_path,
             execution_time,
             duration_seconds,
         )
@@ -518,8 +528,8 @@ class PreProcessing(dj.Computed):
         formatted_bodyparts,
         average_frame_rate,
         video_metadata_dict,
-        updated_config_filepath,
-        base_config_filepath,
+        kpms_dj_config_path,
+        kpms_base_config_path,
         execution_time,
         duration_seconds,
     ):
@@ -531,9 +541,9 @@ class PreProcessing(dj.Computed):
         self.insert1(
             {
                 **key,
+                "formatted_bodyparts": formatted_bodyparts,
                 "coordinates": cleaned_coordinates,
                 "confidences": cleaned_confidences,
-                "formatted_bodyparts": formatted_bodyparts,
                 "average_frame_rate": average_frame_rate,
                 "pre_processing_time": execution_time,
                 "pre_processing_duration": duration_seconds,
@@ -549,7 +559,20 @@ class PreProcessing(dj.Computed):
                         "video_name": meta["video_name"],
                         "video_duration": meta["video_duration"],
                         "frame_rate": meta["frame_rate"],
-                        "outlier_plot": meta["outlier_plot"],
+                        "file_size": meta["file_size"],
+                    }
+                    for vid, meta in video_metadata_dict.items()
+                ]
+            )
+
+        # Insert outlier removal QA plots
+        if video_metadata_dict:
+            self.OutlierRemoval.insert(
+                [
+                    {
+                        **key,
+                        "video_name": meta["video_name"],
+                        "outlier_plot": meta["outlier_plot_path"],
                     }
                     for vid, meta in video_metadata_dict.items()
                 ]
@@ -559,8 +582,8 @@ class PreProcessing(dj.Computed):
         self.ConfigFile.insert1(
             {
                 **key,
-                "base_config_file": base_config_filepath,
-                "config_file": updated_config_filepath,
+                "config_file": kpms_dj_config_path,
+                "base_config_file": kpms_base_config_path,
             }
         )
 
