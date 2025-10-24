@@ -257,7 +257,7 @@ class PreProcessing(dj.Computed):
         -> master
         ---
         base_config_file: attach  # the first creation of the config file
-        updated_config_file: attach  # the updated config file after processing
+        config_file: attach  # the updated config file after processing
         """
 
     def make_fetch(self, key):
@@ -560,7 +560,7 @@ class PreProcessing(dj.Computed):
             {
                 **key,
                 "base_config_file": base_config_filepath,
-                "updated_config_file": updated_config_filepath,
+                "config_file": updated_config_filepath,
             }
         )
 
@@ -865,7 +865,7 @@ class PreFit(dj.Computed):
         definition = """
         -> master
         ---
-        updated_config_file: attach  # Updated config file after PreFit computation
+        config_file: attach  # Updated config file after PreFit computation
         """
 
     class CheckpointFile(dj.Part):
@@ -1058,7 +1058,7 @@ class PreFit(dj.Computed):
         self.ConfigFile.insert1(
             dict(
                 **key,
-                updated_config_file=updated_cfg_path,
+                config_file=updated_cfg_path,
             )
         )
 
@@ -1131,7 +1131,7 @@ class FullFit(dj.Computed):
         definition = """
         -> master
         ---
-        updated_config_file: attach  # the updated config file after FullFit computation
+        config_file: attach  # the updated config file after FullFit computation
         """
 
     class CheckpointFile(dj.Part):
@@ -1331,7 +1331,7 @@ class FullFit(dj.Computed):
         self.ConfigFile.insert1(
             {
                 **key,
-                "updated_config_file": updated_cfg_path,
+                "config_file": updated_cfg_path,
             }
         )
 
