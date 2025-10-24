@@ -650,25 +650,27 @@ class PCAFit(dj.Computed):
             "coordinates", "confidences"
         )
 
-        # Load the configuration from the file
-        kpms_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
+        # Load the configuration from database
+        kpms_dj_config_path = (PreProcessing.ConfigFile & key).fetch1("config_file")
+        kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
+            config_path=kpms_dj_config_path
+        )
 
         execution_time = datetime.now(timezone.utc)
 
         # Format keypoint data
         data, _ = format_data(
-            **kpms_config, coordinates=coordinates, confidences=confidences
+            **kpms_dj_config_dict, coordinates=coordinates, confidences=confidences
         )
 
         # Fit PCA model and save as `pca.p` file
         if task_mode == "trigger":
-            pca = fit_pca(**data, **kpms_config)
+            pca = fit_pca(**data, **kpms_dj_config_dict)
             save_pca(pca, kpms_project_output_dir.as_posix())
 
         # Check for pca.p file
-        pca_p_file = kpms_project_output_dir / "pca.p"
-
-        if not pca_p_file.exists():
+        pca_path = kpms_project_output_dir / "pca.p"
+        if not pca_path.exists():
             raise FileNotFoundError(
                 f"No pca file (`pca.p`) found in the project directory {kpms_project_output_dir}"
             )
@@ -694,8 +696,8 @@ class PCAFit(dj.Computed):
             [
                 {
                     **key,
-                    "file_name": pca_p_file.name,
-                    "file_path": pca_p_file,
+                    "file_name": pca_path.name,
+                    "file_path": pca_path,
                 }
             ]
         )
