@@ -13,6 +13,7 @@ import cv2
 import datajoint as dj
 import matplotlib.pyplot as plt
 import numpy as np
+import yaml
 from element_interface.utils import find_full_path
 
 from .plotting import viz_utils
@@ -232,10 +233,10 @@ class PreProcessing(dj.Computed):
     definition = """
     -> PCATask                          # Unique ID for each `PCATask` key
     ---
-    formatted_bodyparts     : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
-    coordinates             : longblob  # Cleaned coordinates dictionary (recording_name: array) after outlier removal
-    confidences             : longblob  # Cleaned confidences dictionary (recording_name: array) after outlier removal
-    average_frame_rate      : float     # Average frame rate of the videos for model training (used for kappa calculation).
+    formatted_bodyparts      : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
+    coordinates              : longblob  # Cleaned coordinates dictionary (recording_name: array) after outlier removal
+    confidences              : longblob  # Cleaned confidences dictionary (recording_name: array) after outlier removal
+    average_frame_rate       : float     # Average frame rate of the videos for model training (used for kappa calculation).
     pre_processing_time      : datetime  # datetime of the preprocessing execution.
     pre_processing_duration  : int       # Execution time of the preprocessing in seconds.
     """
@@ -257,7 +258,7 @@ class PreProcessing(dj.Computed):
         -> master
         video_name: varchar(255)
         ---
-        outlier_plot: attach  # QA visualization showing detected outliers and interpolation
+        outlier_plot: attach  # QA visualization showing detected outliers and interpolation.
         """
 
     class ConfigFile(dj.Part):
@@ -268,8 +269,8 @@ class PreProcessing(dj.Computed):
         definition = """
         -> master
         ---
-        base_config_file: attach  # the first version of the KPMS config file after setting up the project
-        config_file: attach  # the updated KPMS DJ config file after processing
+        base_config_file: attach  # KPMS config attachment. Stored as binary in database.
+        config_file: attach       # Updated KPMS DJ config attachment. Stored as binary in database.
         """
 
     def make_fetch(self, key):
@@ -465,11 +466,18 @@ class PreProcessing(dj.Computed):
             outlier_scale_factor=float(outlier_scale_factor),
         )
 
-        # Update the KPMS DJ config file content with the average frame rate
-        kpms_dj_config_dict = kpms_reader.update_kpms_dj_config(
-            config_dict=kpms_dj_config_dict, fps=average_frame_rate
+        # Get absolute paths for attach fields
+        kpms_dj_config_path = find_full_path(
+            get_kpms_processed_data_dir(), kpms_dj_config_path
         )
-        kpms_dj_config_path = kpms_reader._kpms_dj_config_path(kpms_project_output_dir)
+        kpms_base_config_path = find_full_path(
+            get_kpms_processed_data_dir(), kpms_base_config_path
+        )
+
+        # Update the KPMS DJ config file on disk with the average frame rate
+        kpms_dj_config_dict = kpms_reader.update_kpms_dj_config(
+            kpms_project_dir=kpms_project_output_dir, fps=average_frame_rate
+        )
 
         # Clean outlier keypoints and generate plots
         cleaned_coordinates = {}
@@ -488,7 +496,7 @@ class PreProcessing(dj.Computed):
             cleaned_conf = np.where(outliers["mask"], 0, raw_conf)
             cleaned_coordinates[pose_estimation_name] = cleaned_coords
             cleaned_confidences[pose_estimation_name] = cleaned_conf
-            outlier_plot, outlier_plot_path = plot_medoid_distance_outliers(
+            _, outlier_plot_path = plot_medoid_distance_outliers(
                 project_dir=kpms_project_output_dir.as_posix(),
                 recording_name=pose_estimation_name,
                 original_coordinates=raw_coords,
@@ -577,7 +585,6 @@ class PreProcessing(dj.Computed):
                     for vid, meta in video_metadata_dict.items()
                 ]
             )
-
         # Insert configuration files
         self.ConfigFile.insert1(
             {
