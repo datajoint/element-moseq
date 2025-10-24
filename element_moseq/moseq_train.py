@@ -244,7 +244,7 @@ class PreProcessing(dj.Computed):
     class Video(dj.Part):
         definition = """
         -> master
-        video_name: varchar(255)
+        video_id: varchar(255)
         ---
         video_duration              : int           # Duration of each video in minutes
         frame_rate                  : float         # Frame rate of the video in frames per second (Hz)
@@ -256,7 +256,7 @@ class PreProcessing(dj.Computed):
 
         definition = """
         -> master
-        video_name: varchar(255)
+        video_id: varchar(255)
         ---
         outlier_plot: attach  # QA visualization showing detected outliers and interpolation.
         """
@@ -429,7 +429,6 @@ class PreProcessing(dj.Computed):
             duration_minutes = int((frame_count / fps) / 60.0)
             frame_rates.append(fps)
             video_metadata_dict[video_id] = {
-                "video_name": Path(row["video_path"]).stem,
                 "video_duration": duration_minutes,
                 "frame_rate": fps,
                 "file_size": file_size_mb,
@@ -564,7 +563,7 @@ class PreProcessing(dj.Computed):
                 [
                     {
                         **key,
-                        "video_name": meta["video_name"],
+                        "video_id": vid,
                         "video_duration": meta["video_duration"],
                         "frame_rate": meta["frame_rate"],
                         "file_size": meta["file_size"],
@@ -579,7 +578,7 @@ class PreProcessing(dj.Computed):
                 [
                     {
                         **key,
-                        "video_name": meta["video_name"],
+                        "video_id": vid,
                         "outlier_plot": meta["outlier_plot_path"],
                     }
                     for vid, meta in video_metadata_dict.items()
