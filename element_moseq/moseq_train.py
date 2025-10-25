@@ -612,14 +612,14 @@ class PCAFit(dj.Computed):
 
     class File(dj.Part):
         """
-        Store the PCA files (pca.p file).
+        Store the PCA files (pca.p, data.pkl, metadata.pkl files).
         """
 
         definition = """
         -> master
-        file_name    : varchar(255)    # name of the pca file (e.g. 'pca.p').
+        file_name    : varchar(255)    # name of the file (e.g. 'pca.p', 'data.pkl', 'metadata.pkl').
         ---
-        file_path    : filepath@moseq-train-processed   # path to the pca file (relative to the project output directory).
+        file_path    : filepath@moseq-train-processed   # path to the file (relative to the project output directory).
         """
 
     def make(self, key):
@@ -685,7 +685,6 @@ class PCAFit(dj.Computed):
             raise FileNotFoundError(
                 f"No pca file (`pca.p`) found in the project directory {kpms_project_output_dir}"
             )
-        # Insert all files in a single operation
         file_paths = [pca_path, data_path, metadata_path]
 
         completion_time = datetime.now(timezone.utc)
@@ -899,7 +898,6 @@ class PreFit(dj.Computed):
     -> PreFitTask                                # `PreFitTask` Key
     ---
     model_name=''                : varchar(1000) # Name of the model as "kpms_project_output_dir/model_name"
-    model_dict                   : longblob       # Model dictionary containing states, parameters, hyperparameters, noise prior, and random seed
     pre_fit_time=NULL            : datetime      # datetime of the model fitting computation.
     pre_fit_duration=NULL        : float         # Time duration (seconds) of the model fitting computation
     """
@@ -917,12 +915,12 @@ class PreFit(dj.Computed):
 
     class File(dj.Part):
         """
-        Store the checkpoint file used for resuming the pre-fitting process.
+        Store the checkpoint file and model data file used for resuming the pre-fitting process.
         """
 
         definition = """
         -> master
-        file_name    : varchar(255)                  # Name of the output file (e.g. 'checkpoint.h5').
+        file_name    : varchar(255)                  # Name of the output file (e.g. 'checkpoint.h5', 'model_data.pkl').
         ---
         file         : filepath@moseq-train-processed # Path to the file in the processed data directory.
         """
@@ -1080,13 +1078,31 @@ class PreFit(dj.Computed):
         else:
             duration_seconds = None
 
+        # Save model dictionary as pickle file
+        model_data_filename = "model_data.pkl"
+        model_data_file = kpms_project_output_dir / model_data_filename
+        with open(model_data_file, "wb") as f:
+            pickle.dump(model, f)
+
+        file_paths = [checkpoint_file, model_data_file]
+
         self.insert1(
             {
                 **key,
                 "model_name": model_name,
                 "pre_fit_duration": duration_seconds,
-                "model_dict": model,
             }
+        )
+
+        self.File.insert(
+            [
+                {
+                    **key,
+                    "file_name": file.name,
+                    "file": file.as_posix(),
+                }
+                for file in file_paths
+            ]
         )
 
         self.ConfigFile.insert1(
@@ -1101,14 +1117,6 @@ class PreFit(dj.Computed):
                 **key,
                 "fitting_progress_plot_png": png_path,
                 "fitting_progress_plot_pdf": pdf_path,
-            }
-        )
-
-        self.CheckpointFile.insert1(
-            {
-                **key,
-                "checkpoint_file_name": checkpoint_file.name,
-                "checkpoint_file": checkpoint_file,
             }
         )
 
@@ -1153,7 +1161,6 @@ class FullFit(dj.Computed):
     -> FullFitTask                                # `FullFitTask` Key
     ---
     model_name=''                 : varchar(100) # Name of the model as "kpms_project_output_dir/model_name".
-    model_dict                    : longblob      # Model dictionary containing states, parameters, hyperparameters, noise prior, and random seed.
     full_fit_time=NULL            : datetime      # datetime of the full fitting computation.
     full_fit_duration=NULL        : float         # Time duration (seconds) of the full fitting computation.
     """
@@ -1171,12 +1178,12 @@ class FullFit(dj.Computed):
 
     class File(dj.Part):
         """
-        Store the checkpoint file used for resuming the full-fitting process.
+        Store the checkpoint file and model data file used for resuming the full-fitting process.
         """
 
         definition = """
         -> master
-        file_name    : varchar(255)                  # Name of the output file (e.g. 'checkpoint.h5').
+        file_name    : varchar(255)                  # Name of the output file (e.g. 'checkpoint.h5', 'model_data.pkl').
         ---
         file         : filepath@moseq-train-processed # Path to the file in the processed data directory.
         """
@@ -1242,10 +1249,10 @@ class FullFit(dj.Computed):
                 "coordinates", "confidences"
             )
             data_path = (PCAFit.File & key & 'file_name="data.pkl"').fetch1("file_path")
-            data = pickle.load(open(data_path, "rb"))
             metadata_path = (PCAFit.File & key & 'file_name="metadata.pkl"').fetch1(
                 "file_path"
             )
+            data = pickle.load(open(data_path, "rb"))
             metadata = pickle.load(open(metadata_path, "rb"))
             average_frame_rate = (PreProcessing & key).fetch1("average_frame_rate")
 
@@ -1339,6 +1346,14 @@ class FullFit(dj.Computed):
         else:
             duration_seconds = None
 
+        # Save model dictionary as pickle file
+        model_data_filename = "model_data.pkl"
+        model_data_file = kpms_project_output_dir / model_data_filename
+        with open(model_data_file, "wb") as f:
+            pickle.dump(model, f)
+
+        file_paths = [checkpoint_file, model_data_file]
+
         self.insert1(
             {
                 **key,
@@ -1348,8 +1363,18 @@ class FullFit(dj.Computed):
                 ).as_posix(),
                 "full_fit_time": completion_time,
                 "full_fit_duration": duration_seconds,
-                "model_dict": model,
             }
+        )
+
+        self.File.insert(
+            [
+                {
+                    **key,
+                    "file_name": file.name,
+                    "file": file.as_posix(),
+                }
+                for file in file_paths
+            ]
         )
 
         # Insert config file
@@ -1366,15 +1391,6 @@ class FullFit(dj.Computed):
                 **key,
                 "fitting_progress_plot_png": png_path,
                 "fitting_progress_plot_pdf": pdf_path,
-            }
-        )
-
-        # Insert checkpoint file
-        self.File.insert1(
-            {
-                **key,
-                "checkpoint_file_name": checkpoint_file.name,
-                "checkpoint_file": checkpoint_file,
             }
         )
 
