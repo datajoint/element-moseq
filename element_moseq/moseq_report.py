@@ -90,8 +90,6 @@ class BehavioralSummary(dj.Computed):
         results_file = (moseq_infer.Inference & key).fetch1(
             "syllable_segmentation_file"
         )
-
-        # Load results from H5 file
         results = h5py.File(results_file, "r")
 
         # Generate syllable frequencies plot
@@ -99,22 +97,18 @@ class BehavioralSummary(dj.Computed):
         fig.savefig(inference_output_dir / "syllable_frequencies.png")
         plt.close(fig)
 
-        # Get coordinates and config for similarity dendrogram
+        # Generate similarity dendrogram plots
         model_key = (moseq_infer.Model * moseq_train.SelectedFullFit & key).fetch1(
             "KEY"
         )
         coordinates = (moseq_train.PreProcessing & model_key).fetch1("coordinates")
-
-        # Get fps from config
         config_file = (moseq_train.FullFit.ConfigFile & model_key).fetch1("config_file")
-        kpms_dj_config = kpms_reader.load_kpms_dj_config(config_path=config_file)
-
-        # Generate similarity dendrogram plots
+        kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(config_path=config_file)
         plot_similarity_dendrogram(
             coordinates=coordinates,
             results=results,
             save_path=(inference_output_dir / "similarity_dendrogram").as_posix(),
-            **kpms_dj_config,
+            **kpms_dj_config_dict,
         )
 
         # Insert the record
@@ -159,7 +153,6 @@ class TrajectoryPlot(dj.Computed):
 
         start_time = datetime.now(timezone.utc)
 
-        # Get inference data
         results_file = (moseq_infer.Inference & key).fetch1(
             "syllable_segmentation_file"
         )
@@ -167,14 +160,10 @@ class TrajectoryPlot(dj.Computed):
         inference_output_dir = (moseq_infer.InferenceTask & key).fetch1(
             "inference_output_dir"
         )
-
-        # Get model data from training schema
         model_key = (moseq_infer.Model * moseq_train.SelectedFullFit & key).fetch1(
             "KEY"
         )
         coordinates_dict = (moseq_train.PreProcessing & model_key).fetch1("coordinates")
-
-        # Get config
         kpms_dj_config_file = (moseq_train.FullFit.ConfigFile & model_key).fetch1(
             "config_file"
         )
@@ -215,7 +204,6 @@ class TrajectoryPlot(dj.Computed):
         # Calculate duration
         duration_seconds = (datetime.now(timezone.utc) - start_time).total_seconds()
 
-        # Insert main record
         self.insert1(
             {
                 **key,
@@ -224,8 +212,6 @@ class TrajectoryPlot(dj.Computed):
                 "traj_duration": duration_seconds,
             }
         )
-
-        # Insert per-syllable visuals
         for syllable in (moseq_infer.MotionSequence.SampledInstance & key).fetch(
             "syllable"
         ):
