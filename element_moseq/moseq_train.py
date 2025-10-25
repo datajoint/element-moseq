@@ -1396,6 +1396,54 @@ class FullFit(dj.Computed):
 
 
 @schema
+class ModelScore(dj.Computed):
+    """Compute model scores for trained models.
+
+    Computes Marginal Log Likelihood (MLL) for a single model.
+    """
+
+    definition = """
+    -> FullFit
+    ---
+    score=NULL          : float           # Model score (MLL for single model)
+    std_error=NULL      : float           # Standard error of the model score
+    """
+
+    def make(self, key):
+        import jax.numpy as jnp
+        from keypoint_moseq import load_checkpoint
+        from keypoint_moseq.fitting import marginal_log_likelihood
+
+        # Get checkpoint file for this specific model
+        checkpoint_file = (
+            FullFit.File & key & 'file_name LIKE "%checkpoint.h5"'
+        ).fetch1("file")
+
+        # Load the checkpoint to get model data
+        model, data, _, _ = load_checkpoint(path=checkpoint_file)
+
+        # Compute marginal log likelihood for this model
+        mask = jnp.array(data["mask"])
+        x = jnp.array(model["states"]["x"])
+        Ab = jnp.array(model["params"]["Ab"])
+        Q = jnp.array(model["params"]["Q"])
+        pi = jnp.array(model["params"]["pi"])
+
+        # Compute marginal log likelihood - this is the correct metric for single models
+        mll = marginal_log_likelihood(mask, x, Ab, Q, pi)
+        score = float(mll)  # Store as "score" - this is MLL
+        std_error = 0.0  # No standard error for single model MLL
+
+        self.insert1(
+            {
+                **key,
+                "score": score,
+                "std_error": std_error,
+            }
+        )
+
+
+@schema
 class SelectedFullFit(dj.Manual):
     """Register selected FullFit models for use in the inference pipeline.
 
