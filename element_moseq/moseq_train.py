@@ -1459,3 +1459,45 @@ class SelectedFullFit(dj.Manual):
     registered_model_name         : varchar(1000)   # User-friendly model name
     registered_model_desc=''      : varchar(1000) # Optional user-defined description
     """
+
+    @classmethod
+    def select_best_model(cls, key, model_desc="Best model based on MLL score"):
+        """Automatically select the best model for a FullFit based on highest MLL score.
+
+        Args:
+            pcafit_key (dict): PCAFit key to filter models
+            model_desc (str): Description for the selected model
+
+        Returns:
+            dict: The key of the selected model
+        """
+        # Get all models with their scores for this specific PCAFit
+        models_with_scores = (FullFit * ModelScore & key).fetch()
+
+        if len(models_with_scores) == 0:
+            raise ValueError(
+                f"No models with scores found for PCAFit {key}. Run ModelScore.populate() first."
+            )
+
+        # Find the model with the highest score (best MLL)
+        best_model_idx = models_with_scores["score"].argmax()
+        best_model_key = {
+            k: models_with_scores[k][best_model_idx] for k in FullFit.primary_key
+        }
+        best_model_name = models_with_scores["model_name"][best_model_idx]
+        best_score = models_with_scores["score"][best_model_idx]
+
+        print(f"Selected best model: {best_model_name}")
+        print(f"Model score (MLL): {best_score:.2f}")
+
+        # Insert the best model into SelectedFullFit
+        cls.insert1(
+            {
+                **best_model_key,
+                "registered_model_name": best_model_name,
+                "registered_model_desc": f"{model_desc} (MLL: {best_score:.2f})",
+            },
+            skip_duplicates=True,
+        )
+
+        return best_model_key
