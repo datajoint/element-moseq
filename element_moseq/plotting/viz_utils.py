@@ -60,8 +60,11 @@ def plot_medoid_distance_outliers(
 
     Returns
     -------
-    None
-        The plot is saved to 'QA/plots/keypoint_distance_outliers/{recording_name}.png'.
+    tuple of (fig, plot_path)
+        fig: matplotlib.figure.Figure
+            The generated figure object
+        plot_path: str
+            Path to the saved plot file: 'QA/plots/keypoint_distance_outliers/{recording_name}.png'
     """
     from keypoint_moseq.util import get_distance_to_medoid, plot_keypoint_traces
 
@@ -98,7 +101,7 @@ def plot_medoid_distance_outliers(
     logger.info(
         f"Saved keypoint distance outlier plot for {recording_name} to {plot_path}."
     )
-    return fig
+    return fig, plot_path
 
 
 def plot_pcs(
@@ -298,3 +301,4 @@ def copy_pdf_to_png(project_dir, model_name):
 
     images[0].save(png_path, "PNG")
     logger.info(f"Generated PNG progress plot at {png_path}")
+    return png_path, pdf_path
