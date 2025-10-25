@@ -1,14 +1,16 @@
 """
-Code adapted from the Datta Lab
+Code adapted from the Datta Lab: https://dattalab.github.io/moseq2-website/index.html
 DataJoint Schema for Keypoint-MoSeq inference pipeline
 """
 
 import importlib
 import inspect
+import pickle
 from datetime import datetime, timezone
 from pathlib import Path
 
 import datajoint as dj
+import numpy as np
 from element_interface.utils import find_full_path
 from matplotlib import pyplot as plt
 
@@ -83,6 +85,7 @@ class Model(dj.Manual):
     ---
     model_name              : varchar(1000)   # User-friendly model name
     model_dir               : varchar(1000)   # Model directory relative to root data directory
+    model_file              : filepath@moseq-infer-processed        # Model pkl file containing states, parameters, hyperparameters, noise prior, and random seed
     model_desc=''           : varchar(1000)   # Optional. User-defined description of the model
     -> [nullable] moseq_train.SelectedFullFit # Optional. FullFit key.
     """
@@ -148,6 +151,37 @@ class InferenceTask(dj.Manual):
     task_mode='load'              : enum('load', 'trigger') # Task mode for the inference task
     """
 
+    @classmethod
+    def infer_output_dir(cls, key: dict, relative: bool = False, mkdir: bool = False):
+        """Return the expected inference_output_dir.
+
+        Based on convention: model_dir / inference_output_dir
+        If inference_output_dir is empty, generates a default based on model and recording.
+
+        Args:
+            key: DataJoint key specifying a pairing of VideoRecording and Model.
+            relative (bool): Report directory relative to processed data directory.
+            mkdir (bool): Default False. Make directory if it doesn't exist.
+        """
+        # Get model directory
+        model_dir_rel, model_file = (Model * moseq_train.SelectedFullFit & key).fetch1(
+            "model_dir", "model_file"
+        )
+        kpms_processed = moseq_train.get_kpms_processed_data_dir()
+
+        # Get recording info for default naming
+        recording_id = (VideoRecording & key).fetch1("recording_id")
+
+        # Generate default output directory name
+        default_output_dir = f"inference_recording_id_{recording_id}"
+
+        if mkdir:
+            # Create directory in the processed directory, not inside model directory
+            output_dir = Path(kpms_processed) / model_dir_rel / default_output_dir
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+        return default_output_dir
+
 
 @schema
 class Inference(dj.Computed):
@@ -155,119 +189,66 @@ class Inference(dj.Computed):
 
     Attributes:
         InferenceTask (foreign_key)          : `InferenceTask` key.
-        syllable_segmentation_file (attach)  : File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings.
+        syllable_segmentation_file (filepath): File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings.
         inference_duration (float)           : Time duration (seconds) of the inference computation.
     """
 
     definition = """
     -> InferenceTask                         # `InferenceTask` key
     ---
-    syllable_segmentation_file     : attach # File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings
+    syllable_segmentation_file     : filepath@moseq-infer-processed # File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings
     inference_duration=NULL        : float   # Time duration (seconds) of the inference computation
     """
 
-    class MotionSequence(dj.Part):
-        """Store the results of the model inference.
-
-        Attributes:
-            InferenceTask (foreign key)         : `InferenceTask` key.
-            video_name (varchar)                : Name of the video.
-            syllable (longblob)                 : Syllable labels (z). The syllable label assigned to each frame (i.e. the state indexes assigned by the model).
-            latent_state (longblob)             : Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model.
-            centroid (longblob)                 : Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model.
-            heading (longblob)                  : Inferred heading (h). The heading of the animal in each frame, as estimated by the model.
-            motion_sequence_file (attach)       : File path of the temporal sequence of motion data (CSV format).
-        """
-
-        definition = """
-        -> master
-        video_name      : varchar(150)    # Name of the video
-        ---
-        syllable        : longblob        # Syllable labels (z). The syllable label assigned to each frame (i.e. the state indexes assigned by the model)
-        latent_state    : longblob        # Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model
-        centroid        : longblob        # Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model
-        heading         : longblob        # Inferred heading (h). The heading of the animal in each frame, as estimated by the model
-        motion_sequence_file: attach      # File path of the temporal sequence of motion data (CSV format)
-        """
-
-    class GridMoviesSampledInstances(dj.Part):
-        """Store the sampled instances of the grid movies.
-
-        Attributes:
-            syllable (int)                  : Syllable label.
-            instances (longblob)            : List of instances shown in each in grid movie (in row-major order), where each instance is specified as a tuple with the video name, start frame and end frame.
-        """
-
-        definition = """
-        -> master
-        syllable: int           # Syllable label
-        ---
-        instances: longblob     # List of instances shown in each in grid movie (in row-major order), where each instance is specified as a tuple with the video name, start frame and end frame
-        """
-
-    class InferencePlots(dj.Part):
-        """Store the main inference plots.
-
-        Attributes:
-            InferenceTask (foreign key)         : `InferenceTask` key.
-            plot_name (varchar)                : Name of the plot.
-            plot_file (attach)                 : File path of the plot.
-        """
-
-        definition = """
-        -> master
-        plot_name: varchar(150) # Name of the plot (e.g. syllable_frequencies, similarity_dendrogram_png, similarity_dendrogram_pdf, all_trajectories_gif, all_trajectories_pdf)
-        ---
-        plot_file: attach # File path of the plot
-        """
-
-    class TrajectoryPlots(dj.Part):
-        """Store the per-syllable trajectory plots.
-
-        Attributes:
-            InferenceTask (foreign key)         : `InferenceTask` key.
-            syllable_id (int)                  : Syllable ID.
-            plot_gif (attach)                  : GIF plot file.
-            plot_pdf (attach)                  : PDF plot file.
-            grid_movie (attach)                : Grid movie file.
-        """
-
-        definition = """
-        -> master
-        syllable_id: int # Syllable ID
-        ---
-        plot_gif: attach # GIF plot file
-        plot_pdf: attach # PDF plot file
-        grid_movie: attach # Grid movie file
-        """
-
     def make_fetch(self, key):
-        """
-        Fetch data required for model inference.
-        """
-        (
-            keypointset_dir,
-            inference_output_dir,
-            num_iterations,
-            model_id,
-            pose_estimation_method,
-            task_mode,
-        ) = (InferenceTask & key).fetch1(
+
+        (keypointset_dir, inference_output_dir, num_iterations, task_mode,) = (
+            InferenceTask & key
+        ).fetch1(
             "keypointset_dir",
             "inference_output_dir",
             "num_iterations",
-            "model_id",
-            "pose_estimation_method",
             "task_mode",
         )
 
+        model_dir_rel, model_file = (Model * moseq_train.SelectedFullFit & key).fetch1(
+            "model_dir", "model_file"
+        )  # model dir relative to processed data directory
+
+        model_key = (Model * moseq_train.SelectedFullFit & key).fetch1("KEY")
+        checkpoint_file_path = (
+            moseq_train.FullFit.File & model_key & 'file_name="checkpoint.h5"'
+        ).fetch1("file")
+        kpms_dj_config_file = (moseq_train.FullFit.ConfigFile & model_key).fetch1(
+            "config_file"
+        )
+        pca_file_path = (
+            moseq_train.PCAFit.File & model_key & 'file_name="pca.p"'
+        ).fetch1("file_path")
+
+        data_file_path = (
+            moseq_train.PCAFit.File & model_key & 'file_name="data.pkl"'
+        ).fetch1("file_path")
+        metadata_file_path = (
+            moseq_train.PCAFit.File & model_key & 'file_name="metadata.pkl"'
+        ).fetch1("file_path")
+        coordinates, confidences = (moseq_train.PreProcessing & model_key).fetch(
+            "coordinates", "confidences"
+        )
         return (
             keypointset_dir,
             inference_output_dir,
             num_iterations,
-            model_id,
-            pose_estimation_method,
             task_mode,
+            model_dir_rel,
+            model_file,
+            checkpoint_file_path,
+            kpms_dj_config_file,
+            pca_file_path,
+            data_file_path,
+            metadata_file_path,
+            coordinates,
+            confidences,
         )
 
     def make_compute(
@@ -276,9 +257,16 @@ class Inference(dj.Computed):
         keypointset_dir,
         inference_output_dir,
         num_iterations,
-        model_id,
-        pose_estimation_method,
         task_mode,
+        model_dir_rel,
+        model_file,
+        checkpoint_file_path,
+        kpms_dj_config_file,
+        pca_file_path,
+        data_file_path,
+        metadata_file_path,
+        coordinates,
+        confidences,
     ):
         """
         Compute model inference results.
@@ -303,296 +291,88 @@ class Inference(dj.Computed):
         """
         from keypoint_moseq import (
             apply_model,
-            filter_centroids_headings,
             format_data,
-            generate_grid_movies,
-            generate_trajectory_plots,
-            get_syllable_instances,
             load_checkpoint,
             load_keypoints,
             load_pca,
             load_results,
-            plot_similarity_dendrogram,
-            plot_syllable_frequencies,
-            sample_instances,
             save_results_as_csv,
         )
 
         # Constants used by default as in kpms
-        DEFAULT_NUM_ITERS = 50
-        FILTER_SIZE = 9
-        MIN_DURATION = 3
-        MIN_FREQUENCY = 0.005
-        GRID_SAMPLES = 4 * 6  # minimum rows * cols
+        DEFAULT_NUM_ITERS = 500
 
+        # Get directories first
         kpms_root = moseq_train.get_kpms_root_data_dir()
         kpms_processed = moseq_train.get_kpms_processed_data_dir()
 
-        model_dir = find_full_path(
-            kpms_processed,
-            (Model & f"model_id = {model_id}").fetch1("model_dir"),
-        )
+        if not inference_output_dir:
+            inference_output_dir = InferenceTask.infer_output_dir(
+                key, relative=True, mkdir=True
+            )
+            # Update the inference_output_dir in the database
+            InferenceTask.update1({**key, "inference_output_dir": inference_output_dir})
+
+        # Construct the full path to the inference output directory
+        inference_output_dir = kpms_processed / model_dir_rel / inference_output_dir
+
+        inference_output_dir.mkdir(parents=True, exist_ok=True)
+        model_dir = find_full_path(kpms_processed, model_dir_rel)
         keypointset_dir = find_full_path(kpms_root, keypointset_dir)
 
-        inference_output_dir = Path(model_dir) / inference_output_dir
+        kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
+            config_path=kpms_dj_config_file
+        )
 
-        if not inference_output_dir.exists():
-            inference_output_dir.mkdir(parents=True, exist_ok=True)
-
-        pca_path = model_dir.parent / "pca.p"
-        if pca_path:
-            pca = load_pca(model_dir.parent.as_posix())
-        else:
-            raise FileNotFoundError(
-                f"No pca model (`pca.p`) found in the parent model directory {model_dir.parent}"
-            )
-
-        model_path = model_dir / "checkpoint.h5"
-        if model_path:
-            model = load_checkpoint(
-                project_dir=model_dir.parent, model_name=model_dir.parts[-1]
-            )[0]
-        else:
-            raise FileNotFoundError(
-                f"No model (`checkpoint.h5`) found in the model directory {model_dir}"
-            )
-
-        if pose_estimation_method == "deeplabcut":
-            coordinates, confidences, _ = load_keypoints(
-                filepath_pattern=keypointset_dir, format=pose_estimation_method
-            )
-
-        kpms_dj_config = kpms_reader.load_kpms_dj_config(model_dir.parent)
-
-        if kpms_dj_config:
-            data, metadata = format_data(coordinates, confidences, **kpms_dj_config)
-        else:
-            raise FileNotFoundError(
-                f"No valid `kpms_dj_config` found in the parent model directory {model_dir.parent}"
-            )
-
+        metadata = pickle.load(open(metadata_file_path, "rb"))
+        data = pickle.load(open(data_file_path, "rb"))
+        model_data = pickle.load(open(model_file, "rb"))
         if task_mode == "trigger":
             start_time = datetime.now(timezone.utc)
             results = apply_model(
-                model=model,
+                model_name=inference_output_dir.name,
+                model=model_data,
                 data=data,
                 metadata=metadata,
-                pca=pca,
-                project_dir=model_dir.parent.as_posix(),
-                model_name=Path(model_dir).name,
-                results_path=(inference_output_dir / "results.h5").as_posix(),
+                pca=pca_file_path,
+                project_dir=inference_output_dir.parent,
+                results_path=(inference_output_dir / "results.h5"),
                 return_model=False,
                 num_iters=num_iterations or DEFAULT_NUM_ITERS,
                 overwrite=True,
-                **kpms_dj_config,
+                save_results=True,
+                **kpms_dj_config_dict,
             )
-            end_time = datetime.now(timezone.utc)
 
+            end_time = datetime.now(timezone.utc)
             duration_seconds = (end_time - start_time).total_seconds()
 
+            # Create results directory and save CSV files
             save_results_as_csv(
                 results=results,
                 save_dir=(inference_output_dir / "results_as_csv").as_posix(),
             )
 
-            fig, _ = plot_syllable_frequencies(
-                results=results, path=inference_output_dir.as_posix()
-            )
-            fig.savefig(inference_output_dir / "syllable_frequencies.png")
-            plt.close(fig)
-
-            generate_trajectory_plots(
-                coordinates=coordinates,
-                results=results,
-                output_dir=(inference_output_dir / "trajectory_plots").as_posix(),
-                **kpms_dj_config,
-            )
-
-            sampled_instances = generate_grid_movies(
-                coordinates=coordinates,
-                results=results,
-                output_dir=(inference_output_dir / "grid_movies").as_posix(),
-                **kpms_dj_config,
-            )
-
-            plot_similarity_dendrogram(
-                coordinates=coordinates,
-                results=results,
-                save_path=(inference_output_dir / "similarity_dendrogram").as_posix(),
-                **kpms_dj_config,
-            )
-
         else:
             # For load mode
-            # load results
             results = load_results(
-                project_dir=inference_output_dir.parent,
-                model_name=inference_output_dir.parts[-1],
+                project_dir=model_dir,
+                model_name=model_dir.name,
             )
+            duration_seconds = None
 
-        # extract syllables from results
-        syllables = {k: v["syllable"] for k, v in results.items()}
-
-        # extract and smooth centroids and headings
-        centroids = {k: v["centroid"] for k, v in results.items()}
-        headings = {k: v["heading"] for k, v in results.items()}
-
-        centroids, headings = filter_centroids_headings(
-            centroids, headings, filter_size=FILTER_SIZE
-        )
-
-        # extract sample instances for each syllable
-        syllable_instances = get_syllable_instances(
-            syllables, min_duration=MIN_DURATION, min_frequency=MIN_FREQUENCY
-        )
-        # Map each syllable to a list of its sampled events.
-        sampled_instances = sample_instances(
-            syllable_instances=syllable_instances,
-            num_samples=GRID_SAMPLES,
-            coordinates=coordinates,
-            centroids=centroids,
-            headings=headings,
-        )
-
-        duration_seconds = None
-
-        # Prepare motion sequence data
-        motion_sequence_data = []
-        for result_idx, result in results.items():
-            motion_sequence_data.append(
-                {
-                    **key,
-                    "video_name": result_idx,
-                    "syllable": result["syllable"],
-                    "latent_state": result["latent_state"],
-                    "centroid": result["centroid"],
-                    "heading": result["heading"],
-                    "motion_sequence_file": (
-                        inference_output_dir / "results_as_csv" / f"{result_idx}.csv"
-                    ).as_posix(),
-                }
-            )
-
-        # Prepare grid movie data
-        grid_movie_data = []
-        for syllable, sampled_instance in sampled_instances.items():
-            grid_movie_data.append(
-                {**key, "syllable": syllable, "instances": sampled_instance}
-            )
-
-        # Prepare inference plots data
-        inference_plots_data = []
-        if task_mode == "trigger":
-            # Main plots generated during trigger mode
-            inference_plots_data = [
-                {
-                    **key,
-                    "plot_name": "syllable_frequencies",
-                    "plot_file": inference_output_dir / "syllable_frequencies.png",
-                },
-                {
-                    **key,
-                    "plot_name": "similarity_dendrogram_png",
-                    "plot_file": inference_output_dir / "similarity_dendrogram.png",
-                },
-                {
-                    **key,
-                    "plot_name": "similarity_dendrogram_pdf",
-                    "plot_file": inference_output_dir / "similarity_dendrogram.pdf",
-                },
-                {
-                    **key,
-                    "plot_name": "all_trajectories_gif",
-                    "plot_file": inference_output_dir
-                    / "trajectory_plots"
-                    / "all_trajectories.gif",
-                },
-                {
-                    **key,
-                    "plot_name": "all_trajectories_pdf",
-                    "plot_file": inference_output_dir
-                    / "trajectory_plots"
-                    / "all_trajectories.pdf",
-                },
-            ]
-        else:
-            # For load mode, check if files exist
-            main_plots = [
-                ("syllable_frequencies", "syllable_frequencies.png"),
-                ("similarity_dendrogram_png", "similarity_dendrogram.png"),
-                ("similarity_dendrogram_pdf", "similarity_dendrogram.pdf"),
-                ("all_trajectories_gif", "trajectory_plots/all_trajectories.gif"),
-                ("all_trajectories_pdf", "trajectory_plots/all_trajectories.pdf"),
-            ]
-
-            for plot_name, file_path in main_plots:
-                full_path = inference_output_dir / file_path
-                if full_path.exists():
-                    inference_plots_data.append(
-                        {
-                            **key,
-                            "plot_name": plot_name,
-                            "plot_file": full_path,
-                        }
-                    )
-
-        # Prepare trajectory plots data
-        trajectory_plots_data = []
-        for syllable in sampled_instances.keys():
-            syllable_gif = (
-                inference_output_dir / "trajectory_plots" / f"syllable{syllable}.gif"
-            )
-            syllable_pdf = (
-                inference_output_dir / "trajectory_plots" / f"syllable{syllable}.pdf"
-            )
-            grid_movie_mp4 = (
-                inference_output_dir / "grid_movies" / f"syllable{syllable}.mp4"
-            )
-            grid_movie_gif = (
-                inference_output_dir
-                / "grid_movies"
-                / f"syllable{syllable}_grid_movie.gif"
-            )
-
-            # Convert MP4 to GIF if needed (from InferenceReport logic)
-            if grid_movie_mp4.exists() and not grid_movie_gif.exists():
-                import imageio
-
-                reader = imageio.get_reader(grid_movie_mp4)
-                fps = reader.get_meta_data()["fps"]
-                writer = imageio.get_writer(grid_movie_gif, fps=fps, loop=0)
-                for frame in reader:
-                    writer.append_data(frame)
-                writer.close()
-
-            trajectory_plots_data.append(
-                {
-                    **key,
-                    "syllable_id": syllable,
-                    "plot_gif": syllable_gif if syllable_gif.exists() else None,
-                    "plot_pdf": syllable_pdf if syllable_pdf.exists() else None,
-                    "grid_movie": grid_movie_gif if grid_movie_gif.exists() else None,
-                }
-            )
+        results_filepath = (inference_output_dir / "results.h5").as_posix()
 
         return (
             duration_seconds,
-            motion_sequence_data,
-            grid_movie_data,
-            inference_plots_data,
-            trajectory_plots_data,
-            inference_output_dir,
+            results_filepath,
         )
 
     def make_insert(
         self,
         key,
         duration_seconds,
-        motion_sequence_data,
-        grid_movie_data,
-        inference_plots_data,
-        trajectory_plots_data,
-        inference_output_dir,
+        results_filepath,
     ):
         """
         Insert inference results into the database.
@@ -601,24 +381,160 @@ class Inference(dj.Computed):
             {
                 **key,
                 "inference_duration": duration_seconds,
-                "syllable_segmentation_file": (
-                    inference_output_dir / "results.h5"
-                ).as_posix(),
+                "syllable_segmentation_file": results_filepath,
             }
         )
 
-        for motion_record in motion_sequence_data:
-            self.MotionSequence.insert1(motion_record)
 
-        for grid_record in grid_movie_data:
-            self.GridMoviesSampledInstances.insert1(grid_record)
+@schema
+class MotionSequence(dj.Computed):
+    """Expand inference results into per-video sequences and sampled instances."""
 
-        for plot_record in inference_plots_data:
-            self.InferencePlots.insert1(plot_record)
+    definition = """
+    -> Inference
+    ---
+    motion_sequence_duration=NULL : float
+    """
 
-        for trajectory_record in trajectory_plots_data:
-            if any(
-                trajectory_record.get(field)
-                for field in ["plot_gif", "plot_pdf", "grid_movie"]
-            ):
-                self.TrajectoryPlots.insert1(trajectory_record)
+    class VideoSequence(dj.Part):
+        """Store the per-video sequences."""
+
+        definition = """
+        -> master
+        -> VideoRecording.File                              # Foreign key to VideoRecording.File
+        ---
+        syllables        : longblob                       # Syllable labels (z). The syllable label assigned to each frame (i.e. the state indexes assigned by the model)
+        latent_states    : longblob                       # Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model
+        centroids        : longblob                       # Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model
+        headings         : longblob                       # Inferred heading (h). The heading of the animal in each frame, as estimated by the model
+        file_csv         : filepath@moseq-infer-processed # File path of the temporal sequence of motion data (CSV format)
+        """
+
+    class SampledInstance(dj.Part):
+        """Store the sampled instances of the grid movies."""
+
+        definition = """
+        -> master
+        syllable: int
+        ---
+        instances: longblob
+        """
+
+    def make(self, key):
+        import h5py
+        from keypoint_moseq import (
+            filter_centroids_headings,
+            get_syllable_instances,
+            load_keypoints,
+            load_results,
+            sample_instances,
+        )
+
+        execution_time = datetime.now(timezone.utc)
+
+        # Constants used by default as in kpms
+        FILTER_SIZE = 9
+        MIN_DURATION = 3
+        MIN_FREQUENCY = 0.005
+        GRID_SAMPLES = 4 * 6  # minimum rows * cols
+        # Fetch base params
+        (
+            keypointset_dir,
+            inference_output_dir,
+            model_dir,
+            num_iterations,
+            task_mode,
+        ) = (InferenceTask * Model & key).fetch1(
+            "keypointset_dir",
+            "inference_output_dir",
+            "model_dir",
+            "num_iterations",
+            "task_mode",
+        )
+        kpms_root = moseq_train.get_kpms_root_data_dir()
+        kpms_processed = moseq_train.get_kpms_processed_data_dir()
+
+        # Get the full paths
+        keypointset_dir = find_full_path(kpms_root, keypointset_dir)
+
+        # Handle default inference_output_dir if not provided
+        if not inference_output_dir:
+            inference_output_dir = InferenceTask.infer_output_dir(
+                key, relative=True, mkdir=True
+            )
+            # Update the inference_output_dir in the database
+            InferenceTask.update1({**key, "inference_output_dir": inference_output_dir})
+
+        inference_output_dir = Path(model_dir) / inference_output_dir
+        inference_output_dir = find_full_path(kpms_processed, inference_output_dir)
+
+        model_key = (Model * moseq_train.SelectedFullFit & key).fetch1("KEY")
+        coordinates, confidences = (moseq_train.PreProcessing & model_key).fetch(
+            "coordinates", "confidences"
+        )
+
+        results_file = (Inference & key).fetch1("syllable_segmentation_file")
+
+        file_ids, file_paths = (VideoRecording.File & key).fetch("file_id", "file_path")
+
+        video_name_to_file_id = {}
+        for file_id, file_path in zip(file_ids, file_paths):
+            base_video_name = Path(file_path).stem
+            video_name_to_file_id[base_video_name] = file_id
+
+        with h5py.File(results_file, "r") as results:
+            syllables = {k: np.array(v["syllable"]) for k, v in results.items()}
+            latent_states = {k: np.array(v["latent_state"]) for k, v in results.items()}
+            centroids = {k: np.array(v["centroid"]) for k, v in results.items()}
+            headings = {k: np.array(v["heading"]) for k, v in results.items()}
+            video_keys = list(results.keys())
+
+        filtered_centroids, filtered_headings = filter_centroids_headings(
+            centroids, headings, filter_size=FILTER_SIZE
+        )
+
+        motion_rows = []
+        for vid in video_keys:
+            matched_file_id = None
+            for base_video_name, file_id in video_name_to_file_id.items():
+                if vid.startswith(base_video_name):
+                    matched_file_id = file_id
+                    break
+
+            if matched_file_id is not None:
+                motion_rows.append(
+                    {
+                        **key,
+                        "file_id": matched_file_id,
+                        "syllables": syllables[vid],
+                        "latent_states": latent_states[vid],
+                        "centroids": filtered_centroids[vid],
+                        "headings": filtered_headings[vid],
+                        "file_csv": (
+                            inference_output_dir / "results_as_csv" / f"{vid}.csv"
+                        ).as_posix(),
+                    }
+                )
+        syllable_instances = get_syllable_instances(
+            syllables, min_duration=MIN_DURATION, min_frequency=MIN_FREQUENCY
+        )
+        sampled = sample_instances(
+            syllable_instances=syllable_instances,
+            num_samples=GRID_SAMPLES,
+            coordinates=coordinates,
+            centroids=filtered_centroids,
+            headings=filtered_headings,
+        )
+
+        sampled_rows = [
+            {**key, "syllable": s, "instances": inst} for s, inst in sampled.items()
+        ]
+
+        completion_time = datetime.now(timezone.utc)
+        duration_seconds = (completion_time - execution_time).total_seconds()
+
+        self.insert1({**key, "motion_sequence_duration": duration_seconds})
+
+        self.VideoSequence.insert(motion_rows)
+
+        self.SampledInstance.insert(sampled_rows)
