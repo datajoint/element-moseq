@@ -752,10 +752,11 @@ class LatentDimension(dj.Computed):
         3. Determine number of components needed for 90% variance.
         4. Insert results into table.
         """
-
-        VARIANCE_THRESHOLD = 0.90
+        import tempfile
 
         from keypoint_moseq import load_pca
+
+        VARIANCE_THRESHOLD = 0.90
 
         kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
         kpms_project_output_dir = (
@@ -780,8 +781,11 @@ class LatentDimension(dj.Computed):
             variance_percentage = VARIANCE_THRESHOLD * 100
             latent_dim_desc = f">={VARIANCE_THRESHOLD*100}% of variance explained by {(cs>VARIANCE_THRESHOLD).nonzero()[0].min()+1} components."
 
-        # Load the configuration from the file
-        kpms_config = kpms_reader.load_kpms_dj_config(kpms_project_output_dir)
+        # Load the configuration from database
+        kpms_dj_config_path = (PreProcessing.ConfigFile & key).fetch1("config_file")
+        kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
+            config_path=kpms_dj_config_path
+        )
 
         # Generate scree plot
         scree_fig = plt.figure()
@@ -796,9 +800,9 @@ class LatentDimension(dj.Computed):
         # Generate PCs plot
         pcs_fig = viz_utils.plot_pcs(
             pca,
-            **kpms_config,
             interactive=False,
             project_dir=kpms_project_output_dir,
+            **kpms_dj_config_dict,
         )
 
         # Load the pcs-xy.pdf file
@@ -810,8 +814,6 @@ class LatentDimension(dj.Computed):
             )
 
         # Save plots to temporary directory
-        import tempfile
-
         tmpdir = tempfile.TemporaryDirectory()
         fname = f"{key['kpset_id']}_{key['bodyparts_id']}"
 
