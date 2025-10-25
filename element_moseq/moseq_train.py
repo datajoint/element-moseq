@@ -1080,7 +1080,7 @@ class PreFit(dj.Computed):
 
         # Save model dictionary as pickle file
         model_data_filename = "model_data.pkl"
-        model_data_file = kpms_project_output_dir / model_data_filename
+        model_data_file = model_name_full_path / model_data_filename
         with open(model_data_file, "wb") as f:
             pickle.dump(model, f)
 
@@ -1348,7 +1348,7 @@ class FullFit(dj.Computed):
 
         # Save model dictionary as pickle file
         model_data_filename = "model_data.pkl"
-        model_data_file = kpms_project_output_dir / model_data_filename
+        model_data_file = model_name_full_path / model_data_filename
         with open(model_data_file, "wb") as f:
             pickle.dump(model, f)
 
