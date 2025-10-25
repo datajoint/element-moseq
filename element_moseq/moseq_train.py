@@ -1,5 +1,5 @@
 """
-Code adapted from the Datta Lab
+Code adapted from the Datta Lab: https://dattalab.github.io/moseq2-website/index.html
 DataJoint Schema for Keypoint-MoSeq training pipeline
 """
 
@@ -899,6 +899,7 @@ class PreFit(dj.Computed):
     -> PreFitTask                                # `PreFitTask` Key
     ---
     model_name=''                : varchar(1000) # Name of the model as "kpms_project_output_dir/model_name"
+    model_dict                   : longblob       # Model dictionary containing states, parameters, hyperparameters, noise prior, and random seed
     pre_fit_time=NULL            : datetime      # datetime of the model fitting computation.
     pre_fit_duration=NULL        : float         # Time duration (seconds) of the model fitting computation
     """
@@ -914,16 +915,16 @@ class PreFit(dj.Computed):
         config_file: attach  # Updated KPMS DJ config file after PreFit computation.
         """
 
-    class CheckpointFile(dj.Part):
+    class File(dj.Part):
         """
         Store the checkpoint file used for resuming the pre-fitting process.
         """
 
         definition = """
         -> master
+        file_name    : varchar(255)                  # Name of the output file (e.g. 'checkpoint.h5').
         ---
-        checkpoint_file_name    : varchar(1000)                  # Name of the checkpoint file (e.g. 'checkpoint.h5').
-        checkpoint_file         : filepath@moseq-train-processed # Path to the checkpoint file.
+        file         : filepath@moseq-train-processed # Path to the file in the processed data directory.
         """
 
     class Plots(dj.Part):
@@ -1037,7 +1038,7 @@ class PreFit(dj.Computed):
                 num_iters=pre_num_iterations,
                 generate_progress_plots=True,  # saved to {project_dir}/{model_name}/plots/
                 save_every_n_iters=10,
-            )  # model_name is already the correct directory name
+            )
             # Create a PNG version fo the PDF progress plot
             png_path, pdf_path = viz_utils.copy_pdf_to_png(
                 kpms_project_output_dir, model_name
@@ -1066,7 +1067,7 @@ class PreFit(dj.Computed):
         for pattern in ("checkpoint*", "*.h5"):
             checkpoint_files.extend(model_name_full_path.glob(pattern))
         if checkpoint_files:
-            checkpoint_file = max(checkpoint_files, key=lambda f: f.stat().st_size)
+            checkpoint_file = max(checkpoint_files, key=lambda f: f.stat().st_mtime)
         else:
             raise FileNotFoundError(
                 f"No checkpoint files found in {model_name_full_path}"
@@ -1084,6 +1085,7 @@ class PreFit(dj.Computed):
                 **key,
                 "model_name": model_name,
                 "pre_fit_duration": duration_seconds,
+                "model_dict": model,
             }
         )
 
@@ -1150,9 +1152,10 @@ class FullFit(dj.Computed):
     definition = """
     -> FullFitTask                                # `FullFitTask` Key
     ---
-    model_name=''                 : varchar(1000) # Name of the model as "kpms_project_output_dir/model_name"
+    model_name=''                 : varchar(100) # Name of the model as "kpms_project_output_dir/model_name".
+    model_dict                    : longblob      # Model dictionary containing states, parameters, hyperparameters, noise prior, and random seed.
     full_fit_time=NULL            : datetime      # datetime of the full fitting computation.
-    full_fit_duration=NULL        : float         # Time duration (seconds) of the full fitting computation
+    full_fit_duration=NULL        : float         # Time duration (seconds) of the full fitting computation.
     """
 
     class ConfigFile(dj.Part):
@@ -1166,16 +1169,16 @@ class FullFit(dj.Computed):
         config_file: attach  # Updated KPMS DJ config attachment.
         """
 
-    class CheckpointFile(dj.Part):
+    class File(dj.Part):
         """
         Store the checkpoint file used for resuming the full-fitting process.
         """
 
         definition = """
         -> master
+        file_name    : varchar(255)                  # Name of the output file (e.g. 'checkpoint.h5').
         ---
-        checkpoint_file_name    : varchar(1000)                  # Name of the checkpoint file (e.g. 'checkpoint.p').
-        checkpoint_file         : filepath@moseq-train-processed # Path to the checkpoint file in the processed data directory.
+        file         : filepath@moseq-train-processed # Path to the file in the processed data directory.
         """
 
     class Plots(dj.Part):
@@ -1323,7 +1326,7 @@ class FullFit(dj.Computed):
         for pattern in ("checkpoint*", "*.h5"):
             checkpoint_files.extend(model_name_full_path.glob(pattern))
         if checkpoint_files:
-            checkpoint_file = max(checkpoint_files, key=lambda f: f.stat().st_size)
+            checkpoint_file = max(checkpoint_files, key=lambda f: f.stat().st_mtime)
         else:
             raise FileNotFoundError(
                 f"No checkpoint files found in {model_name_full_path}"
@@ -1345,6 +1348,7 @@ class FullFit(dj.Computed):
                 ).as_posix(),
                 "full_fit_time": completion_time,
                 "full_fit_duration": duration_seconds,
+                "model_dict": model,
             }
         )
 
@@ -1366,7 +1370,7 @@ class FullFit(dj.Computed):
         )
 
         # Insert checkpoint file
-        self.CheckpointFile.insert1(
+        self.File.insert1(
             {
                 **key,
                 "checkpoint_file_name": checkpoint_file.name,
