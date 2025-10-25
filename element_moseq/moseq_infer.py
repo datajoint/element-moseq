@@ -211,6 +211,13 @@ class Inference(dj.Computed):
             "task_mode",
         )
 
+        if not inference_output_dir:
+            inference_output_dir = InferenceTask.infer_output_dir(
+                key, relative=True, mkdir=True
+            )
+            # Update the inference_output_dir in the database
+            InferenceTask.update1({**key, "inference_output_dir": inference_output_dir})
+
         model_dir_rel, model_file = (Model * moseq_train.SelectedFullFit & key).fetch1(
             "model_dir", "model_file"
         )  # model dir relative to processed data directory
@@ -302,16 +309,11 @@ class Inference(dj.Computed):
         # Constants used by default as in kpms
         DEFAULT_NUM_ITERS = 500
 
+        start_time = datetime.now(timezone.utc)
+
         # Get directories first
         kpms_root = moseq_train.get_kpms_root_data_dir()
         kpms_processed = moseq_train.get_kpms_processed_data_dir()
-
-        if not inference_output_dir:
-            inference_output_dir = InferenceTask.infer_output_dir(
-                key, relative=True, mkdir=True
-            )
-            # Update the inference_output_dir in the database
-            InferenceTask.update1({**key, "inference_output_dir": inference_output_dir})
 
         # Construct the full path to the inference output directory
         inference_output_dir = kpms_processed / model_dir_rel / inference_output_dir
@@ -328,7 +330,6 @@ class Inference(dj.Computed):
         data = pickle.load(open(data_file_path, "rb"))
         model_data = pickle.load(open(model_file, "rb"))
         if task_mode == "trigger":
-            start_time = datetime.now(timezone.utc)
             results = apply_model(
                 model_name=inference_output_dir.name,
                 model=model_data,
@@ -344,14 +345,14 @@ class Inference(dj.Computed):
                 **kpms_dj_config_dict,
             )
 
-            end_time = datetime.now(timezone.utc)
-            duration_seconds = (end_time - start_time).total_seconds()
-
             # Create results directory and save CSV files
             save_results_as_csv(
                 results=results,
                 save_dir=(inference_output_dir / "results_as_csv").as_posix(),
             )
+
+            end_time = datetime.now(timezone.utc)
+            duration_seconds = (end_time - start_time).total_seconds()
 
         else:
             # For load mode
