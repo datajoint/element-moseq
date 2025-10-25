@@ -214,6 +214,33 @@ class PCATask(dj.Manual):
     task_mode='load'                :enum('load','trigger') # 'load' to load existing results, 'trigger' to compute new PCA
     """
 
+    @classmethod
+    def infer_output_dir(cls, key: dict, relative: bool = False, mkdir: bool = False):
+        """Return the expected kpms_project_output_dir.
+
+        If kpms_project_output_dir is empty, generates a default based on keypointset and session info.
+
+        Args:
+            key: DataJoint key specifying a PCATask.
+            relative (bool): Report directory relative to processed data directory.
+            mkdir (bool): Default False. Make directory if it doesn't exist.
+        """
+        # Get keypointset info for default naming
+        kpset_id = (KeypointSet & key).fetch1("kpset_id")
+
+        # Get bodyparts info for unique naming
+        bodyparts_id = (BodyParts & key).fetch1("bodyparts_id")
+
+        # Generate default output directory name
+        default_output_dir = f"kpset_id_{kpset_id}_bodyparts_id_{bodyparts_id}"
+
+        if mkdir:
+            # Create directory in the processed directory
+            output_dir = Path(get_kpms_processed_data_dir()) / default_output_dir
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+        return default_output_dir
+
 
 @schema
 class PreProcessing(dj.Computed):
@@ -291,6 +318,14 @@ class PreProcessing(dj.Computed):
         kpms_project_output_dir, task_mode, outlier_scale_factor = (
             PCATask & key
         ).fetch1("kpms_project_output_dir", "task_mode", "outlier_scale_factor")
+
+        # Handle default kpms_project_output_dir if not provided
+        if not kpms_project_output_dir:
+            kpms_project_output_dir = PCATask.infer_output_dir(
+                key, relative=True, mkdir=True
+            )
+            # Update the kpms_project_output_dir in the database
+            PCATask.update1({**key, "kpms_project_output_dir": kpms_project_output_dir})
 
         return (
             anterior_bodyparts,
