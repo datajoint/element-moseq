@@ -25,16 +25,11 @@ def _pose_estimation_config_path(kpset_dir: Union[str, os.PathLike]) -> str:
         Path to pose estimation config file (config.yml or config.yaml)
     """
     kpset_path = Path(kpset_dir)
-    # Check for config.yml first (preferred)
-    config_yml = kpset_path / CONFIG_FILENAMES[0]
-    if config_yml.exists():
-        return str(config_yml)
-    # Fall back to config.yaml
-    config_yaml = kpset_path / CONFIG_FILENAMES[1]
-    if config_yaml.exists():
-        return str(config_yaml)
-    # If neither exists, return the default (config.yml)
-    return str(config_yml)
+    for filename in CONFIG_FILENAMES:
+        config_path = kpset_path / filename
+        if config_path.exists():
+            return str(config_path)
+    return str(kpset_path / CONFIG_FILENAMES[0])
 
 
 def _kpms_base_config_path(kpms_project_dir: Union[str, os.PathLike]) -> str:
@@ -48,16 +43,11 @@ def _kpms_base_config_path(kpms_project_dir: Union[str, os.PathLike]) -> str:
         Path to KPMS base config file (config.yml or config.yaml)
     """
     project_path = Path(kpms_project_dir)
-    # Check for config.yml first (preferred)
-    config_yml = project_path / CONFIG_FILENAMES[0]
-    if config_yml.exists():
-        return str(config_yml)
-    # Fall back to config.yaml
-    config_yaml = project_path / CONFIG_FILENAMES[1]
-    if config_yaml.exists():
-        return str(config_yaml)
-    # If neither exists, return the default (config.yml)
-    return str(config_yml)
+    for filename in CONFIG_FILENAMES:
+        config_path = project_path / filename
+        if config_path.exists():
+            return str(config_path)
+    return str(project_path / CONFIG_FILENAMES[0])
 
 
 def _kpms_dj_config_path(kpms_project_dir: Union[str, os.PathLike]) -> str:
