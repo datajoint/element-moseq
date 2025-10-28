@@ -223,25 +223,16 @@ class Inference(dj.Computed):
         )  # model dir relative to processed data directory
 
         model_key = (Model * moseq_train.SelectedFullFit & key).fetch1("KEY")
-        checkpoint_file_path = (
+        fullfit_checkpoint_path = (
             moseq_train.FullFit.File & model_key & 'file_name="checkpoint.h5"'
         ).fetch1("file_path")
-        kpms_dj_config_file = (moseq_train.FullFit.ConfigFile & model_key).fetch1(
-            "config_file"
-        )
-        pca_file_path = (
+        fullfit_kpms_dj_config_file = (
+            moseq_train.FullFit.ConfigFile & model_key
+        ).fetch1("config_file")
+        fullfit_pca_file_path = (
             moseq_train.PCAFit.File & model_key & 'file_name="pca.p"'
         ).fetch1("file_path")
 
-        data_file_path = (
-            moseq_train.PCAFit.File & model_key & 'file_name="data.pkl"'
-        ).fetch1("file_path")
-        metadata_file_path = (
-            moseq_train.PCAFit.File & model_key & 'file_name="metadata.pkl"'
-        ).fetch1("file_path")
-        coordinates, confidences = (moseq_train.PreProcessing & model_key).fetch(
-            "coordinates", "confidences"
-        )
         return (
             keypointset_dir,
             inference_output_dir,
@@ -249,13 +240,9 @@ class Inference(dj.Computed):
             task_mode,
             model_dir_rel,
             model_file,
-            checkpoint_file_path,
-            kpms_dj_config_file,
-            pca_file_path,
-            data_file_path,
-            metadata_file_path,
-            coordinates,
-            confidences,
+            fullfit_checkpoint_path,
+            fullfit_kpms_dj_config_file,
+            fullfit_pca_file_path,
         )
 
     def make_compute(
@@ -267,34 +254,12 @@ class Inference(dj.Computed):
         task_mode,
         model_dir_rel,
         model_file,
-        checkpoint_file_path,
-        kpms_dj_config_file,
-        pca_file_path,
-        data_file_path,
-        metadata_file_path,
-        coordinates,
-        confidences,
+        fullfit_checkpoint_path,
+        fullfit_kpms_dj_config_file,
+        fullfit_pca_file_path,
     ):
         """
         Compute model inference results.
-
-        Args:
-            key (dict): `InferenceTask` primary key.
-            keypointset_dir (str): Directory containing keypoint data.
-            inference_output_dir (str): Output directory for inference results.
-            num_iterations (int): Number of iterations for model fitting.
-            model_id (int): Model ID.
-            pose_estimation_method (str): Pose estimation method.
-            task_mode (str): Task mode ('trigger' or 'load').
-
-        Raises:
-            FileNotFoundError: If no pca model (`pca.p`) found in the parent model directory.
-            FileNotFoundError: If no model (`checkpoint.h5`) found in the model directory.
-            NotImplementedError: If the format method is not `deeplabcut`.
-            FileNotFoundError: If no valid `kpms_dj_config` found in the parent model directory.
-
-        Returns:
-            tuple: Inference results including duration, results data, and sampled instances.
         """
         from keypoint_moseq import (
             apply_model,
@@ -303,6 +268,7 @@ class Inference(dj.Computed):
             load_keypoints,
             load_pca,
             load_results,
+            outlier_removal,
             save_results_as_csv,
         )
 
@@ -311,51 +277,60 @@ class Inference(dj.Computed):
 
         start_time = datetime.now(timezone.utc)
 
-        # Get directories first
+        # Get directories for new recordings
         kpms_root = moseq_train.get_kpms_root_data_dir()
         kpms_processed = moseq_train.get_kpms_processed_data_dir()
 
         # Construct the full path to the inference output directory
         inference_output_dir = kpms_processed / model_dir_rel / inference_output_dir
-
-        if task_mode == "trigger":
-            if not inference_output_dir.exists():
-                inference_output_dir.mkdir(parents=True, exist_ok=True)
-
         keypointset_dir = find_full_path(kpms_root, keypointset_dir)
 
         if task_mode == "trigger":
-            kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
-                config_path=kpms_dj_config_file
+            # load saved model data
+            fullfit_kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
+                config_path=fullfit_kpms_dj_config_file
+            )
+            fullfit_model, _, _, _ = load_checkpoint(path=fullfit_checkpoint_path)
+            # fullfit_model_pca = pickle.load(open(fullfit_pca_file_path, "rb"))
+
+            # Load new data
+            coordinates, confidences, bodyparts = load_keypoints(
+                filepath_pattern=keypointset_dir, format="deeplabcut"
+            )
+            coordinates, confidences = outlier_removal(
+                coordinates,
+                confidences,
+                inference_output_dir,
+                overwrite=False,
+                **fullfit_kpms_dj_config_dict,
+            )
+            data, metadata = format_data(
+                coordinates, confidences, **fullfit_kpms_dj_config_dict
             )
 
-            metadata = pickle.load(open(metadata_file_path, "rb"))
-            data = pickle.load(open(data_file_path, "rb"))
-            model_data = pickle.load(open(model_file, "rb"))
-            if task_mode == "trigger":
-                results = apply_model(
-                    model_name=inference_output_dir.name,
-                    model=model_data,
-                    data=data,
-                    metadata=metadata,
-                    pca=pca_file_path,
-                    project_dir=inference_output_dir.parent,
-                    results_path=(inference_output_dir / "results.h5"),
-                    return_model=False,
-                    num_iters=num_iterations or DEFAULT_NUM_ITERS,
-                    overwrite=True,
-                    save_results=True,
-                    **kpms_dj_config_dict,
-                )
+            # # apply saved model to new data
+            results = apply_model(
+                model=fullfit_model,
+                data=data,
+                metadata=metadata,
+                project_dir=inference_output_dir,
+                model_name=inference_output_dir.name,
+                results_path=(inference_output_dir / "results.h5"),
+                return_model=False,
+                num_iters=num_iterations or DEFAULT_NUM_ITERS,
+                overwrite=True,
+                save_results=True,
+                **fullfit_kpms_dj_config_dict,
+            )
 
-                # Create results directory and save CSV files
-                save_results_as_csv(
-                    results=results,
-                    save_dir=(inference_output_dir / "results_as_csv").as_posix(),
-                )
+            # Create results directory and save CSV files
+            save_results_as_csv(
+                results=results,
+                save_dir=(inference_output_dir / "results_as_csv").as_posix(),
+            )
 
-                end_time = datetime.now(timezone.utc)
-                duration_seconds = (end_time - start_time).total_seconds()
+            end_time = datetime.now(timezone.utc)
+            duration_seconds = (end_time - start_time).total_seconds()
 
         else:
             duration_seconds = None
@@ -406,7 +381,7 @@ class MotionSequence(dj.Computed):
         latent_states    : longblob                       # Inferred low-dim pose state (x). Low-dimensional representation of the animal's pose in each frame. These are similar to PCA scores, are modified to reflect the pose dynamics and noise estimates inferred by the model
         centroids        : longblob                       # Inferred centroid (v). The centroid of the animal in each frame, as estimated by the model
         headings         : longblob                       # Inferred heading (h). The heading of the animal in each frame, as estimated by the model
-        file_csv         : filepath@moseq-infer-processed # File path of the temporal sequence of motion data (CSV format)
+        file             : filepath@moseq-infer-processed # File path of the temporal sequence of motion data (CSV format)
         """
 
     class SampledInstance(dj.Part):
@@ -509,7 +484,7 @@ class MotionSequence(dj.Computed):
                         "latent_states": latent_states[vid],
                         "centroids": filtered_centroids[vid],
                         "headings": filtered_headings[vid],
-                        "file_csv": (
+                        "file": (
                             inference_output_dir / "results_as_csv" / f"{vid}.csv"
                         ).as_posix(),
                     }
