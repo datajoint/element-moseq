@@ -85,7 +85,7 @@ class Model(dj.Manual):
     ---
     model_name              : varchar(1000)   # User-friendly model name
     model_dir               : varchar(1000)   # Model directory relative to root data directory
-    model_file              : filepath@moseq-infer-processed        # Model pkl file containing states, parameters, hyperparameters, noise prior, and random seed
+    model_file              : filepath@moseq-infer-processed        # Checkpoint file (h5 format)
     model_desc=''           : varchar(1000)   # Optional. User-defined description of the model
     -> [nullable] moseq_train.SelectedFullFit # Optional. FullFit key.
     """
@@ -225,7 +225,7 @@ class Inference(dj.Computed):
         model_key = (Model * moseq_train.SelectedFullFit & key).fetch1("KEY")
         checkpoint_file_path = (
             moseq_train.FullFit.File & model_key & 'file_name="checkpoint.h5"'
-        ).fetch1("file")
+        ).fetch1("file_path")
         kpms_dj_config_file = (moseq_train.FullFit.ConfigFile & model_key).fetch1(
             "config_file"
         )
@@ -318,48 +318,46 @@ class Inference(dj.Computed):
         # Construct the full path to the inference output directory
         inference_output_dir = kpms_processed / model_dir_rel / inference_output_dir
 
-        inference_output_dir.mkdir(parents=True, exist_ok=True)
-        model_dir = find_full_path(kpms_processed, model_dir_rel)
+        if task_mode == "trigger":
+            if not inference_output_dir.exists():
+                inference_output_dir.mkdir(parents=True, exist_ok=True)
+
         keypointset_dir = find_full_path(kpms_root, keypointset_dir)
 
-        kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
-            config_path=kpms_dj_config_file
-        )
-
-        metadata = pickle.load(open(metadata_file_path, "rb"))
-        data = pickle.load(open(data_file_path, "rb"))
-        model_data = pickle.load(open(model_file, "rb"))
         if task_mode == "trigger":
-            results = apply_model(
-                model_name=inference_output_dir.name,
-                model=model_data,
-                data=data,
-                metadata=metadata,
-                pca=pca_file_path,
-                project_dir=inference_output_dir.parent,
-                results_path=(inference_output_dir / "results.h5"),
-                return_model=False,
-                num_iters=num_iterations or DEFAULT_NUM_ITERS,
-                overwrite=True,
-                save_results=True,
-                **kpms_dj_config_dict,
+            kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
+                config_path=kpms_dj_config_file
             )
 
-            # Create results directory and save CSV files
-            save_results_as_csv(
-                results=results,
-                save_dir=(inference_output_dir / "results_as_csv").as_posix(),
-            )
+            metadata = pickle.load(open(metadata_file_path, "rb"))
+            data = pickle.load(open(data_file_path, "rb"))
+            model_data = pickle.load(open(model_file, "rb"))
+            if task_mode == "trigger":
+                results = apply_model(
+                    model_name=inference_output_dir.name,
+                    model=model_data,
+                    data=data,
+                    metadata=metadata,
+                    pca=pca_file_path,
+                    project_dir=inference_output_dir.parent,
+                    results_path=(inference_output_dir / "results.h5"),
+                    return_model=False,
+                    num_iters=num_iterations or DEFAULT_NUM_ITERS,
+                    overwrite=True,
+                    save_results=True,
+                    **kpms_dj_config_dict,
+                )
 
-            end_time = datetime.now(timezone.utc)
-            duration_seconds = (end_time - start_time).total_seconds()
+                # Create results directory and save CSV files
+                save_results_as_csv(
+                    results=results,
+                    save_dir=(inference_output_dir / "results_as_csv").as_posix(),
+                )
+
+                end_time = datetime.now(timezone.utc)
+                duration_seconds = (end_time - start_time).total_seconds()
 
         else:
-            # For load mode
-            results = load_results(
-                project_dir=model_dir,
-                model_name=model_dir.name,
-            )
             duration_seconds = None
 
         results_filepath = (inference_output_dir / "results.h5").as_posix()
