@@ -1621,10 +1621,9 @@ class FullFit(dj.Computed):
                 pre_model_file = (
                     PreFit.File & pre_model_key & 'file_name="checkpoint.h5"'
                 ).fetch1("file_path")
-                with open(pre_model_file, "rb") as f:
-                    pre_model = pickle.load(f)
+                pre_model, data, metadata, _ = load_checkpoint(path=pre_model_file)
                 logger.info(
-                    f"Using PreFit model {pre_model_key_query} as warm start for FullFit"
+                    f"Using PreFit model {pre_model_key} as warm start for FullFit"
                 )
 
             execution_time = datetime.now(timezone.utc)
