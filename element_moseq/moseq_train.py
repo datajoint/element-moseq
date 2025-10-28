@@ -19,6 +19,11 @@ import pandas as pd
 import yaml
 from element_interface.utils import find_full_path
 
+# Configure JAX for better compatibility with DataJoint/DeepHash
+os.environ["JAX_ENABLE_X64"] = "False"
+os.environ["JAX_ARRAY"] = "False"  # Use legacy array API for better compatibility
+os.environ["JAX_DYNAMIC_SHAPES"] = "False"
+
 from .plotting import viz_utils
 from .readers import kpms_reader
 
@@ -1490,7 +1495,7 @@ class FullFit(dj.Computed):
         -> master
         file_name    : varchar(255)                  # Name of the output file (e.g. 'checkpoint.h5', 'model_data.pkl').
         ---
-        file         : filepath@moseq-train-processed # Path to the file in the processed data directory.
+        file_path    : filepath@moseq-train-processed # Path to the file in the processed data directory.
         """
 
     class Plots(dj.Part):
@@ -1523,6 +1528,10 @@ class FullFit(dj.Computed):
         5. Reindex syllable labels by frequency.
         6. Calculate fitting duration and insert results.
         """
+        import jax
+
+        jax.config.update("jax_enable_x64", True)
+
         from keypoint_moseq import (
             estimate_sigmasq_loc,
             fit_model,
@@ -1548,6 +1557,10 @@ class FullFit(dj.Computed):
         )
 
         if task_mode == "trigger":
+            import pickle
+
+            from keypoint_moseq import load_checkpoint
+
             pca_path = (PCAFit.File & key & 'file_name="pca.p"').fetch1("file_path")
             pca = load_pca(Path(pca_path).parent.as_posix())
             coordinates, confidences = (PreProcessing & key).fetch1(
@@ -1561,73 +1574,131 @@ class FullFit(dj.Computed):
             metadata = pickle.load(open(metadata_path, "rb"))
             average_frame_rate = (PreProcessing & key).fetch1("average_frame_rate")
 
-            kpms_dj_config_path = (PreProcessing.ConfigFile & key).fetch1("config_file")
-            kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
-                config_path=kpms_dj_config_path
-            )
-            # Update kpms_dj_config file in disk with new latent_dim and kappa values
-            kpms_dj_config_dict = kpms_reader.update_kpms_dj_config(
-                config_dict=kpms_dj_config_dict,
-                latent_dim=full_latent_dim,
-                kappa=full_kappa,
-                sigmasq_loc=estimate_sigmasq_loc(
-                    data["Y"], data["mask"], filter_size=average_frame_rate
-                ),
+            kpms_dj_config_abs_path = (PreProcessing.ConfigFile & key).fetch1(
+                "config_file"
             )
 
-            # Initialize the model
-            model = init_model(
-                data=data, metadata=metadata, pca=pca, **kpms_dj_config_dict
+            kpms_dj_config_dict_for_save = kpms_reader.load_kpms_dj_config(
+                config_path=kpms_dj_config_abs_path, build_indexes=False
             )
-            # Update the model hyperparameters
-            model = update_hypparams(
-                model,
-                kappa=float(full_kappa.item()),
-                latent_dim=int(full_latent_dim.item()),
+            sigmasq_loc_val = float(
+                estimate_sigmasq_loc(
+                    data["Y"], data["mask"], filter_size=average_frame_rate
+                )
             )
+            kpms_dj_config_dict_for_save = kpms_reader.update_kpms_dj_config(
+                config_dict=kpms_dj_config_dict_for_save,
+                config_path=kpms_dj_config_abs_path,
+                latent_dim=int(full_latent_dim),
+                kappa=float(full_kappa),
+                sigmasq_loc=sigmasq_loc_val,
+            )
+
+            kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
+                config_path=kpms_dj_config_abs_path, build_indexes=True
+            )
+
             # Determine model directory name for outputs
             if model_name is None or not str(model_name).strip():
                 model_name = f"latent_dim_{full_latent_dim.item()}_kappa_{full_kappa.item()}_iters_{full_num_iterations.item()}"
             else:
                 model_name = str(model_name)
 
-            execution_time = datetime.now(timezone.utc)
-            # Fit the model
-            model, model_name = fit_model(
-                model=model,
-                model_name=model_name,
-                data=data,
-                metadata=metadata,
-                project_dir=kpms_project_output_dir.as_posix(),
-                ar_only=False,
-                num_iters=full_num_iterations,
-                generate_progress_plots=True,  # saved to {project_dir}/{model_name}/plots/
-                save_every_n_iters=10,
+            # Try to load pre-fit model for the same latent_dim and kappa values
+            pre_model = None
+            # More optimal: check existence before fetching to avoid try/except
+            pre_model_key_query = (
+                PreFitTask
+                & {"kpset_id": key["kpset_id"], "bodyparts_id": key["bodyparts_id"]}
+                & {
+                    "pre_kappa": key["full_kappa"],
+                    "pre_latent_dim": key["full_latent_dim"],
+                }
             )
+            if pre_model_key_query:
+                pre_model_key = pre_model_key_query.fetch1("KEY")
+                pre_model_file = (
+                    PreFit.File & pre_model_key & 'file_name="checkpoint.h5"'
+                ).fetch1("file_path")
+                with open(pre_model_file, "rb") as f:
+                    pre_model = pickle.load(f)
+                logger.info(
+                    f"Using PreFit model {pre_model_key_query} as warm start for FullFit"
+                )
 
-            # Reindex the syllables in the checkpoint file
-            reindex_syllables_in_checkpoint(
-                project_dir=kpms_project_output_dir.as_posix(),
-                model_name=model_name,
-            )
+            execution_time = datetime.now(timezone.utc)
+
+            # Initialize model: Use PreFit if available, otherwise initialize fresh
+            try:
+                if pre_model is not None:
+                    model_to_fit = pre_model
+                else:
+                    # Only initialize fresh model if no PreFit available
+                    model_to_fit = init_model(
+                        data=data, metadata=metadata, pca=pca, **kpms_dj_config_dict
+                    )
+                    # Update the model hyperparameters
+                    model_to_fit = update_hypparams(
+                        model_to_fit,
+                        kappa=float(full_kappa.item()),
+                        latent_dim=int(full_latent_dim.item()),
+                    )
+            except Exception as e:
+                raise ValueError(f"Model initialization failed: {e}")
+
+            # Fit the model
+            try:
+
+                model, model_name = fit_model(
+                    model=model_to_fit,
+                    model_name=model_name,
+                    data=data,
+                    metadata=metadata,
+                    project_dir=kpms_project_output_dir.as_posix(),
+                    ar_only=False,
+                    num_iters=full_num_iterations,
+                    generate_progress_plots=True,
+                    save_every_n_iters=1,  # TODO: to change to a higher value
+                    verbose=False,
+                )  # checkpoint will be saved at project_dir/model_name
+            except Exception as e:
+                raise ValueError(f"FullFit training failed: {e}")
+
+            try:
+                # Reindex the syllables in the checkpoint file
+                reindex_syllables_in_checkpoint(
+                    project_dir=kpms_project_output_dir.as_posix(),
+                    model_name=model_name,
+                )
+            except Exception as e:
+                raise ValueError(
+                    f"Reindexing syllables failed due to FullFit training failure: {e}"
+                )
 
             # Create a PNG version fo the PDF progress plot
-            png_path, pdf_path = viz_utils.copy_pdf_to_png(
-                kpms_project_output_dir, model_name
-            )
-            # Define model_name_full_path for checkpoint file search
             model_name_full_path = find_full_path(kpms_project_output_dir, model_name)
+            pdf_path = model_name_full_path / "fitting_progress.pdf"
+            png_path = model_name_full_path / "fitting_progress.png"
+
+            if pdf_path.exists():
+                png_path, pdf_path = viz_utils.copy_pdf_to_png(
+                    kpms_project_output_dir, model_name
+                )
+            else:
+                logger.warning(f"No progress PDF found at {pdf_path}")
         else:
             # Load mode must specify a model_name
             if model_name is None or not str(model_name).strip():
-                raise ValueError("model_name is required when task_mode='load'")
+                raise ValueError("`model_name` is required when task_mode='load'")
+
             model_name_full_path = find_full_path(kpms_project_output_dir, model_name)
             pdf_path = model_name_full_path / "fitting_progress.pdf"
             png_path = model_name_full_path / "fitting_progress.png"
 
         # Get the path to the updated config file
-        kpms_dj_config_path = kpms_reader._kpms_dj_config_path(kpms_project_output_dir)
-
+        kpms_dj_config_abs_path = kpms_reader._kpms_dj_config_path(
+            kpms_project_output_dir
+        )
         if not pdf_path.exists():
             raise FileNotFoundError(f"PreFit PDF progress plot not found at {pdf_path}")
         if not png_path.exists():
@@ -1644,20 +1715,20 @@ class FullFit(dj.Computed):
                 f"No checkpoint files found in {model_name_full_path}"
             )
 
-        completion_time = datetime.now(timezone.utc)
-
-        if task_mode == "trigger":
-            duration_seconds = (completion_time - execution_time).total_seconds()
-        else:
-            duration_seconds = None
-
-        # Save model dictionary as pickle file
+        # Save model dictionary as pickle file in the model directory
         model_data_filename = "model_data.pkl"
         model_data_file = model_name_full_path / model_data_filename
         with open(model_data_file, "wb") as f:
             pickle.dump(model, f)
 
         file_paths = [checkpoint_file, model_data_file]
+
+        completion_time = datetime.now(timezone.utc)
+        duration_seconds = (
+            (completion_time - execution_time).total_seconds()
+            if task_mode == "trigger"
+            else None
+        )
 
         self.insert1(
             {
@@ -1676,21 +1747,19 @@ class FullFit(dj.Computed):
                 {
                     **key,
                     "file_name": file.name,
-                    "file": file.as_posix(),
+                    "file_path": file.as_posix(),
                 }
                 for file in file_paths
             ]
         )
 
-        # Insert config file
         self.ConfigFile.insert1(
             {
                 **key,
-                "config_file": kpms_dj_config_path,
+                "config_file": kpms_dj_config_abs_path,
             }
         )
 
-        # Insert plots
         self.Plots.insert1(
             {
                 **key,
@@ -1711,7 +1780,6 @@ class ModelScore(dj.Computed):
     -> FullFit
     ---
     score=NULL          : float           # Model score (MLL for single model)
-    std_error=NULL      : float           # Standard error of the model score
     """
 
     def make(self, key):
@@ -1722,28 +1790,24 @@ class ModelScore(dj.Computed):
         # Get checkpoint file for this specific model
         checkpoint_file = (
             FullFit.File & key & 'file_name LIKE "%checkpoint.h5"'
-        ).fetch1("file")
+        ).fetch1("file_path")
 
         # Load the checkpoint to get model data
         model, data, _, _ = load_checkpoint(path=checkpoint_file)
 
-        # Compute marginal log likelihood for this model
+        # Compute marginal log likelihood for single model
         mask = jnp.array(data["mask"])
         x = jnp.array(model["states"]["x"])
         Ab = jnp.array(model["params"]["Ab"])
         Q = jnp.array(model["params"]["Q"])
         pi = jnp.array(model["params"]["pi"])
-
-        # Compute marginal log likelihood - this is the correct metric for single models
         mll = marginal_log_likelihood(mask, x, Ab, Q, pi)
         score = float(mll)  # Store as "score" - this is MLL
-        std_error = 0.0  # No standard error for single model MLL
 
         self.insert1(
             {
                 **key,
                 "score": score,
-                "std_error": std_error,
             }
         )
 
