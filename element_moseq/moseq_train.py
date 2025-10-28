@@ -398,9 +398,15 @@ class PreProcessing(dj.Computed):
                 PCATask.update1(
                     {**key, "kpms_project_output_dir": kpms_project_output_dir}
                 )
-            kpms_project_output_dir = (
-                Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
-            )
+
+            try:
+                kpms_project_output_dir = find_full_path(
+                    get_kpms_processed_data_dir(), kpms_project_output_dir
+                )
+            except FileNotFoundError:
+                kpms_project_output_dir = (
+                    Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
+                )
 
             # Resolve kpset_dir to absolute and check if it exists
             kpset_dir = find_full_path(get_kpms_root_data_dir(), kpset_dir)
