@@ -155,28 +155,35 @@ class TrajectoryPlot(dj.Computed):
 
         start_time = datetime.now(timezone.utc)
 
-        results_file = (moseq_infer.Inference & key).fetch1(
-            "syllable_segmentation_file"
-        )
+        kpms_processed = moseq_train.get_kpms_processed_data_dir()
+        kpms_root = moseq_train.get_kpms_root_data_dir()
+
+        # From trained model
         model_dir = (moseq_infer.Model & key).fetch1("model_dir")
-        inference_output_dir = (moseq_infer.InferenceTask & key).fetch1(
-            "inference_output_dir"
-        )
         model_key = (moseq_infer.Model * moseq_train.SelectedFullFit & key).fetch1(
             "KEY"
         )
-        coordinates = (moseq_train.PreProcessing & model_key).fetch1("coordinates")
-        kpms_dj_config_file = (moseq_train.FullFit.ConfigFile & model_key).fetch1(
+        use_bodyparts = (moseq_train.BodyParts & model_key).fetch1("use_bodyparts")
+        kpms_dj_config_path = (moseq_train.FullFit.ConfigFile & model_key).fetch1(
             "config_file"
         )
         kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
-            config_path=kpms_dj_config_file
+            config_path=kpms_dj_config_path
         )
 
-        # Get use_bodyparts from the BodyParts table
-        use_bodyparts = (moseq_train.BodyParts & model_key).fetch1("use_bodyparts")
-
-        fps = (moseq_train.PreProcessing & model_key).fetch1("average_frame_rate")
+        # From new recordings
+        inference_output_dir = (moseq_infer.InferenceTask & key).fetch1(
+            "inference_output_dir"
+        )
+        coordinates = (moseq_infer.Inference & key).fetch1("coordinates")
+        results_file = (moseq_infer.Inference & key).fetch1(
+            "syllable_segmentation_file"
+        )
+        results = h5py.File(results_file, "r")
+        fps = (moseq_infer.Inference & key).fetch1("average_frame_rate")
+        kpset_dir = (moseq_infer.InferenceTask & key).fetch1("keypointset_dir")
+        kpset_dir = find_full_path(kpms_root, kpset_dir)
+        kpset_dir = Path(kpset_dir).as_posix()
 
         # Construct output directory
         kpms_processed = moseq_train.get_kpms_processed_data_dir()
@@ -188,9 +195,6 @@ class TrajectoryPlot(dj.Computed):
         grid_movies_dir = output_dir / "grid_movies"
         trajectory_dir.mkdir(parents=True, exist_ok=True)
         grid_movies_dir.mkdir(parents=True, exist_ok=True)
-
-        # Load results
-        results = h5py.File(results_file, "r")
 
         logger.info(f"Generating trajectory plots for {key}")
         # Generate trajectory plots
@@ -206,8 +210,8 @@ class TrajectoryPlot(dj.Computed):
         logger.info(f"Generating grid movies for {key}")
         # Generate grid movies
         generate_grid_movies(
-            coordinates=coordinates,
             results=results,
+            video_path=kpset_dir,
             output_dir=grid_movies_dir.as_posix(),
             use_bodyparts=use_bodyparts,
             fps=fps,
