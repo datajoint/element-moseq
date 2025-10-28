@@ -102,13 +102,15 @@ class BehavioralSummary(dj.Computed):
             "KEY"
         )
         coordinates = (moseq_train.PreProcessing & model_key).fetch1("coordinates")
-        config_file = (moseq_train.FullFit.ConfigFile & model_key).fetch1("config_file")
-        kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(config_path=config_file)
+        use_bodyparts = (moseq_train.BodyParts & model_key).fetch1("use_bodyparts")
+        fps = (moseq_train.PreProcessing & model_key).fetch1("average_frame_rate")
+
         plot_similarity_dendrogram(
             coordinates=coordinates,
             results=results,
             save_path=(inference_output_dir / "similarity_dendrogram").as_posix(),
-            **kpms_dj_config_dict,
+            use_bodyparts=use_bodyparts,
+            fps=fps,
         )
 
         # Insert the record
@@ -163,13 +165,18 @@ class TrajectoryPlot(dj.Computed):
         model_key = (moseq_infer.Model * moseq_train.SelectedFullFit & key).fetch1(
             "KEY"
         )
-        coordinates_dict = (moseq_train.PreProcessing & model_key).fetch1("coordinates")
+        coordinates = (moseq_train.PreProcessing & model_key).fetch1("coordinates")
         kpms_dj_config_file = (moseq_train.FullFit.ConfigFile & model_key).fetch1(
             "config_file"
         )
         kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
             config_path=kpms_dj_config_file
         )
+
+        # Get use_bodyparts from the BodyParts table
+        use_bodyparts = (moseq_train.BodyParts & model_key).fetch1("use_bodyparts")
+
+        fps = (moseq_train.PreProcessing & model_key).fetch1("average_frame_rate")
 
         # Construct output directory
         kpms_processed = moseq_train.get_kpms_processed_data_dir()
@@ -185,20 +192,27 @@ class TrajectoryPlot(dj.Computed):
         # Load results
         results = h5py.File(results_file, "r")
 
+        logger.info(f"Generating trajectory plots for {key}")
         # Generate trajectory plots
         generate_trajectory_plots(
-            coordinates=coordinates_dict,
+            coordinates=coordinates,
             results=results,
             output_dir=trajectory_dir.as_posix(),
-            **kpms_dj_config_dict,
+            use_bodyparts=use_bodyparts,
+            fps=fps,
+            skeleton=kpms_dj_config_dict.get("skeleton", []),
         )
 
+        logger.info(f"Generating grid movies for {key}")
         # Generate grid movies
         generate_grid_movies(
-            coordinates=coordinates_dict,
+            coordinates=coordinates,
             results=results,
             output_dir=grid_movies_dir.as_posix(),
-            **kpms_dj_config_dict,
+            use_bodyparts=use_bodyparts,
+            fps=fps,
+            overlay_keypoints=True,
+            skeleton=kpms_dj_config_dict.get("skeleton", []),
         )
 
         # Calculate duration
