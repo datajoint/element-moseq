@@ -822,16 +822,6 @@ class PreProcessingQA(dj.Computed):
 
             # Generate overlay video for this specific recording (skip if already exists)
             if not overlay_video_path.exists():
-                # Calculate frames for 1 minute of video
-                frame_rate = fps_lookup.get(
-                    video_id, 30.0
-                )  # TODO: Default to 30fps if not found
-                frames_for_dur = int(frame_rate * 6)
-
-                logger.info(
-                    f"Processing video {video_id}: {frame_rate}fps -> {frames_for_dur} frames for 1min"
-                )
-
                 overlay_keypoints_on_video(
                     video_path=video_file_path.as_posix(),
                     coordinates=coordinates[
@@ -840,7 +830,6 @@ class PreProcessingQA(dj.Computed):
                     skeleton=kpms_dj_config_dict["skeleton"],
                     bodyparts=list(use_bodyparts),
                     output_path=overlay_video_path.as_posix(),
-                    frames=range(frames_for_dur),
                 )
                 logger.info(f"Generated overlay video: {overlay_video_path}")
             else:
