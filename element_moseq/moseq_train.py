@@ -1335,6 +1335,7 @@ class PreFit(dj.Computed):
                 model_name = str(model_name)
 
             execution_time = datetime.now(timezone.utc)
+
             # Fit the model
             model, _ = fit_model(
                 model=model,
@@ -1648,7 +1649,6 @@ class FullFit(dj.Computed):
 
             # Fit the model
             try:
-
                 model, model_name = fit_model(
                     model=model_to_fit,
                     model_name=model_name,
@@ -1660,7 +1660,7 @@ class FullFit(dj.Computed):
                     generate_progress_plots=True,
                     save_every_n_iters=1,  # TODO: to change to a higher value
                     verbose=False,
-                )  # checkpoint will be saved at project_dir/model_name
+                )
             except Exception as e:
                 raise ValueError(f"FullFit training failed: {e}")
 
