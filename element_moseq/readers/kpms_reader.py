@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Union
 
 import datajoint as dj
 import yaml
@@ -82,9 +82,10 @@ def _check_config_validity(config: Dict[str, Any]) -> bool:
                 f"ACTION REQUIRED: `posterior_bodyparts` contains {bp} "
                 "which is not one of the options in `use_bodyparts`."
             )
+
     if errors:
-        for e in errors:
-            print(e)
+        for error in errors:
+            logger.warning(error)
         return False
     return True
 
@@ -122,19 +123,44 @@ def dj_generate_config(kpms_project_dir: str, **kwargs) -> tuple:
     else:
         if not Path(kpms_base_config_path).exists():
             raise FileNotFoundError(
-                f"Missing KPMS base config at {kpms_base_config_path}. "
-                f"Run keypoint_moseq's setup_project first. "
-                f"Expected either config.yml or config.yaml in {kpms_project_dir}."
+                f"Missing KPMS base config at {kpms_base_config_path}"
             )
         kpms_dj_config_dict = kpms_base_config_dict.copy()
 
+    # Update bodyparts if provided
+    if "bodyparts" in kwargs:
+        kpms_dj_config_dict["bodyparts"] = list(kwargs["bodyparts"])
+
+    if "use_bodyparts" in kwargs:
+        use_bodyparts = list(kwargs["use_bodyparts"])
+        kpms_dj_config_dict["use_bodyparts"] = use_bodyparts
+
+        # Filter anterior/posterior to be subsets of use_bodyparts
+        if "anterior_bodyparts" in kwargs:
+            anterior = [
+                bp for bp in kwargs["anterior_bodyparts"] if bp in use_bodyparts
+            ]
+            kwargs["anterior_bodyparts"] = anterior
+
+        if "posterior_bodyparts" in kwargs:
+            posterior = [
+                bp for bp in kwargs["posterior_bodyparts"] if bp in use_bodyparts
+            ]
+            kwargs["posterior_bodyparts"] = posterior
+
     kpms_dj_config_dict.update(kwargs)
 
-    if "skeleton" not in kpms_dj_config_dict or kpms_dj_config_dict["skeleton"] is None:
+    if "skeleton" not in kpms_dj_config_dict:
         kpms_dj_config_dict["skeleton"] = []
 
     with open(kpms_dj_config_path, "w") as f:
-        yaml.safe_dump(kpms_dj_config_dict, f, sort_keys=False)
+        yaml.safe_dump(
+            kpms_dj_config_dict,
+            f,
+            sort_keys=False,
+            default_flow_style=False,
+            allow_unicode=True,
+        )
 
     return (
         kpms_dj_config_path,
@@ -173,13 +199,10 @@ def load_kpms_dj_config(
     """
     import jax.numpy as jnp
 
-    # Validate input parameters
     if kpms_project_dir is None and config_path is None:
-        raise ValueError("Either 'kpms_project_dir' or 'config_path' must be provided.")
+        raise ValueError("Either 'kpms_project_dir' or 'config_path' must be provided")
     if kpms_project_dir is not None and config_path is not None:
-        raise ValueError(
-            "Cannot provide both 'kpms_project_dir' and 'config_path'. Choose one."
-        )
+        raise ValueError("Cannot provide both 'kpms_project_dir' and 'config_path'")
 
     # Determine the config file path
     if config_path is not None:
@@ -188,9 +211,7 @@ def load_kpms_dj_config(
         kpms_dj_cfg_path = _kpms_dj_config_path(kpms_project_dir)
 
     if not Path(kpms_dj_cfg_path).exists():
-        raise FileNotFoundError(
-            f"Missing DJ config at {kpms_dj_cfg_path}. Create it with dj_generate_config()."
-        )
+        raise FileNotFoundError(f"Missing DJ config at {kpms_dj_cfg_path}")
 
     with open(kpms_dj_cfg_path, "r") as f:
         cfg_dict = yaml.safe_load(f) or {}
@@ -202,17 +223,28 @@ def load_kpms_dj_config(
         anterior = cfg_dict.get("anterior_bodyparts", [])
         posterior = cfg_dict.get("posterior_bodyparts", [])
         use_bps = cfg_dict.get("use_bodyparts", [])
-        cfg_dict["anterior_idxs"] = jnp.array([use_bps.index(bp) for bp in anterior])
-        cfg_dict["posterior_idxs"] = jnp.array([use_bps.index(bp) for bp in posterior])
 
-    if "skeleton" not in cfg_dict or cfg_dict["skeleton"] is None:
+        valid_anterior = [bp for bp in anterior if bp in use_bps]
+        valid_posterior = [bp for bp in posterior if bp in use_bps]
+
+        cfg_dict["anterior_idxs"] = jnp.array(
+            [use_bps.index(bp) for bp in valid_anterior]
+        )
+        cfg_dict["posterior_idxs"] = jnp.array(
+            [use_bps.index(bp) for bp in valid_posterior]
+        )
+
+    if "skeleton" not in cfg_dict:
         cfg_dict["skeleton"] = []
 
     return cfg_dict
 
 
 def update_kpms_dj_config(
-    kpms_project_dir: str = None, config_dict: Dict[str, Any] = None, **kwargs
+    kpms_project_dir: str = None,
+    config_dict: Dict[str, Any] = None,
+    config_path: str = None,
+    **kwargs,
 ) -> Dict[str, Any]:
     """
     Update kpms_dj_config with provided kwargs.
@@ -233,32 +265,57 @@ def update_kpms_dj_config(
     If kpms_project_dir is provided, loads the config from file, updates it, saves it back, and returns it.
     If config_dict is provided, updates it directly and returns it (no file I/O).
     """
-    # Validate input parameters
-    if kpms_project_dir is None and config_dict is None:
-        raise ValueError("Either 'kpms_project_dir' or 'config_dict' must be provided.")
-    if kpms_project_dir is not None and config_dict is not None:
-        raise ValueError(
-            "Cannot provide both 'kpms_project_dir' and 'config_dict'. Choose one."
-        )
 
-    # Load from file if kpms_project_dir is provided
+    if kpms_project_dir is None and config_dict is None:
+        raise ValueError("Either 'kpms_project_dir' or 'config_dict' must be provided")
+
     if kpms_project_dir is not None:
         kpms_dj_cfg_path = _kpms_dj_config_path(kpms_project_dir)
         if not Path(kpms_dj_cfg_path).exists():
-            raise FileNotFoundError(
-                f"Missing DJ config at {kpms_dj_cfg_path}. Create it with dj_generate_config()."
-            )
+            raise FileNotFoundError(f"Missing DJ config at {kpms_dj_cfg_path}")
 
         with open(kpms_dj_cfg_path, "r") as f:
             cfg_dict = yaml.safe_load(f) or {}
 
+        if "bodyparts" in kwargs:
+            cfg_dict["bodyparts"] = list(kwargs.get("bodyparts"))
+
+        if "use_bodyparts" in kwargs:
+            use_bodyparts = list(kwargs.get("use_bodyparts"))
+            cfg_dict["use_bodyparts"] = use_bodyparts
+            # NOTE: skeleton is NOT modified - it remains from the base config
+
         cfg_dict.update(kwargs)
 
         with open(kpms_dj_cfg_path, "w") as f:
-            yaml.safe_dump(cfg_dict, f, sort_keys=False)
+            yaml.safe_dump(
+                cfg_dict,
+                f,
+                sort_keys=False,
+                default_flow_style=False,
+                allow_unicode=True,
+            )
     else:
-        # Update the provided dict directly (no file I/O)
-        cfg_dict = config_dict.copy()  # Make a copy to avoid mutating the input
+        cfg_dict = config_dict.copy()
+
+        if "bodyparts" in kwargs:
+            cfg_dict["bodyparts"] = list(kwargs.get("bodyparts"))
+
+        if "use_bodyparts" in kwargs:
+            use_bodyparts = list(kwargs.get("use_bodyparts"))
+            cfg_dict["use_bodyparts"] = use_bodyparts
+            # NOTE: skeleton is NOT modified - it remains from the base config
+
         cfg_dict.update(kwargs)
+
+        if config_path is not None:
+            with open(config_path, "w") as f:
+                yaml.safe_dump(
+                    cfg_dict,
+                    f,
+                    sort_keys=False,
+                    default_flow_style=False,
+                    allow_unicode=True,
+                )
 
     return cfg_dict
