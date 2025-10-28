@@ -121,7 +121,7 @@ class VideoRecording(dj.Manual):
         -> master
         file_id: int                              # Unique ID for each file
         ---
-        file_path: filepath@moseq-infer-processed # Filepath of each video, relative to root data directory.
+        file_path: varchar(1000) # Filepath of each video, relative to root data directory.
         """
 
 
