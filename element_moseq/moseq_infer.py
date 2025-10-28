@@ -119,9 +119,9 @@ class VideoRecording(dj.Manual):
 
         definition = """
         -> master
-        file_id: int             # Unique ID for each file
+        file_id: int                              # Unique ID for each file
         ---
-        file_path: varchar(1000) # Filepath of each video, relative to root data directory.
+        file_path: filepath@moseq-infer-processed # Filepath of each video, relative to root data directory.
         """
 
 
@@ -196,8 +196,11 @@ class Inference(dj.Computed):
     definition = """
     -> InferenceTask                         # `InferenceTask` key
     ---
-    syllable_segmentation_file     : filepath@moseq-infer-processed # File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings
-    inference_duration=NULL        : float   # Time duration (seconds) of the inference computation
+    coordinates                     : longblob  # Cleaned coordinates dictionary after outlier removal.
+    confidences                     : longblob  # Cleaned confidences dictionary after outlier removal.
+    average_frame_rate              : int       # Average frame rate of the videos for model training (used for kappa calculation).
+    syllable_segmentation_file      : filepath@moseq-infer-processed    # File path of the syllable analysis results (HDF5 format) containing syllable labels, latent states, centroids, and headings
+    inference_duration=NULL         : float     # Time duration (seconds) of the inference computation
     """
 
     def make_fetch(self, key):
@@ -261,6 +264,10 @@ class Inference(dj.Computed):
         """
         Compute model inference results.
         """
+        import glob
+        import os
+
+        import cv2
         from keypoint_moseq import (
             apply_model,
             format_data,
@@ -290,8 +297,30 @@ class Inference(dj.Computed):
             fullfit_kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
                 config_path=fullfit_kpms_dj_config_file
             )
+
+            # calculate average frame rate of all video in keypointset_dir
+            # Search for multiple common video extensions: mp4, avi, mov, mkv, etc.
+            video_extensions = [
+                "*.mp4",
+                "*.avi",
+                "*.mov",
+                "*.mkv",
+                "*.wmv",
+                "*.mpeg",
+                "*.mpg",
+            ]
+            video_files = []
+            for ext in video_extensions:
+                video_files.extend(glob.glob(os.path.join(keypointset_dir, ext)))
+            frame_rates = []
+            for video_file in video_files:
+                cap = cv2.VideoCapture(video_file)
+                frame_rate = cap.get(cv2.CAP_PROP_FPS)
+                frame_rates.append(frame_rate)
+            average_frame_rate = np.mean(frame_rates)
+
+            # Load fullfit model
             fullfit_model, _, _, _ = load_checkpoint(path=fullfit_checkpoint_path)
-            # fullfit_model_pca = pickle.load(open(fullfit_pca_file_path, "rb"))
 
             # Load new data
             coordinates, confidences, bodyparts = load_keypoints(
@@ -340,6 +369,9 @@ class Inference(dj.Computed):
         return (
             duration_seconds,
             results_filepath,
+            average_frame_rate,
+            coordinates,
+            confidences,
         )
 
     def make_insert(
@@ -347,6 +379,9 @@ class Inference(dj.Computed):
         key,
         duration_seconds,
         results_filepath,
+        average_frame_rate,
+        coordinates,
+        confidences,
     ):
         """
         Insert inference results into the database.
@@ -354,8 +389,11 @@ class Inference(dj.Computed):
         self.insert1(
             {
                 **key,
-                "inference_duration": duration_seconds,
                 "syllable_segmentation_file": results_filepath,
+                "coordinates": coordinates,
+                "confidences": confidences,
+                "average_frame_rate": average_frame_rate,
+                "inference_duration": duration_seconds,
             }
         )
 
