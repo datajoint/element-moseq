@@ -5,6 +5,7 @@ DataJoint Schema for Keypoint-MoSeq training pipeline
 
 import importlib
 import inspect
+import os
 import pickle
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,8 @@ import cv2
 import datajoint as dj
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import yaml
 from element_interface.utils import find_full_path
 
 from .plotting import viz_utils
@@ -249,9 +252,8 @@ class PreProcessing(dj.Computed):
 
     Attributes:
         PCATask (foreign key)           : Unique ID for each `PCATask` key.
-        formatted_bodyparts (longblob)  : List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
-        coordinates (longblob)          : Cleaned coordinates dictionary {recording_name: array} after outlier removal.
-        confidences (longblob)          : Cleaned confidences dictionary {recording_name: array} after outlier removal.
+        coordinates (longblob)          : Cleaned coordinates dictionary after outlier removal.
+        confidences (longblob)          : Cleaned confidences dictionary after outlier removal.
         average_frame_rate (int)        : Average frame rate of the videos for model training (used for kappa calculation).
         pre_processing_time (datetime)  : datetime of the preprocessing execution.
         pre_processing_duration (int)   : Execution time of the preprocessing in seconds.
@@ -260,9 +262,8 @@ class PreProcessing(dj.Computed):
     definition = """
     -> PCATask                                  # Unique ID for each `PCATask` key
     ---
-    formatted_bodyparts             : longblob  # List of bodypart names. The order of the names matches the order of the bodyparts in `coordinates` and `confidences`.
-    coordinates                     : longblob  # Cleaned coordinates dictionary (recording_name: array) after outlier removal
-    confidences                     : longblob  # Cleaned confidences dictionary (recording_name: array) after outlier removal
+    coordinates                     : longblob  # Cleaned coordinates dictionary after outlier removal.
+    confidences                     : longblob  # Cleaned confidences dictionary after outlier removal.
     average_frame_rate              : int       # Average frame rate of the videos for model training (used for kappa calculation).
     pre_processing_time=NULL        : datetime  # datetime of the preprocessing execution.
     pre_processing_duration=NULL    : int       # Execution time of the preprocessing in seconds.
@@ -276,16 +277,6 @@ class PreProcessing(dj.Computed):
         video_duration              : int           # Duration of each video in minutes
         frame_rate                  : float         # Frame rate of the video in frames per second (Hz)
         file_size                   : float         # File size of the video in megabytes (MB)
-        """
-
-    class OutlierRemoval(dj.Part):
-        """Store outlier detection QA plots per video."""
-
-        definition = """
-        -> master
-        video_id    : varchar(255)
-        ---
-        outlier_plot: attach  # QA visualization showing detected outliers and interpolation.
         """
 
     class ConfigFile(dj.Part):
@@ -318,14 +309,6 @@ class PreProcessing(dj.Computed):
         kpms_project_output_dir, task_mode, outlier_scale_factor = (
             PCATask & key
         ).fetch1("kpms_project_output_dir", "task_mode", "outlier_scale_factor")
-
-        # Handle default kpms_project_output_dir if not provided
-        if not kpms_project_output_dir:
-            kpms_project_output_dir = PCATask.infer_output_dir(
-                key, relative=True, mkdir=True
-            )
-            # Update the kpms_project_output_dir in the database
-            PCATask.update1({**key, "kpms_project_output_dir": kpms_project_output_dir})
 
         return (
             anterior_bodyparts,
@@ -384,41 +367,57 @@ class PreProcessing(dj.Computed):
         6. Detect and remove outlier keypoints using medoid distance analysis, then interpolate missing values.
         7. Calculate the average frame rate and the frame rate list of the videoset from which the keypoint set is derived. These two attributes can be used to calculate the kappa value.
         """
+        import jax
         from keypoint_moseq import (
             find_medoid_distance_outliers,
             interpolate_keypoints,
             load_keypoints,
+            outlier_removal,
+            overlay_keypoints_on_video,
         )
 
         from .plotting.viz_utils import plot_medoid_distance_outliers
 
+        jax.config.update("jax_enable_x64", True)
+
         execution_time = datetime.now(timezone.utc)
+
         if task_mode == "trigger":
             from keypoint_moseq import setup_project
 
-            # check if the project output directory exists
-            try:
-                kpms_project_output_dir = find_full_path(
-                    get_kpms_processed_data_dir(), kpms_project_output_dir
+            # Resolve kpms_project_output_dir to absolute and create it if needed
+            if not kpms_project_output_dir:
+                kpms_project_output_dir = PCATask.infer_output_dir(
+                    key, relative=True, mkdir=True
                 )
-            # if the project output directory does not exist, create it
-            except FileNotFoundError:
-                kpms_project_output_dir = (
-                    Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
+                PCATask.update1(
+                    {**key, "kpms_project_output_dir": kpms_project_output_dir}
                 )
-            kpset_dir = find_full_path(get_kpms_root_data_dir(), kpset_dir)
-            # Setup of the project creates KPMS base `config.yml` file copying the pose estimation config file
-            from .readers.kpms_reader import _pose_estimation_config_path
+            kpms_project_output_dir = (
+                Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
+            )
 
-            pose_estimation_config_file = Path(_pose_estimation_config_path(kpset_dir))
+            # Resolve kpset_dir to absolute and check if it exists
+            kpset_dir = find_full_path(get_kpms_root_data_dir(), kpset_dir)
+            if not kpset_dir.exists():
+                raise FileNotFoundError(
+                    f"No keypoint set directory found in {kpset_dir}"
+                )
+
+            # Find the pose estimation config file
+            pose_estimation_config_file = Path(
+                kpms_reader._pose_estimation_config_path(kpset_dir)
+            )
             if not pose_estimation_config_file.exists():
                 raise FileNotFoundError(
-                    f"No `config.yml` or `config.yaml` file found in {kpset_dir}"
+                    f"No config file (`config.yml` or `config.yaml`) found in {kpset_dir}"
                 )
+
             if pose_estimation_method == "deeplabcut":
                 setup_project(
                     project_dir=kpms_project_output_dir.as_posix(),
                     deeplabcut_config=pose_estimation_config_file.as_posix(),
+                    overwrite=True,  # Allow regenerating config if directory exists
                 )
             else:
                 raise NotImplementedError(
@@ -442,7 +441,35 @@ class PreProcessing(dj.Computed):
                 f"use_bodyparts ({use_bodyparts}) is not a subset of formatted bodyparts ({formatted_bodyparts})"
             )
 
-        # Extract frame rate and file size from keypoint video files
+        # Use only the bodyparts in `use_bodyparts`
+        use_bodypart_indices = [formatted_bodyparts.index(bp) for bp in use_bodyparts]
+        filtered_coordinates = {}
+        filtered_confidences = {}
+        for recording_name in raw_coordinates:
+            filtered_coordinates[recording_name] = raw_coordinates[recording_name][
+                :, use_bodypart_indices, :
+            ]
+            filtered_confidences[recording_name] = raw_confidences[recording_name][
+                :, use_bodypart_indices
+            ]
+
+        # Sanity check of the number of features (dimensions) in the filtered_coordinates
+        num_bodyparts = len(use_bodyparts)
+        num_features = num_bodyparts * 2  # (x, y) coordinates for each bodypart
+        for recording_name in filtered_coordinates:
+            coords_shape = filtered_coordinates[
+                recording_name
+            ].shape  # Typically (frames, bodyparts, 2)
+            actual_features = (
+                coords_shape[1] * coords_shape[2]
+            )  # bodyparts * 2 (for x/y)
+            if actual_features != num_features:
+                raise ValueError(
+                    f"Feature mismatch in {recording_name}: "
+                    f"expected {num_features}, got {actual_features}"
+                )
+
+        # Get frame rates and file sizes for each video
         video_metadata_dict = dict()
         frame_rates = []
         for row in keypoint_videofile_metadata:
@@ -470,6 +497,7 @@ class PreProcessing(dj.Computed):
                 "outlier_plot": None,
             }
         average_frame_rate = int(round(np.mean(frame_rates)))
+
         # Get all unique parent directories for all video files
         parent_dirs = {
             Path(video["video_path"]).parent for video in keypoint_videofile_metadata
@@ -484,7 +512,21 @@ class PreProcessing(dj.Computed):
             Path(keypoint_videofile_metadata[0]["video_path"]).parent,
         )
 
-        # Generate a new KPMS DJ config file copying the KPMS base config file in the same kpms project output directory
+        # Filter anterior/posterior to only include those present in use_bodyparts
+        filtered_anterior = [bp for bp in anterior_bodyparts if bp in use_bodyparts]
+        filtered_posterior = [bp for bp in posterior_bodyparts if bp in use_bodyparts]
+
+        # Sanity check: Ensure all filtered anterior/posterior bodyparts are in use_bodyparts
+        if not set(filtered_anterior).issubset(set(use_bodyparts)):
+            raise ValueError(
+                f"Filtered anterior bodyparts contain elements not in use_bodyparts: {set(filtered_anterior) - set(use_bodyparts)}"
+            )
+        if not set(filtered_posterior).issubset(set(use_bodyparts)):
+            raise ValueError(
+                f"Filtered posterior bodyparts contain elements not in use_bodyparts: {set(filtered_posterior) - set(use_bodyparts)}"
+            )
+
+        # Generate KPMS DJ config file with all new parameters
         (
             kpms_dj_config_path,
             kpms_dj_config_dict,
@@ -494,9 +536,10 @@ class PreProcessing(dj.Computed):
             kpms_project_dir=kpms_project_output_dir,
             video_dir=str(videos_dir),
             use_bodyparts=list(use_bodyparts),
-            anterior_bodyparts=list(anterior_bodyparts),
-            posterior_bodyparts=list(posterior_bodyparts),
+            anterior_bodyparts=filtered_anterior,
+            posterior_bodyparts=filtered_posterior,
             outlier_scale_factor=float(outlier_scale_factor),
+            fps=average_frame_rate,  # Pass fps directly to avoid redundant update
         )
 
         # Get absolute paths for attach fields
@@ -507,52 +550,29 @@ class PreProcessing(dj.Computed):
             get_kpms_processed_data_dir(), kpms_base_config_path
         )
 
-        # Update the KPMS DJ config file on disk with the average frame rate
-        kpms_dj_config_dict = kpms_reader.update_kpms_dj_config(
-            kpms_project_dir=kpms_project_output_dir, fps=average_frame_rate
+        logger.info("Starting outlier removal...")
+
+        # Apply outlier removal to all recordings at once
+        cleaned_coordinates, cleaned_confidences = outlier_removal(
+            coordinates=filtered_coordinates,
+            confidences=filtered_confidences,
+            project_dir=kpms_project_output_dir.as_posix(),
+            overwrite=False,
+            outlier_scale_factor=outlier_scale_factor,
+            bodyparts=list(use_bodyparts),
         )
-
-        # Clean outlier keypoints and generate plots
-        cleaned_coordinates = {}
-        cleaned_confidences = {}
-
-        for row in keypoint_videofile_metadata:
-            video_id = int(row["video_id"])
-            pose_estimation_path = row["pose_estimation_path"]
-            pose_estimation_name = Path(pose_estimation_path).stem
-            raw_coords = raw_coordinates[pose_estimation_name].copy()
-            raw_conf = raw_confidences[pose_estimation_name].copy()
-            outliers = find_medoid_distance_outliers(
-                raw_coords, outlier_scale_factor=outlier_scale_factor
-            )
-            cleaned_coords = interpolate_keypoints(raw_coords, outliers["mask"])
-            cleaned_conf = np.where(outliers["mask"], 0, raw_conf)
-            cleaned_coordinates[pose_estimation_name] = cleaned_coords
-            cleaned_confidences[pose_estimation_name] = cleaned_conf
-            _, outlier_plot_path = plot_medoid_distance_outliers(
-                project_dir=kpms_project_output_dir.as_posix(),
-                recording_name=pose_estimation_name,
-                original_coordinates=raw_coords,
-                interpolated_coordinates=cleaned_coords,
-                outlier_mask=outliers["mask"],
-                outlier_thresholds=outliers["thresholds"],
-                **kpms_dj_config_dict,
-            )  # outlier plot stored at kpms_project_output_dir/QA/plots/keypoint_distance_outliers/f"{pose_estimation_name}.png
-            video_metadata_dict[video_id] = {
-                **video_metadata_dict[video_id],
-                "outlier_plot_path": outlier_plot_path,
-            }
+        logger.info("...Outlier removal completed")
 
         completion_time = datetime.now(timezone.utc)
-        if task_mode == "trigger":
-            duration_seconds = (completion_time - execution_time).total_seconds()
-        else:
-            duration_seconds = None
+        duration_seconds = (
+            (completion_time - execution_time).total_seconds()
+            if task_mode == "trigger"
+            else None
+        )
 
         return (
             cleaned_coordinates,
             cleaned_confidences,
-            formatted_bodyparts,
             average_frame_rate,
             video_metadata_dict,
             kpms_dj_config_path,
@@ -566,7 +586,6 @@ class PreProcessing(dj.Computed):
         key,
         cleaned_coordinates,
         cleaned_confidences,
-        formatted_bodyparts,
         average_frame_rate,
         video_metadata_dict,
         kpms_dj_config_path,
@@ -582,7 +601,6 @@ class PreProcessing(dj.Computed):
         self.insert1(
             {
                 **key,
-                "formatted_bodyparts": formatted_bodyparts,
                 "coordinates": cleaned_coordinates,
                 "confidences": cleaned_confidences,
                 "average_frame_rate": average_frame_rate,
@@ -606,18 +624,6 @@ class PreProcessing(dj.Computed):
                 ]
             )
 
-        # Insert outlier removal QA plots
-        if video_metadata_dict:
-            self.OutlierRemoval.insert(
-                [
-                    {
-                        **key,
-                        "video_id": vid,
-                        "outlier_plot": meta["outlier_plot_path"],
-                    }
-                    for vid, meta in video_metadata_dict.items()
-                ]
-            )
         # Insert configuration files
         self.ConfigFile.insert1(
             {
@@ -626,6 +632,260 @@ class PreProcessing(dj.Computed):
                 "base_config_file": kpms_base_config_path,
             }
         )
+
+
+@schema
+class PreProcessingQA(dj.Computed):
+    """
+    Check if any bodyparts have a high proportion of NaNs and generate and store QA materials (outlier removal plots and overlay videos).
+    Attributes:
+        PreProcessing (foreign key)     : `PreProcessing` Key.
+        nan_df (longblob)                : DataFrame containing NaN proportion breakdown by bodypart.
+    """
+
+    definition = """
+    -> PreProcessing                      # `PreProcessing` Key
+    ---
+    nan_breakdown             : attach  # HTML table containing NaN proportion breakdown by bodypart
+    qa_duration               : float   # Duration of QA in seconds
+    """
+
+    class VideoQA(dj.Part):
+        """Store QA materials: outlier plots and overlay videos."""
+
+        definition = """
+        -> master
+        video_id    : varchar(255)
+        ---
+        outlier_plot       : attach # QA visualization showing detected outliers and interpolation.
+        overlay_video      : attach  # Overlay keypoints on the video attachment.
+        """
+
+    def make_fetch(self, key):
+        """
+        Fetch required data for QA processing from database tables.
+        """
+        use_bodyparts = (BodyParts & key).fetch1("use_bodyparts")
+        coordinates = (PreProcessing & key).fetch1("coordinates")
+        kpms_project_output_dir = (PCATask & key).fetch1("kpms_project_output_dir")
+        kpms_project_output_dir = find_full_path(
+            get_kpms_processed_data_dir(), kpms_project_output_dir
+        )
+        kpms_dj_config_path = (PreProcessing.ConfigFile & key).fetch1("config_file")
+        keypoint_videofile_metadata = (KeypointSet.VideoFile & key).fetch(as_dict=True)
+        fps_lookup = (PreProcessing.Video & key).fetch(
+            "video_id", "frame_rate", as_dict=True
+        )
+        return (
+            use_bodyparts,
+            coordinates,
+            kpms_project_output_dir,
+            kpms_dj_config_path,
+            keypoint_videofile_metadata,
+            fps_lookup,
+        )
+
+    def make_compute(
+        self,
+        key,
+        use_bodyparts,
+        coordinates,
+        kpms_project_output_dir,
+        kpms_dj_config_path,
+        keypoint_videofile_metadata,
+        fps_lookup,
+    ):
+        """
+        Compute QA materials including NaN analysis and overlay video generation.
+
+        Args:
+            key (dict): Primary key from the `PreProcessing` table.
+            coordinates (dict): Cleaned coordinates dictionary.
+            kpms_project_output_dir (Path): Project output directory path.
+            kpms_dj_config_dict (dict): KPMS configuration dictionary.
+            keypoint_videofile_metadata (list): Video metadata list.
+
+        Returns:
+            tuple: QA data including breakdown data, QA materials, and duration.
+        """
+        from keypoint_moseq import overlay_keypoints_on_video
+
+        fps_lookup = {v["video_id"]: float(v["frame_rate"]) for v in fps_lookup}
+
+        kpms_dj_config_path = (PreProcessing.ConfigFile & key).fetch1("config_file")
+        kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
+            config_path=kpms_dj_config_path,
+            build_indexes=True,
+        )
+
+        execution_time = datetime.now(timezone.utc)
+
+        # Calculate NaN proportions breakdown for each recording and bodypart
+        # Replicating keypoint-moseq's check_nan_proportions logic
+        keys = sorted(coordinates.keys())
+        nan_props = [np.isnan(coordinates[k]).any(-1).mean(0) for k in keys]
+
+        # Create the DataFrame for HTML table
+        nan_df = pd.DataFrame(data=nan_props, index=keys, columns=use_bodyparts)
+        nan_styler = (
+            nan_df.style.background_gradient(cmap="RdYlBu_r", axis=None)
+            .format("{:.1%}")
+            .set_caption(
+                '<h2 style="color:#333;text-align:center;">NaN Proportion Breakdown</h2>'
+            )
+            .set_table_styles(
+                [
+                    {
+                        "selector": "th",
+                        "props": [
+                            ("font-size", "11pt"),
+                            ("background-color", "#F2F2F2"),
+                            ("color", "#222"),
+                            ("font-weight", "bold"),
+                            ("padding", "8px"),
+                        ],
+                    },
+                    {
+                        "selector": "td",
+                        "props": [
+                            ("font-size", "10pt"),
+                            ("padding", "6px 12px"),
+                            ("text-align", "center"),
+                        ],
+                    },
+                    {
+                        "selector": "caption",
+                        "props": [
+                            ("caption-side", "top"),
+                            ("font-size", "14pt"),
+                            ("color", "#29487d"),
+                            ("font-weight", "bold"),
+                            ("margin-bottom", "12px"),
+                        ],
+                    },
+                    {
+                        "selector": "",
+                        "props": [
+                            ("border-collapse", "collapse"),
+                            ("margin", "25px auto"),
+                        ],
+                    },
+                ]
+            )
+            .set_properties(**{"border": "1px solid #ddd"})
+        )
+
+        # Save HTML to temporary file for DataJoint attach
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".html", delete=False) as f:
+            f.write(nan_styler.to_html())
+            nan_html_path = f.name
+
+        # Generate QA materials (plots and videos) for each recording
+        qa_data = []
+        for row in keypoint_videofile_metadata:
+            video_id = int(row["video_id"])
+            pose_estimation_path = row["pose_estimation_path"]
+            pose_estimation_name = Path(pose_estimation_path).stem
+
+            # Construct the expected plot path (already generated by outlier_removal)
+            qa_dir = (
+                kpms_project_output_dir / "QA" / "plots" / "keypoint_distance_outliers"
+            )
+            outlier_plot_path = qa_dir / f"{pose_estimation_name}.png"
+
+            # Create overlay video output path: project_dir/QA/videos/overlay_keypoints/
+            overlay_video_dir = (
+                kpms_project_output_dir / "QA" / "videos" / "overlay_keypoints"
+            )
+            overlay_video_dir.mkdir(parents=True, exist_ok=True)
+            overlay_video_path = (
+                overlay_video_dir / f"{pose_estimation_name}_overlay.mp4"
+            )
+
+            # Get the full path to the video file
+            video_file_path = find_full_path(
+                get_kpms_root_data_dir(), row["video_path"]
+            )
+
+            # Generate overlay video for this specific recording (skip if already exists)
+            if not overlay_video_path.exists():
+                # Calculate frames for 1 minute of video
+                frame_rate = fps_lookup.get(
+                    video_id, 30.0
+                )  # TODO: Default to 30fps if not found
+                frames_for_dur = int(frame_rate * 6)
+
+                logger.info(
+                    f"Processing video {video_id}: {frame_rate}fps -> {frames_for_dur} frames for 1min"
+                )
+
+                overlay_keypoints_on_video(
+                    video_path=video_file_path.as_posix(),
+                    coordinates=coordinates[
+                        pose_estimation_name
+                    ],  # Pass coordinates for this specific recording
+                    skeleton=kpms_dj_config_dict["skeleton"],
+                    bodyparts=list(use_bodyparts),
+                    output_path=overlay_video_path.as_posix(),
+                    frames=range(frames_for_dur),
+                )
+                logger.info(f"Generated overlay video: {overlay_video_path}")
+            else:
+                logger.info(
+                    f"Overlay video already exists, skipping: {overlay_video_path}"
+                )
+
+            qa_data.append(
+                {
+                    "video_id": video_id,
+                    "outlier_plot_path": outlier_plot_path,
+                    "overlay_video_path": overlay_video_path,
+                }
+            )
+
+        completion_time = datetime.now(timezone.utc)
+        duration_seconds = (completion_time - execution_time).total_seconds()
+
+        return (
+            nan_html_path,
+            qa_data,
+            duration_seconds,
+        )
+
+    def make_insert(
+        self,
+        key,
+        nan_html_path,
+        qa_data,
+        duration_seconds,
+    ):
+        """
+        Insert QA data into the PreProcessingQA table and part tables.
+        """
+        # Insert in the main table
+        self.insert1(
+            {
+                **key,
+                "nan_breakdown": nan_html_path,
+                "qa_duration": duration_seconds,
+            }
+        )
+
+        # Insert QA materials (plots and videos)
+        if qa_data:
+            self.VideoQA.insert(
+                [
+                    {
+                        **key,
+                        "video_id": data["video_id"],
+                        "outlier_plot": data["outlier_plot_path"],
+                        "overlay_video": data["overlay_video_path"],
+                    }
+                    for data in qa_data
+                ]
+            )
 
 
 @schema
@@ -670,9 +930,10 @@ class PCAFit(dj.Computed):
         3. Fit PCA model and save as `pca.p` file.
         4. Insert creation datetime into table.
         """
-        import tempfile
+        import jax
+        from keypoint_moseq import fit_pca, format_data, load_pca, save_pca
 
-        from keypoint_moseq import fit_pca, format_data, save_pca
+        jax.config.update("jax_enable_x64", True)
 
         kpms_project_output_dir, task_mode = (PCATask & key).fetch1(
             "kpms_project_output_dir", "task_mode"
@@ -680,28 +941,30 @@ class PCAFit(dj.Computed):
         kpms_project_output_dir = (
             Path(get_kpms_processed_data_dir()) / kpms_project_output_dir
         )
+        use_bodyparts = (BodyParts & key).fetch1("use_bodyparts")
         coordinates, confidences = (PreProcessing & key).fetch1(
             "coordinates", "confidences"
         )
 
-        # Load the configuration from database
+        # Load config file
         kpms_dj_config_path = (PreProcessing.ConfigFile & key).fetch1("config_file")
         kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
-            config_path=kpms_dj_config_path
+            config_path=kpms_dj_config_path,
+            build_indexes=True,
         )
 
         execution_time = datetime.now(timezone.utc)
 
         # Format keypoint data
         data, metadata = format_data(
-            **kpms_dj_config_dict, coordinates=coordinates, confidences=confidences
+            coordinates=coordinates,
+            confidences=confidences,
+            use_bodyparts=use_bodyparts,
         )
 
-        # Save data and metadata as pickle files
-        data_filename = "data.pkl"
-        metadata_filename = "metadata.pkl"
-        data_path = kpms_project_output_dir / data_filename
-        metadata_path = kpms_project_output_dir / metadata_filename
+        # Save data and metadata to pickle files
+        data_path = kpms_project_output_dir / "data.pkl"
+        metadata_path = kpms_project_output_dir / "metadata.pkl"
         with open(data_path, "wb") as f:
             pickle.dump(data, f)
         with open(metadata_path, "wb") as f:
@@ -712,10 +975,8 @@ class PCAFit(dj.Computed):
             pca = fit_pca(**data, **kpms_dj_config_dict)
             save_pca(pca, kpms_project_output_dir.as_posix())
 
-        pca_filename = "pca.p"
-        pca_path = kpms_project_output_dir / pca_filename
-
-        # Check for pca.p file
+        # Check if pca file exists
+        pca_path = kpms_project_output_dir / "pca.p"
         if not pca_path.exists():
             raise FileNotFoundError(
                 f"No pca file (`pca.p`) found in the project directory {kpms_project_output_dir}"
@@ -723,13 +984,12 @@ class PCAFit(dj.Computed):
         file_paths = [pca_path, data_path, metadata_path]
 
         completion_time = datetime.now(timezone.utc)
+        duration_seconds = (
+            (completion_time - execution_time).total_seconds()
+            if task_mode == "trigger"
+            else None
+        )
 
-        if task_mode == "trigger":
-            duration_seconds = (completion_time - execution_time).total_seconds()
-        else:
-            duration_seconds = None
-
-        # Insert in the main table
         self.insert1(
             {
                 **key,
@@ -828,10 +1088,10 @@ class LatentDimension(dj.Computed):
             variance_percentage = VARIANCE_THRESHOLD * 100
             latent_dim_desc = f">={VARIANCE_THRESHOLD*100}% of variance explained by {(cs>VARIANCE_THRESHOLD).nonzero()[0].min()+1} components."
 
-        # Load the configuration from database
+        # Load config file
         kpms_dj_config_path = (PreProcessing.ConfigFile & key).fetch1("config_file")
         kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
-            config_path=kpms_dj_config_path
+            config_path=kpms_dj_config_path, build_indexes=False
         )
 
         # Generate scree plot
@@ -860,13 +1120,11 @@ class LatentDimension(dj.Computed):
                 f"No pcs xy file (`pcs-xy.pdf`) found in the project directory {kpms_project_output_dir}"
             )
 
-        # Save plots to temporary directory
+        # Save plots
         tmpdir = tempfile.TemporaryDirectory()
         fname = f"{key['kpset_id']}_{key['bodyparts_id']}"
-
         scree_path = Path(tmpdir.name) / f"{fname}_scree_plot.png"
         scree_fig.savefig(scree_path)
-
         pcs_path = Path(tmpdir.name) / f"{fname}_pcs_plot.png"
         pcs_fig.savefig(pcs_path)
 
@@ -913,9 +1171,9 @@ class PreFitTask(dj.Manual):
     pre_kappa                    : int                   # Kappa value to use for the model pre-fitting (controls syllable duration).
     pre_num_iterations           : int                   # Number of Gibbs sampling iterations to run in the model pre-fitting (typically 10-50).
     ---
-    model_name=''                : varchar(1000)         # Name of the model to be loaded if `task_mode='load'`
+    model_name=''                : varchar(1000)         # Optional. Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('trigger','load') # 'load': load computed analysis results, 'trigger': trigger computation
-    pre_fit_desc=''              : varchar(1000)         # User-defined description of the pre-fitting task
+    pre_fit_desc=''              : varchar(1000)         # Optional.User-defined description of the pre-fitting task
     """
 
 
@@ -957,14 +1215,12 @@ class PreFit(dj.Computed):
         -> master
         file_name    : varchar(255)                  # Name of the output file (e.g. 'checkpoint.h5', 'model_data.pkl').
         ---
-        file         : filepath@moseq-train-processed # Path to the file in the processed data directory.
+        file_path    : filepath@moseq-train-processed # Path to the file in the processed data directory.
         """
 
     class Plots(dj.Part):
         """
-        Store the fitting progress of the PreFit computation:
-        - Plots in PDF and PNG formats used for visualization.
-        - Checkpoint file used for resuming the fitting process (~500MB).
+        Store the fitting progress of the PreFit computation.
         """
 
         definition = """
@@ -1003,7 +1259,6 @@ class PreFit(dj.Computed):
             get_kpms_processed_data_dir(),
             (PCATask & key).fetch1("kpms_project_output_dir"),
         )
-
         pre_latent_dim, pre_kappa, pre_num_iterations, task_mode, model_name = (
             PreFitTask & key
         ).fetch1(
@@ -1013,10 +1268,17 @@ class PreFit(dj.Computed):
             "task_mode",
             "model_name",
         )
+
         if task_mode == "trigger":
+            # Configure JAX precision
+            import jax
+
+            jax.config.update("jax_enable_x64", True)
             from keypoint_moseq import estimate_sigmasq_loc
 
-            kpms_dj_config_path = (PreProcessing.ConfigFile & key).fetch1("config_file")
+            kpms_dj_config_abs_path = (PreProcessing.ConfigFile & key).fetch1(
+                "config_file"
+            )
             pca_path = (PCAFit.File & key & 'file_name="pca.p"').fetch1("file_path")
             pca = load_pca(Path(pca_path).parent.as_posix())
             coordinates, confidences = (PreProcessing & key).fetch1(
@@ -1031,16 +1293,24 @@ class PreFit(dj.Computed):
             average_frame_rate = (PreProcessing & key).fetch1("average_frame_rate")
 
             # Update kpms_dj_config file in disk with new latent_dim and kappa values
-            kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
-                config_path=kpms_dj_config_path
+            kpms_dj_config_dict_for_save = kpms_reader.load_kpms_dj_config(
+                config_path=kpms_dj_config_abs_path, build_indexes=False
             )
-            kpms_dj_config_dict = kpms_reader.update_kpms_dj_config(
-                config_dict=kpms_dj_config_dict,
-                latent_dim=pre_latent_dim,
-                kappa=pre_kappa,
-                sigmasq_loc=estimate_sigmasq_loc(
-                    data["Y"], data["mask"], filter_size=average_frame_rate
+            # Update and save config to disk
+            kpms_dj_config_dict_for_save = kpms_reader.update_kpms_dj_config(
+                config_dict=kpms_dj_config_dict_for_save,
+                config_path=kpms_dj_config_abs_path,
+                latent_dim=int(pre_latent_dim),
+                kappa=float(pre_kappa),
+                sigmasq_loc=float(
+                    estimate_sigmasq_loc(
+                        data["Y"], data["mask"], filter_size=average_frame_rate
+                    )
                 ),
+            )
+            # Load config with indexes for model initialization
+            kpms_dj_config_dict = kpms_reader.load_kpms_dj_config(
+                config_path=kpms_dj_config_abs_path, build_indexes=True
             )
 
             # Initialize the model
@@ -1134,7 +1404,7 @@ class PreFit(dj.Computed):
                 {
                     **key,
                     "file_name": file.name,
-                    "file": file.as_posix(),
+                    "file_path": file.as_posix(),
                 }
                 for file in file_paths
             ]
@@ -1176,9 +1446,9 @@ class FullFitTask(dj.Manual):
     full_kappa                   : int                  # Kappa value to use for the model full fitting (typically lower than pre-fit kappa).
     full_num_iterations          : int                  # Number of Gibbs sampling iterations to run in the model full fitting (typically 200-500).
     ---
-    model_name=''                : varchar(1000)        # Name of the model to be loaded if `task_mode='load'`
+    model_name=''                : varchar(1000)        # Optional. Name of the model to be loaded if `task_mode='load'`
     task_mode='load'             :enum('load','trigger')# Trigger or load the task
-    full_fit_desc=''             : varchar(1000)        # User-defined description of the model full fitting task
+    full_fit_desc=''             : varchar(1000)        # Optional.User-defined description of the model full fitting task
     """
 
 
@@ -1195,7 +1465,7 @@ class FullFit(dj.Computed):
     definition = """
     -> FullFitTask                                # `FullFitTask` Key
     ---
-    model_name=''                 : varchar(100) # Name of the model as "kpms_project_output_dir/model_name".
+    model_name=''                 : varchar(100)  # Name of the model as "kpms_project_output_dir/model_name".
     full_fit_time=NULL            : datetime      # datetime of the full fitting computation.
     full_fit_duration=NULL        : float         # Time duration (seconds) of the full fitting computation.
     """
